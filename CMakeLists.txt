@@ -73,6 +73,6 @@ add_library(glad_gl STATIC
 target_include_directories(glad_gl PUBLIC "${GLAD_DIR}/include")
 target_link_libraries(glad_gl PUBLIC ${CMAKE_DL_LIBS})
 
-add_executable(LearnOpenGL main.cpp)
+add_executable(LearnOpenGL main.cpp shader.cpp misc_functions.cpp)
 
 target_link_libraries(LearnOpenGL PRIVATE glfw glad_gl)
