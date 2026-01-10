@@ -25,6 +25,15 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(glad)
 
+# Fetch stb_image
+FetchContent_Declare(
+  stb_image
+  GIT_REPOSITORY https://github.com/nothings/stb.git
+  GIT_TAG        f1c79c0
+)
+
+FetchContent_MakeAvailable(stb_image)
+
 # Find Python for GLAD generation
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
 set(PYTHON_EXECUTABLE ${Python3_EXECUTABLE})
@@ -73,6 +82,7 @@ add_library(glad_gl STATIC
 target_include_directories(glad_gl PUBLIC "${GLAD_DIR}/include")
 target_link_libraries(glad_gl PUBLIC ${CMAKE_DL_LIBS})
 
-add_executable(LearnOpenGL main.cpp shader.cpp misc_functions.cpp)
+add_executable(LearnOpenGL main.cpp shader.cpp misc_functions.cpp texture.cpp)
 
 target_link_libraries(LearnOpenGL PRIVATE glfw glad_gl)
+target_include_directories(LearnOpenGL PUBLIC "${stb_image_SOURCE_DIR}")

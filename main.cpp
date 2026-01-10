@@ -9,6 +9,7 @@
 
 #include "misc_functions.h"
 #include "shader.h"
+#include "texture.h"
 
 // Function prototypes
 void key_callback(GLFWwindow *window, int key, int scancode, int action,
@@ -20,12 +21,10 @@ void processInput(GLFWwindow *window);
 // Window dimensions
 const GLuint WIDTH = 800, HEIGHT = 600;
 
-float vertices[] = {
-    0.5f,  0.5f,  0.0f, 1.0f, 0.0f, 0.0f, // red
-    0.5f,  -0.5f, 0.0f, 0.0f, 1.0f, 0.0f, // green
-    -0.5f, -0.5f, 0.0f, 0.0f, 0.0f, 1.0f, // blue
-    -0.5f, 0.5f,  0.0f, 1.0f, 1.0f, 1.0f  // white
-};
+float vertices[] = {0.5f,  0.5f,  0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f,
+                    0.5f,  -0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f,
+                    -0.5f, -0.5f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+                    -0.5f, 0.5f,  0.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f};
 unsigned int indices[] = {
     0, 1, 2, // first triangle
     2, 3, 0  // second triangle
@@ -96,11 +95,14 @@ int main() {
   glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
   // Set the vertex attribute pointers
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *)0);
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)0);
   glEnableVertexAttribArray(0);
-  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float),
+  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float),
                         (void *)(3 * sizeof(float)));
   glEnableVertexAttribArray(1);
+  glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float),
+                        (void *)(6 * sizeof(float)));
+  glEnableVertexAttribArray(2);
 
   // Element Buffer Object
   GLuint EBO;
@@ -111,6 +113,14 @@ int main() {
 
   // Shader
   Shader shader("shaders/vertex.shader", "shaders/fragment.shader");
+
+  // Texture
+  Texture2D texture1("assets/images/spider_man.jpeg");
+  texture1.set_wrap_mode(Texture2D::WrapMode::Repeat);
+  texture1.set_filter_mode(Texture2D::FilterMode::Nearest);
+  Texture2D texture2("assets/images/sea.jpeg");
+  texture2.set_wrap_mode(Texture2D::WrapMode::Repeat);
+  texture2.set_filter_mode(Texture2D::FilterMode::Nearest);
 
   // Game loop
   while (!glfwWindowShouldClose(window)) {
@@ -126,6 +136,10 @@ int main() {
     shader.use();
     float time = glfwGetTime();
     shader.set_uniform<float>("ourColor", sin(time), 0.0f, 0.0f, 1.0f);
+    texture1.bind(0);
+    texture2.bind(1);
+    shader.set_uniform<int>("texture1", 0);
+    shader.set_uniform<int>("texture2", 1);
     glBindVertexArray(VAO);
     // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
