@@ -10,125 +10,128 @@
 #include <type_traits>
 #include <vector>
 
-class Shader {
+class shader {
 public:
-  Shader(const char *vertexPath, const char *fragmentPath);
-  virtual ~Shader();
+  shader(const char *_vertex_path, const char *_fragment_path);
+  virtual ~shader();
 
-  Shader(const Shader &) = delete;
-  Shader &operator=(const Shader &) = delete;
-  Shader(Shader &&) = delete;
-  Shader &operator=(Shader &&) = delete;
+  shader(const shader &) = delete;
+  shader &operator=(const shader &) = delete;
+  shader(shader &&) = delete;
+  shader &operator=(shader &&) = delete;
 
 public:
   void use();
 
 public:
-  template <typename T, unsigned COUNT> struct UniformFunction {};
+  template <typename tType, unsigned COUNT> struct uniform_function {};
 
-  template <> struct UniformFunction<float, 1> {
-    static void call(GLuint location, const float *values) {
-      glUniform1f(location, values[0]);
+  template <> struct uniform_function<float, 1> {
+    static void call(GLuint _location, const float *_values) {
+      glUniform1f(_location, _values[0]);
     }
   };
 
-  template <> struct UniformFunction<float, 2> {
-    static void call(GLuint location, const float *values) {
-      glUniform2f(location, values[0], values[1]);
+  template <> struct uniform_function<float, 2> {
+    static void call(GLuint _location, const float *_values) {
+      glUniform2f(_location, _values[0], _values[1]);
     }
   };
 
-  template <> struct UniformFunction<float, 3> {
-    static void call(GLuint location, const float *values) {
-      glUniform3f(location, values[0], values[1], values[2]);
+  template <> struct uniform_function<float, 3> {
+    static void call(GLuint _location, const float *_values) {
+      glUniform3f(_location, _values[0], _values[1], _values[2]);
     }
   };
 
-  template <> struct UniformFunction<float, 4> {
-    static void call(GLuint location, const float *values) {
-      glUniform4f(location, values[0], values[1], values[2], values[3]);
+  template <> struct uniform_function<float, 4> {
+    static void call(GLuint _location, const float *_values) {
+      glUniform4f(_location, _values[0], _values[1], _values[2], _values[3]);
     }
   };
 
-  template <> struct UniformFunction<int, 1> {
-    static void call(GLuint location, const int *values) {
-      glUniform1i(location, values[0]);
+  template <> struct uniform_function<int, 1> {
+    static void call(GLuint _location, const int *_values) {
+      glUniform1i(_location, _values[0]);
     }
   };
 
-  template <> struct UniformFunction<int, 2> {
-    static void call(GLuint location, const int *values) {
-      glUniform2i(location, values[0], values[1]);
+  template <> struct uniform_function<int, 2> {
+    static void call(GLuint _location, const int *_values) {
+      glUniform2i(_location, _values[0], _values[1]);
     }
   };
 
-  template <> struct UniformFunction<int, 3> {
-    static void call(GLuint location, const int *values) {
-      glUniform3i(location, values[0], values[1], values[2]);
+  template <> struct uniform_function<int, 3> {
+    static void call(GLuint _location, const int *_values) {
+      glUniform3i(_location, _values[0], _values[1], _values[2]);
     }
   };
 
-  template <> struct UniformFunction<int, 4> {
-    static void call(GLuint location, const int *values) {
-      glUniform4i(location, values[0], values[1], values[2], values[3]);
+  template <> struct uniform_function<int, 4> {
+    static void call(GLuint _location, const int *_values) {
+      glUniform4i(_location, _values[0], _values[1], _values[2], _values[3]);
     }
   };
 
-  template <> struct UniformFunction<bool, 1> {
-    static void call(GLuint location, const bool *values) {
-      glUniform1i(location, values[0]);
+  template <> struct uniform_function<bool, 1> {
+    static void call(GLuint _location, const bool *_values) {
+      glUniform1i(_location, _values[0]);
     }
   };
 
-  template <> struct UniformFunction<bool, 2> {
-    static void call(GLuint location, const bool *values) {
-      glUniform2i(location, values[0], values[1]);
+  template <> struct uniform_function<bool, 2> {
+    static void call(GLuint _location, const bool *_values) {
+      glUniform2i(_location, _values[0], _values[1]);
     }
   };
 
-  template <> struct UniformFunction<bool, 3> {
-    static void call(GLuint location, const bool *values) {
-      glUniform3i(location, values[0], values[1], values[2]);
+  template <> struct uniform_function<bool, 3> {
+    static void call(GLuint _location, const bool *_values) {
+      glUniform3i(_location, _values[0], _values[1], _values[2]);
     }
   };
 
-  template <> struct UniformFunction<bool, 4> {
-    static void call(GLuint location, const bool *values) {
-      glUniform4i(location, values[0], values[1], values[2], values[3]);
+  template <> struct uniform_function<bool, 4> {
+    static void call(GLuint _location, const bool *_values) {
+      glUniform4i(_location, _values[0], _values[1], _values[2], _values[3]);
     }
   };
 
-  template <> struct UniformFunction<glm::mat4, 1> {
-    static void call(GLuint location, const glm::mat4 *values) {
-      glUniformMatrix4fv(location, 1, GL_FALSE, &(*values)[0][0]);
+  template <> struct uniform_function<glm::mat4, 1> {
+    static void call(GLuint _location, const glm::mat4 *_values) {
+      glUniformMatrix4fv(_location, 1, GL_FALSE, &(*_values)[0][0]);
     }
   };
 
-  template <typename T, unsigned COUNT>
-  void set_uniform(const char *name, const T *values) {
-    UniformFunction<T, COUNT>::call(get_uniform_location(name), values);
+  template <typename tType, unsigned COUNT>
+  void set_uniform(const char *_name, const tType *_values) {
+    uniform_function<tType, COUNT>::call(get_uniform_location(_name), _values);
   }
 
-  template <typename T, unsigned COUNT>
-  void set_uniform(const char *name, const std::vector<T> &values) {
-    if (values.size() != COUNT) {
+  template <typename tType, unsigned COUNT>
+  void set_uniform(const char *_name, const std::vector<tType> &_values) {
+    if (_values.size() != COUNT) {
       throw std::runtime_error("Invalid number of values for uniform " +
-                               std::string(name));
+                               std::string(_name));
     }
-    UniformFunction<T, COUNT>::call(get_uniform_location(name), values.data());
+    uniform_function<tType, COUNT>::call(get_uniform_location(_name),
+                                         _values.data());
   }
 
-  template <typename T, typename... Args>
+  template <typename tType, typename... tArgs>
   typename std::enable_if<
-      std::conjunction_v<std::is_same<T, std::decay_t<Args>>...>, void>::type
-  set_uniform(const char *name, Args... values) {
-    constexpr unsigned COUNT = sizeof...(values);
-    T valuesArray[COUNT] = {static_cast<T>(values)...};
-    UniformFunction<T, COUNT>::call(get_uniform_location(name), valuesArray);
+      std::conjunction_v<std::is_same<tType, std::decay_t<tArgs>>...>,
+      void>::type
+  set_uniform(const char *_name, tArgs... _values) {
+    constexpr unsigned COUNT = sizeof...(_values);
+    tType values_array[COUNT] = {static_cast<tType>(_values)...};
+    uniform_function<tType, COUNT>::call(get_uniform_location(_name),
+                                         values_array);
   }
 
-  int get_uniform_location(const char *name) const {
-    return glGetUniformLocation(m_ID, name);
+  int get_uniform_location(const char *_name) const {
+    return glGetUniformLocation(m_ID, _name);
   }
 
 protected:

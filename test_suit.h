@@ -1,131 +1,28 @@
 #pragma once
 
-#include "shader.h"
-#include "texture.h"
-#include <glad/gl.h>
-#include <glm/glm.hpp>
+#include "tests/scenes/scene_base.h"
 #include <map>
-#include <string>
 
-// Base class for all test scenes
-class TestSceneBase {
-public:
-  TestSceneBase(const std::string &name);
-  virtual ~TestSceneBase();
-
-  // Initialize scene resources
-  virtual void init() = 0;
-
-  // Render the scene
-  virtual void render() = 0;
-
-  // Render scene-specific UI controls
-  virtual void render_ui() {}
-
-  // Get scene name
-  const char *get_name() const { return m_name.c_str(); }
-
-protected:
-  std::string m_name;
-};
-
-// Texture test scene
-class TextureTestScene : public TestSceneBase {
-public:
-  TextureTestScene();
-  virtual ~TextureTestScene();
-
-  void init() override;
-  void render() override;
-  void render_ui() override;
-
-private:
-  GLuint m_VAO;
-  GLuint m_VBO;
-  GLuint m_EBO;
-  Shader *m_shader;
-  Texture2D *m_texture1;
-  Texture2D *m_texture2;
-  float m_mix_ratio; // Texture mixing ratio
-};
-
-// Triangle test scene
-class TriangleTestScene : public TestSceneBase {
-public:
-  TriangleTestScene();
-  virtual ~TriangleTestScene();
-
-  void init() override;
-  void render() override;
-  void render_ui() override;
-
-private:
-  GLuint m_VAO;
-  GLuint m_VBO;
-  Shader *m_shader;
-  // Triangle vertex positions (x, y for each vertex)
-  float m_vertices[3][2]; // [vertex_index][x, y]
-  // Triangle vertex colors (r, g, b for each vertex)
-  float m_colors[3][3]; // [vertex_index][r, g, b]
-
-  // Update VBO with current vertex data
-  void update_vbo();
-};
-
-// Color test scene
-class ColorTestScene : public TestSceneBase {
-public:
-  ColorTestScene();
-  virtual ~ColorTestScene();
-
-  void init() override;
-  void render() override;
-  void render_ui() override;
-
-private:
-  GLuint m_VAO;
-  GLuint m_VBO;
-  GLuint m_EBO;
-  Shader *m_shader;
-  // Color control (RGB)
-  float m_color[3];
-  // Animation toggle
-  bool m_animate;
-};
-
-// Transform test scene
-class TransformTestScene : public TestSceneBase {
-public:
-  TransformTestScene();
-  virtual ~TransformTestScene();
-
-  void init() override;
-  void render() override;
-  void render_ui() override;
-
-private:
-  glm::mat4 m_transform = glm::mat4(1.0f);
-  GLuint m_VAO;
-  GLuint m_VBO;
-  Shader *m_shader;
-  float m_rotation_speed = 1.0f; // Rotation speed in degrees per second
-  glm::vec3 m_rotation_axis = glm::vec3(0.0f, 0.0f, 1.0f); // Rotation axis
-};
+// Forward declarations
+class texture_test_scene;
+class triangle_test_scene;
+class color_test_scene;
+class transform_test_scene;
 
 // Test scene enumeration
-enum class TestScene {
-  TextureTest,   // Texture mixing test
-  TriangleTest,  // Simple triangle test
-  ColorTest,     // Color test
-  TransformTest, // Transform test
-  COUNT          // Total number of scenes
+enum class test_scene {
+  k_texture_test,
+  k_triangle_test,
+  k_color_test,
+  k_transform_test,
+  k_count
 };
 
 // Test suit class for managing test scenarios
-class TestSuit {
+class test_suit {
 public:
-  TestSuit();
-  ~TestSuit();
+  test_suit();
+  ~test_suit();
 
   // Initialize test resources
   void init();
@@ -137,15 +34,15 @@ public:
   void render_scene();
 
   // Get current scene name
-  const char *get_scene_name(TestScene scene) const;
+  const char *get_scene_name(test_scene _scene) const;
 
 private:
   // Current active test scene
-  TestScene m_current_scene;
+  test_scene m_current_scene;
 
   // Test scenes
-  std::map<TestScene, TestSceneBase *> m_scenes;
+  std::map<test_scene, test_scene_base *> m_scenes;
 
   // Get scene instance by enum
-  TestSceneBase *get_scene(TestScene scene);
+  test_scene_base *get_scene(test_scene _scene);
 };

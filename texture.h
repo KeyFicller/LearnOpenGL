@@ -4,39 +4,39 @@
 
 #include <GLFW/glfw3.h>
 
-class Texture2D {
+class texture_2d {
 public:
-  enum class WrapMode {
-    Repeat,
-    MirroredRepeat,
-    ClampToEdge,
-    ClampToBorder,
+  enum class wrap_mode {
+    k_repeat,
+    k_mirrored_repeat,
+    k_clamp_to_edge,
+    k_clamp_to_border,
   };
-  enum class FilterMode {
-    Nearest,
-    Linear,
+  enum class filter_mode {
+    k_nearest,
+    k_linear,
   };
 
 public:
-  Texture2D(const char *path, WrapMode wrapMode = WrapMode::Repeat,
-            FilterMode filterMode = FilterMode::Nearest);
-  virtual ~Texture2D();
+  texture_2d(const char *_path, wrap_mode _wrap_mode = wrap_mode::k_repeat,
+             filter_mode _filter_mode = filter_mode::k_nearest);
+  virtual ~texture_2d();
 
-  Texture2D(const Texture2D &) = delete;
-  Texture2D &operator=(const Texture2D &) = delete;
-  Texture2D(Texture2D &&) = delete;
-  Texture2D &operator=(Texture2D &&) = delete;
+  texture_2d(const texture_2d &) = delete;
+  texture_2d &operator=(const texture_2d &) = delete;
+  texture_2d(texture_2d &&) = delete;
+  texture_2d &operator=(texture_2d &&) = delete;
 
 public:
-  void bind(int slot = 0) const;
-  void set_wrap_mode(WrapMode wrapMode);
-  void set_filter_mode(FilterMode filterMode);
+  void bind(int _slot = 0) const;
+  void set_wrap_mode(wrap_mode _wrap_mode);
+  void set_filter_mode(filter_mode _filter_mode);
 
 protected:
   unsigned int m_ID = -1;
-  WrapMode m_wrapMode = WrapMode::Repeat;
-  FilterMode m_filterMode = FilterMode::Nearest;
+  wrap_mode m_wrap_mode = wrap_mode::k_repeat;
+  filter_mode m_filter_mode = filter_mode::k_nearest;
   int m_width = 0;
   int m_height = 0;
-  int m_nrChannels = 0;
+  int m_nr_channels = 0;
 };

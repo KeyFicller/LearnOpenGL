@@ -94,7 +94,7 @@ int main() {
   // ----------------------------------------------------------
 
   // Initialize test suit
-  TestSuit test_suit;
+  test_suit test_suit;
   test_suit.init();
 
   // ImGui state

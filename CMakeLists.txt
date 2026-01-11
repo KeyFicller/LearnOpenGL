@@ -124,11 +124,17 @@ add_executable(LearnOpenGL
     misc_functions.cpp 
     texture.cpp
     test_suit.cpp
+    tests/scenes/scene_base.cpp
+    tests/scenes/texture_test_scene.cpp
+    tests/scenes/triangle_test_scene.cpp
+    tests/scenes/color_test_scene.cpp
+    tests/scenes/transform_test_scene.cpp
     ${IMGUI_SOURCES}
 )
 
 target_link_libraries(LearnOpenGL PRIVATE glfw glad_gl)
 target_include_directories(LearnOpenGL PUBLIC 
+    "${CMAKE_CURRENT_SOURCE_DIR}"
     "${stb_image_SOURCE_DIR}" 
     "${glm_SOURCE_DIR}"
     "${imgui_SOURCE_DIR}"
