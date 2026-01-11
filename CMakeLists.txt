@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 include(FetchContent)
 
-# Fetch GLFW
+# ------------------------ Vendor:  GLFW ------------------------
 FetchContent_Declare(
   glfw
   GIT_REPOSITORY https://bgithub.xyz/glfw/glfw.git
@@ -15,8 +15,10 @@ FetchContent_Declare(
 )
 
 FetchContent_MakeAvailable(glfw)
+# ---------------------------------------------------------------
 
-# Fetch GLAD (generator)
+# ------------------------ Vendor:  GLAD(Generator) ------------------------
+
 FetchContent_Declare(
   glad
   GIT_REPOSITORY https://bgithub.xyz/Dav1dde/glad.git
@@ -24,15 +26,6 @@ FetchContent_Declare(
 )
 
 FetchContent_MakeAvailable(glad)
-
-# Fetch stb_image
-FetchContent_Declare(
-  stb_image
-  GIT_REPOSITORY https://github.com/nothings/stb.git
-  GIT_TAG        f1c79c0
-)
-
-FetchContent_MakeAvailable(stb_image)
 
 # Find Python for GLAD generation
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
@@ -82,7 +75,65 @@ add_library(glad_gl STATIC
 target_include_directories(glad_gl PUBLIC "${GLAD_DIR}/include")
 target_link_libraries(glad_gl PUBLIC ${CMAKE_DL_LIBS})
 
-add_executable(LearnOpenGL main.cpp shader.cpp misc_functions.cpp texture.cpp)
+# ---------------------------------------------------------------
+
+# ------------------------ Vendor:  stb_image ------------------------
+# Fetch stb_image
+FetchContent_Declare(
+  stb_image
+  GIT_REPOSITORY https://bgithub.xyz/nothings/stb.git
+  GIT_TAG        f1c79c0
+)
+FetchContent_MakeAvailable(stb_image)
+# ---------------------------------------------------------------
+
+# ------------------------ Vendor:  imgui ------------------------
+FetchContent_Declare(
+  imgui
+  GIT_REPOSITORY https://bgithub.xyz/ocornut/imgui.git
+  GIT_TAG        v1.92.0-docking
+)
+FetchContent_MakeAvailable(imgui)
+# ---------------------------------------------------------------
+
+# ------------------------ Vendor:  glm ------------------------
+# Fetch glm
+FetchContent_Declare(
+  glm
+  GIT_REPOSITORY https://bgithub.xyz/g-truc/glm.git
+  GIT_TAG        1.0.3
+)
+FetchContent_MakeAvailable(glm)
+# ---------------------------------------------------------------
+
+# ImGui sources
+# Note: We use a wrapper for imgui_impl_opengl3.cpp to include GLAD before it
+set(IMGUI_SOURCES
+    "${imgui_SOURCE_DIR}/imgui.cpp"
+    "${imgui_SOURCE_DIR}/imgui_draw.cpp"
+    "${imgui_SOURCE_DIR}/imgui_tables.cpp"
+    "${imgui_SOURCE_DIR}/imgui_widgets.cpp"
+    "${imgui_SOURCE_DIR}/imgui_demo.cpp"
+    "${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp"
+    "imgui_impl_opengl3_wrapper.cpp"
+)
+
+add_executable(LearnOpenGL 
+    main.cpp 
+    shader.cpp 
+    misc_functions.cpp 
+    texture.cpp
+    test_suit.cpp
+    ${IMGUI_SOURCES}
+)
 
 target_link_libraries(LearnOpenGL PRIVATE glfw glad_gl)
-target_include_directories(LearnOpenGL PUBLIC "${stb_image_SOURCE_DIR}")
+target_include_directories(LearnOpenGL PUBLIC 
+    "${stb_image_SOURCE_DIR}" 
+    "${glm_SOURCE_DIR}"
+    "${imgui_SOURCE_DIR}"
+    "${imgui_SOURCE_DIR}/backends"
+)
+
+# Use GLAD as OpenGL loader for ImGui (instead of imgui's built-in loader)
+target_compile_definitions(LearnOpenGL PRIVATE IMGUI_IMPL_OPENGL_LOADER_CUSTOM)

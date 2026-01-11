@@ -12,3 +12,4 @@ void main()
     vertexColor = vec4(aColor, 1.0f);
     texCoord = aTexCoord;
 }
+

@@ -1,5 +1,4 @@
 #include <iostream>
-#include <vector>
 
 // GLAD
 #include <glad/gl.h>
@@ -7,9 +6,13 @@
 // GLFW (include after glad)
 #include <GLFW/glfw3.h>
 
+// ImGui
+#include "imgui.h"
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_opengl3.h"
+
 #include "misc_functions.h"
-#include "shader.h"
-#include "texture.h"
+#include "test_suit.h"
 
 // Function prototypes
 void key_callback(GLFWwindow *window, int key, int scancode, int action,
@@ -20,15 +23,6 @@ void processInput(GLFWwindow *window);
 
 // Window dimensions
 const GLuint WIDTH = 800, HEIGHT = 600;
-
-float vertices[] = {0.5f,  0.5f,  0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f,
-                    0.5f,  -0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f,
-                    -0.5f, -0.5f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
-                    -0.5f, 0.5f,  0.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f};
-unsigned int indices[] = {
-    0, 1, 2, // first triangle
-    2, 3, 0  // second triangle
-};
 
 // The MAIN function, from here we start the application and run the game loop
 int main() {
@@ -83,47 +77,46 @@ int main() {
   query_maximum_vertex_attributes();
   // ----------------------------------------------------------
 
-  // Vertex Array Object
-  GLuint VAO;
-  glGenVertexArrays(1, &VAO);
-  glBindVertexArray(VAO);
+  // ------------------ Setup Dear ImGui ------------------
+  IMGUI_CHECKVERSION();
+  ImGui::CreateContext();
+  ImGuiIO &io = ImGui::GetIO();
+  (void)io;
+  io.ConfigFlags |=
+      ImGuiConfigFlags_NavEnableKeyboard; // Enable Keyboard Controls
 
-  // Vertex Buffer Object
-  GLuint VBO;
-  glGenBuffers(1, &VBO);
-  glBindBuffer(GL_ARRAY_BUFFER, VBO);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+  // Setup Dear ImGui style
+  ImGui::StyleColorsDark();
 
-  // Set the vertex attribute pointers
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)0);
-  glEnableVertexAttribArray(0);
-  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float),
-                        (void *)(3 * sizeof(float)));
-  glEnableVertexAttribArray(1);
-  glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float),
-                        (void *)(6 * sizeof(float)));
-  glEnableVertexAttribArray(2);
+  // Setup Platform/Renderer backends
+  ImGui_ImplGlfw_InitForOpenGL(window, true);
+  ImGui_ImplOpenGL3_Init("#version 330 core");
+  // ----------------------------------------------------------
 
-  // Element Buffer Object
-  GLuint EBO;
-  glGenBuffers(1, &EBO);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices,
-               GL_STATIC_DRAW);
+  // Initialize test suit
+  TestSuit test_suit;
+  test_suit.init();
 
-  // Shader
-  Shader shader("shaders/vertex.shader", "shaders/fragment.shader");
-
-  // Texture
-  Texture2D texture1("assets/images/spider_man.jpeg");
-  texture1.set_wrap_mode(Texture2D::WrapMode::Repeat);
-  texture1.set_filter_mode(Texture2D::FilterMode::Nearest);
-  Texture2D texture2("assets/images/sea.jpeg");
-  texture2.set_wrap_mode(Texture2D::WrapMode::Repeat);
-  texture2.set_filter_mode(Texture2D::FilterMode::Nearest);
+  // ImGui state
+  bool show_demo_window = false;
 
   // Game loop
   while (!glfwWindowShouldClose(window)) {
+    // Poll and handle events
+    glfwPollEvents();
+
+    // Start the Dear ImGui frame
+    ImGui_ImplOpenGL3_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+
+    // Show the big demo window
+    if (show_demo_window)
+      ImGui::ShowDemoWindow(&show_demo_window);
+
+    // Render test suit UI
+    test_suit.render_ui();
+
     // Process input
     processInput(window);
 
@@ -132,26 +125,21 @@ int main() {
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
-    // Draw the triangle
-    shader.use();
-    float time = glfwGetTime();
-    shader.set_uniform<float>("ourColor", sin(time), 0.0f, 0.0f, 1.0f);
-    texture1.bind(0);
-    texture2.bind(1);
-    shader.set_uniform<int>("texture1", 0);
-    shader.set_uniform<int>("texture2", 1);
-    glBindVertexArray(VAO);
-    // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-    // glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    // Render current test scene
+    test_suit.render_scene();
+
+    // Render ImGui
+    ImGui::Render();
+    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
     // Swap the screen buffers
     glfwSwapBuffers(window);
-
-    // Check if any events have been activated (key pressed, mouse moved etc.)
-    // and call corresponding response functions
-    glfwPollEvents();
   }
+
+  // Cleanup
+  ImGui_ImplOpenGL3_Shutdown();
+  ImGui_ImplGlfw_Shutdown();
+  ImGui::DestroyContext();
 
   // Terminates GLFW, clearing any resources allocated by GLFW.
   glfwTerminate();
