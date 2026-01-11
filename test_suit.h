@@ -3,18 +3,13 @@
 #include "tests/scenes/scene_base.h"
 #include <map>
 
-// Forward declarations
-class texture_test_scene;
-class triangle_test_scene;
-class color_test_scene;
-class transform_test_scene;
-
 // Test scene enumeration
 enum class test_scene {
   k_texture_test,
   k_triangle_test,
   k_color_test,
   k_transform_test,
+  k_coordinate_test,
   k_count
 };
 
@@ -34,7 +29,7 @@ public:
   void render_scene();
 
   // Get current scene name
-  const char *get_scene_name(test_scene _scene) const;
+  const char *get_scene_name(test_scene _scene);
 
 private:
   // Current active test scene

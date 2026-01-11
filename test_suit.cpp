@@ -1,6 +1,7 @@
 #include "test_suit.h"
 
 #include "tests/scenes/color_test_scene.h"
+#include "tests/scenes/coordinate_test_scene.h"
 #include "tests/scenes/texture_test_scene.h"
 #include "tests/scenes/transform_test_scene.h"
 #include "tests/scenes/triangle_test_scene.h"
@@ -28,6 +29,9 @@ void test_suit::init() {
 
   m_scenes[test_scene::k_transform_test] = new transform_test_scene();
   m_scenes[test_scene::k_transform_test]->init();
+
+  m_scenes[test_scene::k_coordinate_test] = new coordinate_test_scene();
+  m_scenes[test_scene::k_coordinate_test]->init();
 }
 
 void test_suit::render_ui() {
@@ -66,19 +70,8 @@ void test_suit::render_scene() {
   }
 }
 
-const char *test_suit::get_scene_name(test_scene _scene) const {
-  switch (_scene) {
-  case test_scene::k_texture_test:
-    return "Texture Test";
-  case test_scene::k_triangle_test:
-    return "Triangle Test";
-  case test_scene::k_color_test:
-    return "Color Test";
-  case test_scene::k_transform_test:
-    return "Transform Test";
-  default:
-    return "Unknown";
-  }
+const char *test_suit::get_scene_name(test_scene _scene) {
+  return get_scene(_scene)->get_name();
 }
 
 test_scene_base *test_suit::get_scene(test_scene _scene) {

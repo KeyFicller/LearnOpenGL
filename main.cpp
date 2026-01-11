@@ -100,6 +100,8 @@ int main() {
   // ImGui state
   bool show_demo_window = false;
 
+  glEnable(GL_DEPTH_TEST);
+
   // Game loop
   while (!glfwWindowShouldClose(window)) {
     // Poll and handle events
@@ -123,7 +125,7 @@ int main() {
     // Render
     // Clear the colorbuffer
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     // Render current test scene
     test_suit.render_scene();
