@@ -3,6 +3,7 @@
 #include "shader.h"
 #include "texture.h"
 #include <glad/gl.h>
+#include <glm/glm.hpp>
 #include <map>
 #include <string>
 
@@ -17,6 +18,9 @@ public:
 
   // Render the scene
   virtual void render() = 0;
+
+  // Render scene-specific UI controls
+  virtual void render_ui() {}
 
   // Get scene name
   const char *get_name() const { return m_name.c_str(); }
@@ -33,6 +37,7 @@ public:
 
   void init() override;
   void render() override;
+  void render_ui() override;
 
 private:
   GLuint m_VAO;
@@ -41,6 +46,7 @@ private:
   Shader *m_shader;
   Texture2D *m_texture1;
   Texture2D *m_texture2;
+  float m_mix_ratio; // Texture mixing ratio
 };
 
 // Triangle test scene
@@ -51,11 +57,19 @@ public:
 
   void init() override;
   void render() override;
+  void render_ui() override;
 
 private:
   GLuint m_VAO;
   GLuint m_VBO;
   Shader *m_shader;
+  // Triangle vertex positions (x, y for each vertex)
+  float m_vertices[3][2]; // [vertex_index][x, y]
+  // Triangle vertex colors (r, g, b for each vertex)
+  float m_colors[3][3]; // [vertex_index][r, g, b]
+
+  // Update VBO with current vertex data
+  void update_vbo();
 };
 
 // Color test scene
@@ -66,20 +80,45 @@ public:
 
   void init() override;
   void render() override;
+  void render_ui() override;
 
 private:
   GLuint m_VAO;
   GLuint m_VBO;
   GLuint m_EBO;
   Shader *m_shader;
+  // Color control (RGB)
+  float m_color[3];
+  // Animation toggle
+  bool m_animate;
+};
+
+// Transform test scene
+class TransformTestScene : public TestSceneBase {
+public:
+  TransformTestScene();
+  virtual ~TransformTestScene();
+
+  void init() override;
+  void render() override;
+  void render_ui() override;
+
+private:
+  glm::mat4 m_transform = glm::mat4(1.0f);
+  GLuint m_VAO;
+  GLuint m_VBO;
+  Shader *m_shader;
+  float m_rotation_speed = 1.0f; // Rotation speed in degrees per second
+  glm::vec3 m_rotation_axis = glm::vec3(0.0f, 0.0f, 1.0f); // Rotation axis
 };
 
 // Test scene enumeration
 enum class TestScene {
-  TextureTest,  // Texture mixing test
-  TriangleTest, // Simple triangle test
-  ColorTest,    // Color test
-  COUNT         // Total number of scenes
+  TextureTest,   // Texture mixing test
+  TriangleTest,  // Simple triangle test
+  ColorTest,     // Color test
+  TransformTest, // Transform test
+  COUNT          // Total number of scenes
 };
 
 // Test suit class for managing test scenarios

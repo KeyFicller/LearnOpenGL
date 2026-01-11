@@ -3,6 +3,7 @@
 #include <glad/gl.h>
 
 #include <GLFW/glfw3.h>
+#include <glm/glm.hpp>
 
 #include <stdexcept>
 #include <string>
@@ -94,6 +95,12 @@ public:
   template <> struct UniformFunction<bool, 4> {
     static void call(GLuint location, const bool *values) {
       glUniform4i(location, values[0], values[1], values[2], values[3]);
+    }
+  };
+
+  template <> struct UniformFunction<glm::mat4, 1> {
+    static void call(GLuint location, const glm::mat4 *values) {
+      glUniformMatrix4fv(location, 1, GL_FALSE, &(*values)[0][0]);
     }
   };
 
