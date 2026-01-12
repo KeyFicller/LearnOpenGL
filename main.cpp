@@ -19,6 +19,10 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action,
                   int mode);
 void error_callback(int error, const char *description);
 void framebuffer_size_callback(GLFWwindow *window, int width, int height);
+void mouse_callback(GLFWwindow *window, double xpos, double ypos);
+void mouse_button_callback(GLFWwindow *window, int button, int action,
+                           int mods);
+void scroll_callback(GLFWwindow *window, double xoffset, double yoffset);
 void processInput(GLFWwindow *window);
 
 // Window dimensions
@@ -57,6 +61,9 @@ int main() {
   // Set the required callback functions
   glfwSetKeyCallback(window, key_callback);
   glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+  glfwSetCursorPosCallback(window, mouse_callback);
+  glfwSetMouseButtonCallback(window, mouse_button_callback);
+  glfwSetScrollCallback(window, scroll_callback);
 
   // Load OpenGL functions, gladLoadGL returns the loaded version, 0 on error.
   int version = gladLoadGL(glfwGetProcAddress);
@@ -89,23 +96,36 @@ int main() {
   ImGui::StyleColorsDark();
 
   // Setup Platform/Renderer backends
+  // Note: install_callbacks = false to prevent ImGui from intercepting our
+  // callbacks We handle callbacks manually and forward to ImGui if needed
   ImGui_ImplGlfw_InitForOpenGL(window, true);
   ImGui_ImplOpenGL3_Init("#version 330 core");
   // ----------------------------------------------------------
 
   // Initialize test suit
   test_suit test_suit;
-  test_suit.init();
+  test_suit.init(window);
+
+  // Set user pointer to access test_suit in callbacks
+  glfwSetWindowUserPointer(window, &test_suit);
 
   // ImGui state
   bool show_demo_window = false;
 
   glEnable(GL_DEPTH_TEST);
 
+  float last_time = glfwGetTime();
+
   // Game loop
   while (!glfwWindowShouldClose(window)) {
     // Poll and handle events
     glfwPollEvents();
+
+    // Update test suit
+    float current_time = glfwGetTime();
+    float delta_time = current_time - last_time;
+    last_time = current_time;
+    test_suit.update(delta_time);
 
     // Start the Dear ImGui frame
     ImGui_ImplOpenGL3_NewFrame();
@@ -163,6 +183,46 @@ void error_callback(int error, const char *description) {
 // GLFW framebuffer size callback
 void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
   glViewport(0, 0, width, height);
+}
+
+// GLFW mouse cursor callback
+void mouse_callback(GLFWwindow *window, double xpos, double ypos) {
+  // Forward mouse event to ImGui
+  // ImGui_ImplGlfw_CursorPosCallback(window, xpos, ypos);
+
+  // Process our camera movement
+  test_suit *test_suit_ptr =
+      static_cast<test_suit *>(glfwGetWindowUserPointer(window));
+  if (test_suit_ptr) {
+    test_suit_ptr->on_mouse_moved(xpos, ypos);
+  }
+}
+
+// GLFW mouse button callback
+void mouse_button_callback(GLFWwindow *window, int button, int action,
+                           int mods) {
+  // Forward mouse button event to ImGui
+  // ImGui_ImplGlfw_MouseButtonCallback(window, button, action, mods);
+
+  // Process mouse button events here if needed
+  // test_suit *test_suit_ptr =
+  //     static_cast<test_suit *>(glfwGetWindowUserPointer(window));
+  // if (test_suit_ptr) {
+  //   test_suit_ptr->on_mouse_button(button, action, mods);
+  // }
+}
+
+// GLFW mouse scroll callback
+void scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
+  // Forward scroll event to ImGui (it needs this for UI scrolling)
+  // ImGui_ImplGlfw_ScrollCallback(window, xoffset, yoffset);
+
+  // Process our camera scroll (we'll check WantCaptureMouse in the scene logic)
+  test_suit *test_suit_ptr =
+      static_cast<test_suit *>(glfwGetWindowUserPointer(window));
+  if (test_suit_ptr) {
+    test_suit_ptr->on_mouse_scroll(xoffset, yoffset);
+  }
 }
 
 // Process all input: query GLFW whether relevant keys are pressed/released,

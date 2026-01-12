@@ -31,7 +31,8 @@ coordinate_test_scene::~coordinate_test_scene() {
   delete m_shader;
 }
 
-void coordinate_test_scene::init() {
+void coordinate_test_scene::init(GLFWwindow *_window) {
+  test_scene_base::init(_window);
   // Create and bind VAO
   glGenVertexArrays(1, &m_VAO);
   glBindVertexArray(m_VAO);

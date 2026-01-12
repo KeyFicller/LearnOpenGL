@@ -39,7 +39,8 @@ color_test_scene::~color_test_scene() {
   delete m_shader;
 }
 
-void color_test_scene::init() {
+void color_test_scene::init(GLFWwindow *_window) {
+  test_scene_base::init(_window);
   // Create and bind VAO
   glGenVertexArrays(1, &m_VAO);
   glBindVertexArray(m_VAO);

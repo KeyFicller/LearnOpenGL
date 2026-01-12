@@ -10,6 +10,7 @@ enum class test_scene {
   k_color_test,
   k_transform_test,
   k_coordinate_test,
+  k_camera_test,
   k_count
 };
 
@@ -20,7 +21,10 @@ public:
   ~test_suit();
 
   // Initialize test resources
-  void init();
+  void init(GLFWwindow *_window);
+
+  // Update the test suit
+  void update(float _delta_time);
 
   // Render ImGui control panel
   void render_ui();
@@ -30,6 +34,10 @@ public:
 
   // Get current scene name
   const char *get_scene_name(test_scene _scene);
+
+  // Event handlers
+  bool on_mouse_moved(double _xpos, double _ypos);
+  bool on_mouse_scroll(double _xoffset, double _yoffset);
 
 private:
   // Current active test scene

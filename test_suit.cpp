@@ -1,5 +1,6 @@
 #include "test_suit.h"
 
+#include "tests/scenes/camera_test_scene.h"
 #include "tests/scenes/color_test_scene.h"
 #include "tests/scenes/coordinate_test_scene.h"
 #include "tests/scenes/texture_test_scene.h"
@@ -16,22 +17,25 @@ test_suit::~test_suit() {
   }
 }
 
-void test_suit::init() {
+void test_suit::init(GLFWwindow *_window) {
   // Create and initialize all test scenes
   m_scenes[test_scene::k_texture_test] = new texture_test_scene();
-  m_scenes[test_scene::k_texture_test]->init();
+  m_scenes[test_scene::k_texture_test]->init(_window);
 
   m_scenes[test_scene::k_triangle_test] = new triangle_test_scene();
-  m_scenes[test_scene::k_triangle_test]->init();
+  m_scenes[test_scene::k_triangle_test]->init(_window);
 
   m_scenes[test_scene::k_color_test] = new color_test_scene();
-  m_scenes[test_scene::k_color_test]->init();
+  m_scenes[test_scene::k_color_test]->init(_window);
 
   m_scenes[test_scene::k_transform_test] = new transform_test_scene();
-  m_scenes[test_scene::k_transform_test]->init();
+  m_scenes[test_scene::k_transform_test]->init(_window);
 
   m_scenes[test_scene::k_coordinate_test] = new coordinate_test_scene();
-  m_scenes[test_scene::k_coordinate_test]->init();
+  m_scenes[test_scene::k_coordinate_test]->init(_window);
+
+  m_scenes[test_scene::k_camera_test] = new camera_test_scene();
+  m_scenes[test_scene::k_camera_test]->init(_window);
 }
 
 void test_suit::render_ui() {
@@ -76,4 +80,27 @@ const char *test_suit::get_scene_name(test_scene _scene) {
 
 test_scene_base *test_suit::get_scene(test_scene _scene) {
   return m_scenes[_scene];
+}
+
+void test_suit::update(float _delta_time) {
+  test_scene_base *scene = get_scene(m_current_scene);
+  if (scene) {
+    scene->update(_delta_time);
+  }
+}
+
+bool test_suit::on_mouse_moved(double _xpos, double _ypos) {
+  test_scene_base *scene = get_scene(m_current_scene);
+  if (scene) {
+    return scene->on_mouse_moved(_xpos, _ypos);
+  }
+  return false;
+}
+
+bool test_suit::on_mouse_scroll(double _xoffset, double _yoffset) {
+  test_scene_base *scene = get_scene(m_current_scene);
+  if (scene) {
+    return scene->on_mouse_scroll(_xoffset, _yoffset);
+  }
+  return false;
 }

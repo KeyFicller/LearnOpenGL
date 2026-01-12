@@ -1,6 +1,9 @@
 #pragma once
 
+#include "imgui_impl_glfw.h"
 #include <string>
+
+struct GLFWwindow;
 
 // Base class for all test scenes
 class test_scene_base {
@@ -9,7 +12,10 @@ public:
   virtual ~test_scene_base();
 
   // Initialize scene resources
-  virtual void init() = 0;
+  virtual void init(GLFWwindow *_window);
+
+  // Update the scene
+  virtual void update(float _delta_time) {}
 
   // Render the scene
   virtual void render() = 0;
@@ -20,6 +26,13 @@ public:
   // Get scene name
   const char *get_name() const { return m_name.c_str(); }
 
+  // Event handlers
+  virtual bool on_mouse_moved(double _xpos, double _ypos) { return false; }
+  virtual bool on_mouse_scroll(double _xoffset, double _yoffset) {
+    return false;
+  }
+
 protected:
   std::string m_name;
+  GLFWwindow *m_window;
 };

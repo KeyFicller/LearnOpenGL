@@ -38,7 +38,8 @@ texture_test_scene::~texture_test_scene() {
   delete m_texture2;
 }
 
-void texture_test_scene::init() {
+void texture_test_scene::init(GLFWwindow *_window) {
+  test_scene_base::init(_window);
   // Create and bind VAO
   glGenVertexArrays(1, &m_VAO);
   glBindVertexArray(m_VAO);

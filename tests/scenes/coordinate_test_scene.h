@@ -13,7 +13,7 @@ public:
   coordinate_test_scene();
   virtual ~coordinate_test_scene();
 
-  void init() override;
+  void init(GLFWwindow *_window) override;
   void render() override;
   void render_ui() override;
 
