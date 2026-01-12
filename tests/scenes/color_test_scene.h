@@ -2,7 +2,7 @@
 
 #include "scene_base.h"
 #include "shader.h"
-#include <glad/gl.h>
+#include "vertex_array_object.h"
 
 // Color test scene
 class color_test_scene : public test_scene_base {
@@ -15,10 +15,10 @@ public:
   void render_ui() override;
 
 private:
-  GLuint m_VAO;
-  GLuint m_VBO;
-  GLuint m_EBO;
-  shader *m_shader;
+  vertex_array_object *m_VAO = nullptr;
+  vertex_buffer_object *m_VBO = nullptr;
+  index_buffer_object *m_EBO = nullptr;
+  shader *m_shader = nullptr;
   // Color control (RGB)
   float m_color[3];
   // Animation toggle

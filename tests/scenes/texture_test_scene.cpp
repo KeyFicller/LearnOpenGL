@@ -19,20 +19,13 @@ static unsigned int texture_quad_indices[] = {
 };
 
 texture_test_scene::texture_test_scene()
-    : test_scene_base("Texture Test"), m_VAO(0), m_VBO(0), m_EBO(0),
-      m_shader(nullptr), m_texture1(nullptr), m_texture2(nullptr),
-      m_mix_ratio(0.2f) {}
+    : test_scene_base("Texture Test"), m_shader(nullptr), m_texture1(nullptr),
+      m_texture2(nullptr), m_mix_ratio(0.2f) {}
 
 texture_test_scene::~texture_test_scene() {
-  if (m_VAO) {
-    glDeleteVertexArrays(1, &m_VAO);
-  }
-  if (m_VBO) {
-    glDeleteBuffers(1, &m_VBO);
-  }
-  if (m_EBO) {
-    glDeleteBuffers(1, &m_EBO);
-  }
+  delete m_VAO;
+  delete m_VBO;
+  delete m_EBO;
   delete m_shader;
   delete m_texture1;
   delete m_texture2;
@@ -40,31 +33,27 @@ texture_test_scene::~texture_test_scene() {
 
 void texture_test_scene::init(GLFWwindow *_window) {
   test_scene_base::init(_window);
-  // Create and bind VAO
-  glGenVertexArrays(1, &m_VAO);
-  glBindVertexArray(m_VAO);
+
+  // Create VAO
+  m_VAO = new vertex_array_object();
+  m_VAO->bind();
 
   // Create and bind VBO
-  glGenBuffers(1, &m_VBO);
-  glBindBuffer(GL_ARRAY_BUFFER, m_VBO);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(texture_quad_vertices),
-               texture_quad_vertices, GL_STATIC_DRAW);
+  m_VBO = new vertex_buffer_object();
+  m_VBO->bind();
+  m_VBO->set_data(texture_quad_vertices, sizeof(texture_quad_vertices),
+                  GL_STATIC_DRAW);
 
   // Create and bind EBO
-  glGenBuffers(1, &m_EBO);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_EBO);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(texture_quad_indices),
-               texture_quad_indices, GL_STATIC_DRAW);
+  m_EBO = new index_buffer_object();
+  m_EBO->bind();
+  m_EBO->set_data(texture_quad_indices, sizeof(texture_quad_indices));
 
-  // Set vertex attributes
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)0);
-  glEnableVertexAttribArray(0);
-  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float),
-                        (void *)(3 * sizeof(float)));
-  glEnableVertexAttribArray(1);
-  glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float),
-                        (void *)(6 * sizeof(float)));
-  glEnableVertexAttribArray(2);
+  // Set vertex attributes (position: 3 floats, color: 3 floats, texcoord: 2
+  // floats)
+  m_VAO->add_attributes({{3, GL_FLOAT, GL_FALSE},
+                         {3, GL_FLOAT, GL_FALSE},
+                         {2, GL_FLOAT, GL_FALSE}});
 
   // Load shader
   try {
@@ -102,7 +91,8 @@ void texture_test_scene::render() {
   m_texture2->bind(1);
   m_shader->set_uniform<int>("texture1", 0);
   m_shader->set_uniform<int>("texture2", 1);
-  glBindVertexArray(m_VAO);
+  m_VAO->bind();
+  m_EBO->bind();
   glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 }
 

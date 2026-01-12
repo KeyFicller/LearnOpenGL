@@ -13,38 +13,30 @@ static float triangle_vertices[] = {
 };
 
 transform_test_scene::transform_test_scene()
-    : test_scene_base("Transform Test"), m_transform(glm::mat4(1.0f)), m_VAO(0),
-      m_VBO(0), m_shader(nullptr), m_rotation_speed(1.0f),
+    : test_scene_base("Transform Test"), m_transform(glm::mat4(1.0f)),
+      m_shader(nullptr), m_rotation_speed(1.0f),
       m_rotation_axis(glm::vec3(0.0f, 0.0f, 1.0f)) {}
 
 transform_test_scene::~transform_test_scene() {
-  if (m_VAO) {
-    glDeleteVertexArrays(1, &m_VAO);
-  }
-  if (m_VBO) {
-    glDeleteBuffers(1, &m_VBO);
-  }
+  delete m_VAO;
+  delete m_VBO;
   delete m_shader;
 }
 
 void transform_test_scene::init(GLFWwindow *_window) {
   test_scene_base::init(_window);
-  // Create and bind VAO
-  glGenVertexArrays(1, &m_VAO);
-  glBindVertexArray(m_VAO);
+
+  // Create VAO
+  m_VAO = new vertex_array_object();
+  m_VAO->bind();
 
   // Create and bind VBO
-  glGenBuffers(1, &m_VBO);
-  glBindBuffer(GL_ARRAY_BUFFER, m_VBO);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(triangle_vertices), triangle_vertices,
-               GL_STATIC_DRAW);
+  m_VBO = new vertex_buffer_object();
+  m_VBO->bind();
+  m_VBO->set_data(triangle_vertices, sizeof(triangle_vertices), GL_STATIC_DRAW);
 
-  // Set vertex attributes (position + color, no texture)
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *)0);
-  glEnableVertexAttribArray(0);
-  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float),
-                        (void *)(3 * sizeof(float)));
-  glEnableVertexAttribArray(1);
+  // Set vertex attributes (position + color: 3 floats position, 3 floats color)
+  m_VAO->add_attributes({{3, GL_FLOAT, GL_FALSE}, {3, GL_FLOAT, GL_FALSE}});
 
   // Load shader
   try {
@@ -67,8 +59,8 @@ void transform_test_scene::render() {
   m_transform = glm::rotate(glm::mat4(1.0f), angle, m_rotation_axis);
 
   m_shader->use();
-  m_shader->set_uniform<glm::mat4>("transform", m_transform);
-  glBindVertexArray(m_VAO);
+  m_shader->set_uniform<glm::mat4, 1>("transform", &m_transform);
+  m_VAO->bind();
   glDrawArrays(GL_TRIANGLES, 0, 3);
 }
 

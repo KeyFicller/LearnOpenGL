@@ -2,6 +2,7 @@
 
 #include "scene_base.h"
 #include "shader.h"
+#include "vertex_array_object.h"
 #include <glad/gl.h>
 
 // Triangle test scene
@@ -15,8 +16,8 @@ public:
   void render_ui() override;
 
 private:
-  GLuint m_VAO;
-  GLuint m_VBO;
+  vertex_array_object *m_VAO;
+  vertex_buffer_object *m_VBO;
   shader *m_shader;
   // Triangle vertex positions (x, y for each vertex)
   float m_vertices[3][2];

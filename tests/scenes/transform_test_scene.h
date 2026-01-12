@@ -2,7 +2,7 @@
 
 #include "scene_base.h"
 #include "shader.h"
-#include <glad/gl.h>
+#include "vertex_array_object.h"
 #include <glm/glm.hpp>
 
 // Transform test scene
@@ -17,9 +17,9 @@ public:
 
 private:
   glm::mat4 m_transform;
-  GLuint m_VAO;
-  GLuint m_VBO;
-  shader *m_shader;
+  vertex_array_object *m_VAO = nullptr;
+  vertex_buffer_object *m_VBO = nullptr;
+  shader *m_shader = nullptr;
   float m_rotation_speed;
   glm::vec3 m_rotation_axis;
 };

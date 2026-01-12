@@ -15,43 +15,35 @@ static unsigned int color_quad_indices[] = {
 };
 
 coordinate_test_scene::coordinate_test_scene()
-    : test_scene_base("Coordinate Test"), m_VAO(0), m_VBO(0), m_EBO(0),
-      m_shader(nullptr) {}
+    : test_scene_base("Coordinate Test"), m_shader(nullptr) {}
 
 coordinate_test_scene::~coordinate_test_scene() {
-  if (m_VAO) {
-    glDeleteVertexArrays(1, &m_VAO);
-  }
-  if (m_VBO) {
-    glDeleteBuffers(1, &m_VBO);
-  }
-  if (m_EBO) {
-    glDeleteBuffers(1, &m_EBO);
-  }
+  delete m_VAO;
+  delete m_VBO;
+  delete m_EBO;
   delete m_shader;
 }
 
 void coordinate_test_scene::init(GLFWwindow *_window) {
   test_scene_base::init(_window);
-  // Create and bind VAO
-  glGenVertexArrays(1, &m_VAO);
-  glBindVertexArray(m_VAO);
+
+  // Create VAO
+  m_VAO = new vertex_array_object();
+  m_VAO->bind();
 
   // Create and bind VBO
-  glGenBuffers(1, &m_VBO);
-  glBindBuffer(GL_ARRAY_BUFFER, m_VBO);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(color_quad_vertices),
-               color_quad_vertices, GL_STATIC_DRAW);
+  m_VBO = new vertex_buffer_object();
+  m_VBO->bind();
+  m_VBO->set_data(color_quad_vertices, sizeof(color_quad_vertices),
+                  GL_STATIC_DRAW);
 
   // Create and bind EBO
-  glGenBuffers(1, &m_EBO);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_EBO);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(color_quad_indices),
-               color_quad_indices, GL_STATIC_DRAW);
+  m_EBO = new index_buffer_object();
+  m_EBO->bind();
+  m_EBO->set_data(color_quad_indices, sizeof(color_quad_indices));
 
-  // Set vertex attributes (position + color, no texture)
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *)0);
-  glEnableVertexAttribArray(0);
+  // Set vertex attributes (position only, 3 floats)
+  m_VAO->add_attributes({{3, GL_FLOAT, GL_FALSE}});
 
   // Load shader
   try {
@@ -78,7 +70,8 @@ void coordinate_test_scene::render() {
     m_shader->set_uniform<glm::mat4, 1>("view", &view);
     m_shader->set_uniform<glm::mat4, 1>("projection", &projection);
 
-    glBindVertexArray(m_VAO);
+    m_VAO->bind();
+    m_EBO->bind();
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     for (const auto &position : m_positions) {
       glm::mat4 model = glm::mat4(1.0f);

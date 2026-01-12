@@ -35,43 +35,34 @@ static unsigned int box_indices[] = {
     3, 2, 6, 6, 7, 3};
 
 camera_test_scene::camera_test_scene()
-    : test_scene_base("Camera Test"), m_VAO(0), m_VBO(0), m_EBO(0),
-      m_shader(nullptr) {}
+    : test_scene_base("Camera Test"), m_shader(nullptr) {}
 
 camera_test_scene::~camera_test_scene() {
-  if (m_VAO) {
-    glDeleteVertexArrays(1, &m_VAO);
-  }
-  if (m_VBO) {
-    glDeleteBuffers(1, &m_VBO);
-  }
-  if (m_EBO) {
-    glDeleteBuffers(1, &m_EBO);
-  }
+  delete m_VAO;
+  delete m_VBO;
+  delete m_EBO;
   delete m_shader;
 }
 
 void camera_test_scene::init(GLFWwindow *_window) {
   test_scene_base::init(_window);
-  // Create and bind VAO
-  glGenVertexArrays(1, &m_VAO);
-  glBindVertexArray(m_VAO);
+
+  // Create VAO
+  m_VAO = new vertex_array_object();
+  m_VAO->bind();
 
   // Create and bind VBO
-  glGenBuffers(1, &m_VBO);
-  glBindBuffer(GL_ARRAY_BUFFER, m_VBO);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(box_vertices), box_vertices,
-               GL_STATIC_DRAW);
+  m_VBO = new vertex_buffer_object();
+  m_VBO->bind();
+  m_VBO->set_data(box_vertices, sizeof(box_vertices), GL_STATIC_DRAW);
 
   // Create and bind EBO
-  glGenBuffers(1, &m_EBO);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_EBO);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(box_indices), box_indices,
-               GL_STATIC_DRAW);
+  m_EBO = new index_buffer_object();
+  m_EBO->bind();
+  m_EBO->set_data(box_indices, sizeof(box_indices));
 
-  // Set vertex attributes (position only)
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *)0);
-  glEnableVertexAttribArray(0);
+  // Set vertex attributes (position only, 3 floats)
+  m_VAO->add_attributes({{3, GL_FLOAT, GL_FALSE}});
 
   // Load shader
   try {
@@ -106,7 +97,8 @@ void camera_test_scene::render() {
   m_shader->set_uniform<glm::mat4, 1>("projection",
                                       &m_camera.m_projection_matrix);
 
-  glBindVertexArray(m_VAO);
+  m_VAO->bind();
+  m_EBO->bind();
   glDrawElements(GL_TRIANGLES, sizeof(box_indices) / sizeof(unsigned int),
                  GL_UNSIGNED_INT, 0);
 }

@@ -4,7 +4,7 @@
 #include "scene_base.h"
 #include "shader.h"
 #include "test_component/camera_controller.h"
-#include "texture.h"
+#include "vertex_array_object.h"
 
 class camera_test_scene : public test_scene_base {
 public:
@@ -27,9 +27,9 @@ public:
 private:
   camera m_camera;
   camera_controller *m_camera_controller = nullptr;
-  GLuint m_VAO;
-  GLuint m_VBO;
-  GLuint m_EBO;
+  vertex_array_object *m_VAO = nullptr;
+  vertex_buffer_object *m_VBO = nullptr;
+  index_buffer_object *m_EBO = nullptr;
   shader *m_shader = nullptr;
   bool m_enable_camera_controller = false;
 };

@@ -19,50 +19,39 @@ static unsigned int color_quad_indices[] = {
 };
 
 color_test_scene::color_test_scene()
-    : test_scene_base("Color Test"), m_VAO(0), m_VBO(0), m_EBO(0),
-      m_shader(nullptr), m_animate(true) {
+    : test_scene_base("Color Test"), m_shader(nullptr), m_animate(true) {
   m_color[0] = 1.0f; // r
   m_color[1] = 0.0f; // g
   m_color[2] = 0.0f; // b
 }
 
 color_test_scene::~color_test_scene() {
-  if (m_VAO) {
-    glDeleteVertexArrays(1, &m_VAO);
-  }
-  if (m_VBO) {
-    glDeleteBuffers(1, &m_VBO);
-  }
-  if (m_EBO) {
-    glDeleteBuffers(1, &m_EBO);
-  }
+  delete m_VAO;
+  delete m_VBO;
+  delete m_EBO;
   delete m_shader;
 }
 
 void color_test_scene::init(GLFWwindow *_window) {
   test_scene_base::init(_window);
-  // Create and bind VAO
-  glGenVertexArrays(1, &m_VAO);
-  glBindVertexArray(m_VAO);
+
+  // Create VAO
+  m_VAO = new vertex_array_object();
+  m_VAO->bind();
 
   // Create and bind VBO
-  glGenBuffers(1, &m_VBO);
-  glBindBuffer(GL_ARRAY_BUFFER, m_VBO);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(color_quad_vertices),
-               color_quad_vertices, GL_STATIC_DRAW);
+  m_VBO = new vertex_buffer_object();
+  m_VBO->bind();
+  m_VBO->set_data(color_quad_vertices, sizeof(color_quad_vertices),
+                  GL_STATIC_DRAW);
 
   // Create and bind EBO
-  glGenBuffers(1, &m_EBO);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_EBO);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(color_quad_indices),
-               color_quad_indices, GL_STATIC_DRAW);
+  m_EBO = new index_buffer_object();
+  m_EBO->bind();
+  m_EBO->set_data(color_quad_indices, sizeof(color_quad_indices));
 
-  // Set vertex attributes (position + color, no texture)
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *)0);
-  glEnableVertexAttribArray(0);
-  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float),
-                        (void *)(3 * sizeof(float)));
-  glEnableVertexAttribArray(1);
+  // Set vertex attributes (position + color: 3 floats position, 3 floats color)
+  m_VAO->add_attributes({{3, GL_FLOAT, GL_FALSE}, {3, GL_FLOAT, GL_FALSE}});
 
   // Load shader
   try {
@@ -92,7 +81,8 @@ void color_test_scene::render() {
     b = m_color[2];
   }
   m_shader->set_uniform<float>("ourColor", r, g, b, 1.0f);
-  glBindVertexArray(m_VAO);
+  m_VAO->bind();
+  m_EBO->bind();
   glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 }
 

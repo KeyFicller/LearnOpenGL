@@ -5,7 +5,8 @@
 #include <iostream>
 
 triangle_test_scene::triangle_test_scene()
-    : test_scene_base("Triangle Test"), m_VAO(0), m_VBO(0), m_shader(nullptr) {
+    : test_scene_base("Triangle Test"), m_VAO(nullptr), m_VBO(nullptr),
+      m_shader(nullptr) {
   // Initialize default vertex positions
   m_vertices[0][0] = 0.0f;  // top x
   m_vertices[0][1] = 0.5f;  // top y
@@ -27,31 +28,23 @@ triangle_test_scene::triangle_test_scene()
 }
 
 triangle_test_scene::~triangle_test_scene() {
-  if (m_VAO) {
-    glDeleteVertexArrays(1, &m_VAO);
-  }
-  if (m_VBO) {
-    glDeleteBuffers(1, &m_VBO);
-  }
+  delete m_VAO;
+  delete m_VBO;
   delete m_shader;
 }
 
 void triangle_test_scene::init(GLFWwindow *_window) {
   test_scene_base::init(_window);
   // Create and bind VAO
-  glGenVertexArrays(1, &m_VAO);
-  glBindVertexArray(m_VAO);
+  m_VAO = new vertex_array_object();
+  m_VAO->bind();
 
   // Create and bind VBO
-  glGenBuffers(1, &m_VBO);
-  glBindBuffer(GL_ARRAY_BUFFER, m_VBO);
+  m_VBO = new vertex_buffer_object();
+  m_VBO->bind();
 
   // Set vertex attributes (position + color, no texture)
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *)0);
-  glEnableVertexAttribArray(0);
-  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float),
-                        (void *)(3 * sizeof(float)));
-  glEnableVertexAttribArray(1);
+  m_VAO->add_attributes({{3, GL_FLOAT, GL_FALSE}, {3, GL_FLOAT, GL_FALSE}});
 
   // Load shader
   try {
@@ -79,9 +72,8 @@ void triangle_test_scene::update_vbo() {
     vertex_data[i][5] = m_colors[i][2];   // b
   }
 
-  glBindBuffer(GL_ARRAY_BUFFER, m_VBO);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(vertex_data), vertex_data,
-               GL_DYNAMIC_DRAW);
+  m_VBO->bind();
+  m_VBO->set_data(vertex_data, sizeof(vertex_data));
 }
 
 void triangle_test_scene::render() {
@@ -91,7 +83,7 @@ void triangle_test_scene::render() {
 
   m_shader->use();
   m_shader->set_uniform<float>("ourColor", 1.0f, 1.0f, 1.0f, 1.0f);
-  glBindVertexArray(m_VAO);
+  m_VAO->bind();
   glDrawArrays(GL_TRIANGLES, 0, 3);
 }
 
