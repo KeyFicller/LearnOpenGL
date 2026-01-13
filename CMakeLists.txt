@@ -132,6 +132,7 @@ add_executable(LearnOpenGL
     tests/scenes/coordinate_test_scene.cpp
     tests/scenes/camera_test_scene.cpp
     tests/scenes/light_color_scene.cpp
+    tests/scenes/light_material_scene.cpp
     test_component/camera_controller.cpp
     ${IMGUI_SOURCES}
 )
