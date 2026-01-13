@@ -3,6 +3,7 @@
 #include "tests/scenes/camera_test_scene.h"
 #include "tests/scenes/color_test_scene.h"
 #include "tests/scenes/coordinate_test_scene.h"
+#include "tests/scenes/light_color_scene.h"
 #include "tests/scenes/texture_test_scene.h"
 #include "tests/scenes/transform_test_scene.h"
 #include "tests/scenes/triangle_test_scene.h"
@@ -36,6 +37,9 @@ void test_suit::init(GLFWwindow *_window) {
 
   m_scenes[test_scene::k_camera_test] = new camera_test_scene();
   m_scenes[test_scene::k_camera_test]->init(_window);
+
+  m_scenes[test_scene::k_light_color_test] = new light_color_scene();
+  m_scenes[test_scene::k_light_color_test]->init(_window);
 }
 
 void test_suit::render_ui() {

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "glm/fwd.hpp"
 #include <glad/gl.h>
 
 #include <GLFW/glfw3.h>
@@ -101,6 +102,12 @@ public:
   template <> struct uniform_function<glm::mat4, 1> {
     static void call(GLuint _location, const glm::mat4 *_values) {
       glUniformMatrix4fv(_location, 1, GL_FALSE, &(*_values)[0][0]);
+    }
+  };
+
+  template <> struct uniform_function<glm::vec3, 1> {
+    static void call(GLuint _location, const glm::vec3 *_values) {
+      glUniform3f(_location, (*_values)[0], (*_values)[1], (*_values)[2]);
     }
   };
 

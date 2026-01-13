@@ -11,6 +11,7 @@ enum class test_scene {
   k_transform_test,
   k_coordinate_test,
   k_camera_test,
+  k_light_color_test,
   k_count
 };
 
