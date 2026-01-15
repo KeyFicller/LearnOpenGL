@@ -2,6 +2,7 @@
 out vec4 FragColor;
 
 struct Light {
+    int type;
     vec3 position;
     vec3 ambient;
     vec3 diffuse;

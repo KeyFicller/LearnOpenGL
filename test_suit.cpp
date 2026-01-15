@@ -6,6 +6,7 @@
 #include "tests/scenes/light_color_scene.h"
 #include "tests/scenes/light_material_scene.h"
 #include "tests/scenes/light_texture_scene.h"
+#include "tests/scenes/light_type_scene.h"
 #include "tests/scenes/texture_test_scene.h"
 #include "tests/scenes/transform_test_scene.h"
 #include "tests/scenes/triangle_test_scene.h"
@@ -48,6 +49,9 @@ void test_suit::init(GLFWwindow *_window) {
 
   m_scenes[test_scene::k_light_texture_test] = new light_texture_scene();
   m_scenes[test_scene::k_light_texture_test]->init(_window);
+
+  m_scenes[test_scene::k_light_type_test] = new light_type_scene();
+  m_scenes[test_scene::k_light_type_test]->init(_window);
 }
 
 void test_suit::render_ui() {
