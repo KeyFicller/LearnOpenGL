@@ -32,6 +32,9 @@ public:
   void set_wrap_mode(wrap_mode _wrap_mode);
   void set_filter_mode(filter_mode _filter_mode);
 
+public:
+  unsigned int ID() const { return m_ID; }
+
 protected:
   unsigned int m_ID = -1;
   wrap_mode m_wrap_mode = wrap_mode::k_repeat;

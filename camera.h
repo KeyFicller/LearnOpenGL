@@ -29,7 +29,7 @@ public:
 
 public:
   glm::vec3 look_at() const { return m_position + m_front; }
-  glm::vec3 front() const { return glm::normalize(look_at() - m_position); }
+  glm::vec3 front() const { return m_front; }
   glm::vec3 right() const { return glm::normalize(glm::cross(m_up, front())); }
 
 public:
