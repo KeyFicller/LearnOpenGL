@@ -1,4 +1,4 @@
-#include "test_suit.h"
+#include "tests/framework/test_suit.h"
 
 #include "tests/scenes/camera_test_scene.h"
 #include "tests/scenes/color_test_scene.h"
@@ -7,6 +7,7 @@
 #include "tests/scenes/light_material_scene.h"
 #include "tests/scenes/light_texture_scene.h"
 #include "tests/scenes/light_type_scene.h"
+#include "tests/scenes/scene_factory.h"
 #include "tests/scenes/texture_test_scene.h"
 #include "tests/scenes/transform_test_scene.h"
 #include "tests/scenes/triangle_test_scene.h"
@@ -23,35 +24,16 @@ test_suit::~test_suit() {
 
 void test_suit::init(GLFWwindow *_window) {
   // Create and initialize all test scenes
-  m_scenes[test_scene::k_texture_test] = new texture_test_scene();
-  m_scenes[test_scene::k_texture_test]->init(_window);
-
-  m_scenes[test_scene::k_triangle_test] = new triangle_test_scene();
-  m_scenes[test_scene::k_triangle_test]->init(_window);
-
-  m_scenes[test_scene::k_color_test] = new color_test_scene();
-  m_scenes[test_scene::k_color_test]->init(_window);
-
-  m_scenes[test_scene::k_transform_test] = new transform_test_scene();
-  m_scenes[test_scene::k_transform_test]->init(_window);
-
-  m_scenes[test_scene::k_coordinate_test] = new coordinate_test_scene();
-  m_scenes[test_scene::k_coordinate_test]->init(_window);
-
-  m_scenes[test_scene::k_camera_test] = new camera_test_scene();
-  m_scenes[test_scene::k_camera_test]->init(_window);
-
-  m_scenes[test_scene::k_light_color_test] = new light_color_scene();
-  m_scenes[test_scene::k_light_color_test]->init(_window);
-
-  m_scenes[test_scene::k_light_material_test] = new light_material_scene();
-  m_scenes[test_scene::k_light_material_test]->init(_window);
-
-  m_scenes[test_scene::k_light_texture_test] = new light_texture_scene();
-  m_scenes[test_scene::k_light_texture_test]->init(_window);
-
-  m_scenes[test_scene::k_light_type_test] = new light_type_scene();
-  m_scenes[test_scene::k_light_type_test]->init(_window);
+  REGISTER_SCENE(test_scene::k_texture_test, texture_test_scene);
+  REGISTER_SCENE(test_scene::k_triangle_test, triangle_test_scene);
+  REGISTER_SCENE(test_scene::k_color_test, color_test_scene);
+  REGISTER_SCENE(test_scene::k_transform_test, transform_test_scene);
+  REGISTER_SCENE(test_scene::k_coordinate_test, coordinate_test_scene);
+  REGISTER_SCENE(test_scene::k_camera_test, camera_test_scene);
+  REGISTER_SCENE(test_scene::k_light_color_test, light_color_scene);
+  REGISTER_SCENE(test_scene::k_light_material_test, light_material_scene);
+  REGISTER_SCENE(test_scene::k_light_texture_test, light_texture_scene);
+  REGISTER_SCENE(test_scene::k_light_type_test, light_type_scene);
 }
 
 void test_suit::render_ui() {
@@ -120,3 +102,4 @@ bool test_suit::on_mouse_scroll(double _xoffset, double _yoffset) {
   }
   return false;
 }
+

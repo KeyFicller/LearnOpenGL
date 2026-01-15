@@ -2,6 +2,7 @@
 
 #include "glm/ext/matrix_clip_space.hpp"
 #include "glm/ext/matrix_transform.hpp"
+#include "glm/ext/vector_float3.hpp"
 #include "glm/fwd.hpp"
 #include "glm/geometric.hpp"
 #include "glm/glm.hpp"
@@ -31,6 +32,7 @@ public:
   glm::vec3 look_at() const { return m_position + m_front; }
   glm::vec3 front() const { return m_front; }
   glm::vec3 right() const { return glm::normalize(glm::cross(m_up, front())); }
+  glm::vec3 up() const { return m_up; }
 
 public:
   camera() {

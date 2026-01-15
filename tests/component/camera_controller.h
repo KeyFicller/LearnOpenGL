@@ -1,6 +1,6 @@
 #pragma once
 
-#include "camera.h"
+#include "basic/camera.h"
 
 struct GLFWwindow;
 
@@ -23,3 +23,4 @@ private:
   double m_last_ypos = 0.0;
   bool m_first_mouse = true;
 };
+

@@ -1,8 +1,8 @@
 #pragma once
 
-#include "camera.h"
+#include "basic/camera.h"
 #include "scene_base.h"
-#include "test_component/camera_controller.h"
+#include "tests/component/camera_controller.h"
 
 // Base class for scenes that need camera functionality
 class camera_scene_base : public test_scene_base {

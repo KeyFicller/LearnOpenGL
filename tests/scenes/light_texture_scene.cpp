@@ -1,11 +1,9 @@
 #include "light_texture_scene.h"
 
-#include <iostream>
-
 #include "glad/gl.h"
-#include "glm/ext/matrix_transform.hpp"
-#include "glm/geometric.hpp"
 #include "imgui.h"
+#include "mesh_helper.h"
+#include "shader_helper.h"
 #include <GLFW/glfw3.h>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -95,56 +93,35 @@ static unsigned int box_indices[] = {
 };
 
 light_texture_scene::light_texture_scene()
-    : camera_scene_base("Light Texture Test"), m_shader(nullptr) {}
-
-light_texture_scene::~light_texture_scene() {
-  delete m_VAO;
-  delete m_VBO;
-  delete m_EBO;
-  delete m_shader;
-}
+    : renderable_scene_base("Light Texture Test") {}
 
 void light_texture_scene::init(GLFWwindow *_window) {
-  camera_scene_base::init(_window);
+  renderable_scene_base::init(_window);
 
-  // Create VAO
-  m_VAO = new vertex_array_object();
-  m_VAO->bind();
+  // Setup mesh using helper
+  mesh_data data;
+  data.vertices = box_vertices;
+  data.vertex_size = sizeof(box_vertices);
+  data.indices = box_indices;
+  data.index_count = sizeof(box_indices) / sizeof(unsigned int);
+  data.attributes = {{3, GL_FLOAT, GL_FALSE},
+                     {3, GL_FLOAT, GL_FALSE},
+                     {2, GL_FLOAT, GL_FALSE}};
+  setup_mesh(data);
 
-  // Create and bind VBO
-  m_VBO = new vertex_buffer_object();
-  m_VBO->bind();
-  m_VBO->set_data(box_vertices, sizeof(box_vertices), GL_STATIC_DRAW);
+  // Load shaders using helper
+  load_shader_pair("shaders/light_texture_test/vertex.shader",
+                   "shaders/light_texture_test/fragment.shader",
+                   "shaders/light_texture_test/light_fragment.shader",
+                   m_shader, m_light_shader);
 
-  // Create and bind EBO
-  m_EBO = new index_buffer_object();
-  m_EBO->bind();
-  m_EBO->set_data(box_indices, sizeof(box_indices));
-
-  // Set vertex attributes (position: 3 floats, normal: 3 floats, texcoord: 2
-  // floats)
-  m_VAO->add_attributes({{3, GL_FLOAT, GL_FALSE},
-                         {3, GL_FLOAT, GL_FALSE},
-                         {2, GL_FLOAT, GL_FALSE}});
-
-  // Load shader
-  try {
-    m_shader = new shader("shaders/light_texture_test/vertex.shader",
-                          "shaders/light_texture_test/fragment.shader");
-    m_light_shader =
-        new shader("shaders/light_texture_test/vertex.shader",
-                   "shaders/light_texture_test/light_fragment.shader");
-  } catch (const std::exception &e) {
-    std::cerr << "Failed to load camera test shader: " << e.what() << std::endl;
-    m_shader = nullptr;
-    m_light_shader = nullptr;
-  }
-
+  // Initialize camera
   m_camera.m_position = {3.0f, 3.0f, 0.0f};
   m_camera.m_front = glm::vec3{0.0f, 0.0f, 0.0f} - m_camera.m_position;
   m_camera.m_up = glm::normalize(glm::vec3{0.0f, 0.0f, 1.0f});
   m_camera.update_view_matrix();
 
+  // Load textures
   m_texture_material.m_diffuse_texture =
       new texture_2d("assets/images/spider_man.jpeg");
   m_texture_material.m_specular_texture =
@@ -156,35 +133,15 @@ void light_texture_scene::render() {
     return;
   }
 
-  m_shader->use();
-  glm::mat4 model = glm::mat4(1.0f);
-  m_shader->set_uniform<glm::mat4, 1>("model", &model);
-  m_shader->set_uniform<glm::mat4, 1>("view", &m_camera.m_view_matrix);
-  m_shader->set_uniform<glm::mat4, 1>("projection",
-                                      &m_camera.m_projection_matrix);
-
+  // Set matrices and render object
+  set_matrices(m_shader);
   uniform(*m_shader, m_light, "uLight");
   uniform(*m_shader, m_texture_material, "uMaterial");
   m_shader->set_uniform<glm::vec3, 1>("uEyePosition", &m_camera.m_position);
+  m_mesh.draw();
 
-  m_VAO->bind();
-  m_EBO->bind();
-  glDrawElements(GL_TRIANGLES, sizeof(box_indices) / sizeof(unsigned int),
-                 GL_UNSIGNED_INT, 0);
-
-  // Render light source
-  m_light_shader->use();
-  glm::mat4 light_model = glm::mat4(1.0f);
-  light_model = glm::translate(light_model, m_light.m_position);
-  light_model = glm::scale(light_model, glm::vec3{0.2f, 0.2f, 0.2f});
-  m_light_shader->set_uniform<glm::mat4, 1>("model", &light_model);
-  m_light_shader->set_uniform<glm::mat4, 1>("view", &m_camera.m_view_matrix);
-  m_light_shader->set_uniform<glm::mat4, 1>("projection",
-                                            &m_camera.m_projection_matrix);
-  m_VAO->bind();
-  m_EBO->bind();
-  glDrawElements(GL_TRIANGLES, sizeof(box_indices) / sizeof(unsigned int),
-                 GL_UNSIGNED_INT, 0);
+  // Render light source using helper
+  render_light_source(m_light_shader, m_light.m_position);
 }
 
 void light_texture_scene::render_ui() {

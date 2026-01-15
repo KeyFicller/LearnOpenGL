@@ -1,8 +1,9 @@
 #include "camera_test_scene.h"
 
-#include <iostream>
-
+#include "glad/gl.h"
 #include "imgui.h"
+#include "mesh_helper.h"
+#include "shader_helper.h"
 #include <GLFW/glfw3.h>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -35,43 +36,23 @@ static unsigned int box_indices[] = {
     3, 2, 6, 6, 7, 3};
 
 camera_test_scene::camera_test_scene()
-    : camera_scene_base("Camera Test"), m_shader(nullptr) {}
-
-camera_test_scene::~camera_test_scene() {
-  delete m_VAO;
-  delete m_VBO;
-  delete m_EBO;
-  delete m_shader;
-}
+    : camera_scene_base("Camera Test") {}
 
 void camera_test_scene::init(GLFWwindow *_window) {
   camera_scene_base::init(_window);
 
-  // Create VAO
-  m_VAO = new vertex_array_object();
-  m_VAO->bind();
+  // Setup mesh using helper
+  mesh_data data;
+  data.vertices = box_vertices;
+  data.vertex_size = sizeof(box_vertices);
+  data.indices = box_indices;
+  data.index_count = sizeof(box_indices) / sizeof(unsigned int);
+  data.attributes = {{3, GL_FLOAT, GL_FALSE}};
+  m_mesh.setup_mesh(data);
 
-  // Create and bind VBO
-  m_VBO = new vertex_buffer_object();
-  m_VBO->bind();
-  m_VBO->set_data(box_vertices, sizeof(box_vertices), GL_STATIC_DRAW);
-
-  // Create and bind EBO
-  m_EBO = new index_buffer_object();
-  m_EBO->bind();
-  m_EBO->set_data(box_indices, sizeof(box_indices));
-
-  // Set vertex attributes (position only, 3 floats)
-  m_VAO->add_attributes({{3, GL_FLOAT, GL_FALSE}});
-
-  // Load shader
-  try {
-    m_shader = new shader("shaders/camera_test/vertex.shader",
-                          "shaders/camera_test/fragment.shader");
-  } catch (const std::exception &e) {
-    std::cerr << "Failed to load camera test shader: " << e.what() << std::endl;
-    m_shader = nullptr;
-  }
+  // Load shader using helper
+  m_shader = load_shader("shaders/camera_test/vertex.shader",
+                         "shaders/camera_test/fragment.shader");
 }
 
 void camera_test_scene::render() {
@@ -80,25 +61,13 @@ void camera_test_scene::render() {
   }
 
   m_shader->use();
-
   glm::mat4 model = glm::mat4(1.0f);
   m_shader->set_uniform<glm::mat4, 1>("model", &model);
   m_shader->set_uniform<glm::mat4, 1>("view", &m_camera.m_view_matrix);
-
-  // Get window dimensions from ImGui
-  ImGuiIO &io = ImGui::GetIO();
-  float width = io.DisplaySize.x;
-  float height = io.DisplaySize.y;
-  if (height == 0.0f)
-    height = 1.0f; // Avoid division by zero
-
   m_shader->set_uniform<glm::mat4, 1>("projection",
                                       &m_camera.m_projection_matrix);
 
-  m_VAO->bind();
-  m_EBO->bind();
-  glDrawElements(GL_TRIANGLES, sizeof(box_indices) / sizeof(unsigned int),
-                 GL_UNSIGNED_INT, 0);
+  m_mesh.draw();
 }
 
 void camera_test_scene::render_ui() {

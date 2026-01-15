@@ -2,8 +2,8 @@
 
 #include "glm/glm.hpp"
 #include "imgui.h"
-#include "shader.h"
-#include "texture.h"
+#include "basic/shader.h"
+#include "basic/texture.h"
 
 struct material {
 public:

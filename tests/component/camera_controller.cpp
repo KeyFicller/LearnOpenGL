@@ -1,4 +1,4 @@
-#include "camera_controller.h"
+#include "tests/component/camera_controller.h"
 
 #include <GLFW/glfw3.h>
 #include <glm/gtc/matrix_transform.hpp>
@@ -17,10 +17,10 @@ camera_controller::camera_controller(camera &_camera, GLFWwindow *window)
 void camera_controller::update(float _delta_time) {
   float speed = 2.5f * _delta_time;
   if (glfwGetKey(m_window, GLFW_KEY_W) == GLFW_PRESS) {
-    m_camera.m_position += m_camera.front() * speed;
+    m_camera.m_position += m_camera.up() * speed;
   }
   if (glfwGetKey(m_window, GLFW_KEY_S) == GLFW_PRESS) {
-    m_camera.m_position -= m_camera.front() * speed;
+    m_camera.m_position -= m_camera.up() * speed;
   }
   if (glfwGetKey(m_window, GLFW_KEY_A) == GLFW_PRESS) {
     m_camera.m_position -= m_camera.right() * speed;
@@ -87,3 +87,4 @@ void camera_controller::on_mouse_scroll(double _xoffset, double _yoffset) {
   m_camera.m_fov = glm::clamp(m_camera.m_fov, min_fov, max_fov);
   m_camera.update_projection_matrix();
 }
+

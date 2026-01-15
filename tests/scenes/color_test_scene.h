@@ -1,8 +1,8 @@
 #pragma once
 
 #include "scene_base.h"
-#include "shader.h"
-#include "vertex_array_object.h"
+#include "basic/shader.h"
+#include "basic/vertex_array_object.h"
 
 // Color test scene
 class color_test_scene : public test_scene_base {

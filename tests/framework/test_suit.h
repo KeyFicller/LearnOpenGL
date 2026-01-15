@@ -53,3 +53,4 @@ private:
   // Get scene instance by enum
   test_scene_base *get_scene(test_scene _scene);
 };
+

@@ -115,15 +115,19 @@ set(IMGUI_SOURCES
     "${imgui_SOURCE_DIR}/imgui_widgets.cpp"
     "${imgui_SOURCE_DIR}/imgui_demo.cpp"
     "${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp"
-    "imgui_impl_opengl3_wrapper.cpp"
+    "basic/imgui_impl_opengl3_wrapper.cpp"
 )
 
 add_executable(LearnOpenGL 
     main.cpp 
-    shader.cpp 
-    texture.cpp
-    test_suit.cpp
+    basic/shader.cpp 
+    basic/texture.cpp
+    basic/imgui_impl_opengl3_wrapper.cpp
+    tests/framework/test_suit.cpp
     tests/scenes/scene_base.cpp
+    tests/scenes/mesh_helper.cpp
+    tests/scenes/shader_helper.cpp
+    tests/scenes/renderable_scene_base.cpp
     tests/scenes/texture_test_scene.cpp
     tests/scenes/triangle_test_scene.cpp
     tests/scenes/color_test_scene.cpp
@@ -135,7 +139,7 @@ add_executable(LearnOpenGL
     tests/scenes/light_material_scene.cpp
     tests/scenes/light_texture_scene.cpp
     tests/scenes/light_type_scene.cpp
-    test_component/camera_controller.cpp
+    tests/component/camera_controller.cpp
     ${IMGUI_SOURCES}
 )
 

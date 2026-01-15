@@ -2,8 +2,8 @@
 
 #include "glm/fwd.hpp"
 #include "scene_base.h"
-#include "shader.h"
-#include "vertex_array_object.h"
+#include "basic/shader.h"
+#include "basic/vertex_array_object.h"
 #include <glm/glm.hpp>
 #include <vector>
 

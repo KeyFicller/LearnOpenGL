@@ -11,8 +11,7 @@
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
 
-#include "misc_functions.h"
-#include "test_suit.h"
+#include "tests/framework/test_suit.h"
 
 // Function prototypes
 void key_callback(GLFWwindow *window, int key, int scancode, int action,
@@ -78,11 +77,6 @@ int main() {
 
   // Define the viewport dimensions
   glViewport(0, 0, WIDTH, HEIGHT);
-
-  // ------------------ Misc Functions Test ------------------
-  // Query maximum vertex attributes
-  query_maximum_vertex_attributes();
-  // ----------------------------------------------------------
 
   // ------------------ Setup Dear ImGui ------------------
   IMGUI_CHECKVERSION();
