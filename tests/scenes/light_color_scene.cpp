@@ -95,7 +95,7 @@ static unsigned int box_indices[] = {
 };
 
 light_color_scene::light_color_scene()
-    : test_scene_base("Light Color Test"), m_shader(nullptr) {}
+    : camera_scene_base("Light Color Test"), m_shader(nullptr) {}
 
 light_color_scene::~light_color_scene() {
   delete m_VAO;
@@ -105,7 +105,7 @@ light_color_scene::~light_color_scene() {
 }
 
 void light_color_scene::init(GLFWwindow *_window) {
-  test_scene_base::init(_window);
+  camera_scene_base::init(_window);
 
   // Create VAO
   m_VAO = new vertex_array_object();
@@ -136,8 +136,6 @@ void light_color_scene::init(GLFWwindow *_window) {
     m_shader = nullptr;
     m_light_shader = nullptr;
   }
-
-  m_camera_controller = new camera_controller(m_camera, _window);
 
   m_camera.m_position = {10.0f, 10.0f, 10.0f};
   m_camera.m_front = glm::vec3{0.0f, 0.0f, 0.0f} - m_camera.m_position;
@@ -189,7 +187,7 @@ void light_color_scene::render_ui() {
   ImGui::Text("Light Color Test");
   ImGui::Spacing();
 
-  ImGui::Checkbox("Camera Controller", &m_camera_controller_enabled);
+  render_camera_ui();
   ImGui::SliderFloat3("Light Color", &m_light_color.x, 0.0f, 1.0f);
   ImGui::SliderFloat3("Object Color", &m_object_color.x, 0.0f, 1.0f);
   ImGui::SliderFloat3("Light Position", &m_light_position.x, -10.0f, 10.0f);
@@ -200,21 +198,4 @@ void light_color_scene::render_ui() {
   ImGui::SliderFloat("Specular Strength", &m_specular_strength, 0.0f, 1.0f,
                      "%.2f");
   ImGui::SliderFloat("Shininess", &m_shininess, 1.0f, 128.0f, "%.0f");
-}
-
-bool light_color_scene::on_mouse_moved(double _xpos, double _ypos) {
-  if (m_camera_controller_enabled)
-    m_camera_controller->on_mouse_moved(_xpos, _ypos);
-  return false;
-}
-
-bool light_color_scene::on_mouse_scroll(double _xoffset, double _yoffset) {
-  if (m_camera_controller_enabled)
-    m_camera_controller->on_mouse_scroll(_xoffset, _yoffset);
-  return false;
-}
-
-void light_color_scene::update(float _delta_time) {
-  if (m_camera_controller_enabled)
-    m_camera_controller->update(_delta_time);
 }

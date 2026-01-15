@@ -35,7 +35,7 @@ static unsigned int box_indices[] = {
     3, 2, 6, 6, 7, 3};
 
 camera_test_scene::camera_test_scene()
-    : test_scene_base("Camera Test"), m_shader(nullptr) {}
+    : camera_scene_base("Camera Test"), m_shader(nullptr) {}
 
 camera_test_scene::~camera_test_scene() {
   delete m_VAO;
@@ -45,7 +45,7 @@ camera_test_scene::~camera_test_scene() {
 }
 
 void camera_test_scene::init(GLFWwindow *_window) {
-  test_scene_base::init(_window);
+  camera_scene_base::init(_window);
 
   // Create VAO
   m_VAO = new vertex_array_object();
@@ -72,8 +72,6 @@ void camera_test_scene::init(GLFWwindow *_window) {
     std::cerr << "Failed to load camera test shader: " << e.what() << std::endl;
     m_shader = nullptr;
   }
-
-  m_camera_controller = new camera_controller(m_camera, _window);
 }
 
 void camera_test_scene::render() {
@@ -108,7 +106,7 @@ void camera_test_scene::render_ui() {
   ImGui::Text("Camera Test");
   ImGui::Spacing();
 
-  ImGui::Checkbox("Enable Camera Controller", &m_enable_camera_controller);
+  render_camera_ui();
 
   // View matrix controls
   bool update_view_matrix = false;
@@ -139,27 +137,5 @@ void camera_test_scene::render_ui() {
       ImGui::SliderFloat("far", &m_camera.m_far, 10.0f, 100.0f);
   if (update_projection_matrix) {
     m_camera.update_projection_matrix();
-  }
-}
-
-bool camera_test_scene::on_mouse_moved(double _xpos, double _ypos) {
-  if (m_enable_camera_controller) {
-    m_camera_controller->on_mouse_moved(_xpos, _ypos);
-    return false;
-  }
-  return false;
-}
-
-bool camera_test_scene::on_mouse_scroll(double _xoffset, double _yoffset) {
-  if (m_enable_camera_controller) {
-    m_camera_controller->on_mouse_scroll(_xoffset, _yoffset);
-    return false;
-  }
-  return false;
-}
-
-void camera_test_scene::update(float _delta_time) {
-  if (m_enable_camera_controller) {
-    m_camera_controller->update(_delta_time);
   }
 }

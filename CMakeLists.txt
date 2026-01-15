@@ -130,6 +130,7 @@ add_executable(LearnOpenGL
     tests/scenes/color_test_scene.cpp
     tests/scenes/transform_test_scene.cpp
     tests/scenes/coordinate_test_scene.cpp
+    tests/scenes/camera_scene_base.cpp
     tests/scenes/camera_test_scene.cpp
     tests/scenes/light_color_scene.cpp
     tests/scenes/light_material_scene.cpp
