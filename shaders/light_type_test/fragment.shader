@@ -51,15 +51,18 @@ void main()
     float spec = pow(max(dot(viewDir, reflectDir), 0.0), uMaterial.shininess);
     vec3 specular = uLight.specular * spec * uMaterial.specular;
 
-    if (uLight.type == 1)
+    // Calculate distance attenuation for point and spot lights
+    float attenuation = 1.0;
+    if (uLight.type == 1 || uLight.type == 2)
     {
         float distance = length(uLight.position - FragPos);
-        float attenuation = 1.0 / (uLight.constant + uLight.linear * distance + uLight.quadratic * distance * distance);
-        ambient *= attenuation;
+        attenuation = 1.0 / (uLight.constant + uLight.linear * distance + uLight.quadratic * distance * distance);
+        // Apply attenuation to diffuse and specular (ambient should not be attenuated)
         diffuse *= attenuation;
         specular *= attenuation;
     }
 
+    // Apply spot light angle attenuation
     if (uLight.type == 2)
     {
         float theta = dot(lightDir, normalize(-uLight.direction));

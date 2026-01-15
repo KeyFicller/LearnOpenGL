@@ -2,7 +2,7 @@
 
 #include "glm/glm.hpp"
 #include "imgui.h"
-#include "basic/shader.h"
+#include "shader.h"
 
 enum class light_type : int {
   k_directional,
@@ -21,7 +21,6 @@ public:
   glm::vec3 m_direction = glm::vec3(0.0f, 0.0f, -1.0f);
 
   glm::vec3 m_position = glm::vec3(1.0f, 1.0f, 0.0f);
-  bool m_enable_decay = false;
   float m_constant = 1.0f;
   float m_linear = 0.09f;
   float m_quadratic = 0.032f;
@@ -41,34 +40,19 @@ inline void uniform(shader &_shader, const light &_light, std::string _name) {
   _shader.set_uniform<glm::vec3, 1>((_name + ".specular").c_str(),
                                     &_light.m_specular);
 
-  switch (_light.m_type) {
-  case light_type::k_directional:
-    _shader.set_uniform<glm::vec3, 1>((_name + ".direction").c_str(),
-                                      &_light.m_direction);
-    break;
-  case light_type::k_point:
-    _shader.set_uniform<glm::vec3, 1>((_name + ".position").c_str(),
-                                      &_light.m_position);
-    if (_light.m_enable_decay) {
-      _shader.set_uniform<float, 1>((_name + ".constant").c_str(),
-                                    &_light.m_constant);
-      _shader.set_uniform<float, 1>((_name + ".linear").c_str(),
-                                    &_light.m_linear);
-      _shader.set_uniform<float, 1>((_name + ".quadratic").c_str(),
-                                    &_light.m_quadratic);
-    }
-    break;
-  case light_type::k_spot:
-    _shader.set_uniform<glm::vec3, 1>((_name + ".position").c_str(),
-                                      &_light.m_position);
-    _shader.set_uniform<glm::vec3, 1>((_name + ".direction").c_str(),
-                                      &_light.m_direction);
-    _shader.set_uniform<float, 1>((_name + ".cutoff").c_str(),
-                                  &_light.m_cutoff);
-    _shader.set_uniform<float, 1>((_name + ".outer_cutoff").c_str(),
-                                  &_light.m_outer_cutoff);
-    break;
-  }
+  // Always set all fields to ensure shader receives valid values
+  _shader.set_uniform<glm::vec3, 1>((_name + ".position").c_str(),
+                                    &_light.m_position);
+  _shader.set_uniform<glm::vec3, 1>((_name + ".direction").c_str(),
+                                    &_light.m_direction);
+  _shader.set_uniform<float, 1>((_name + ".constant").c_str(),
+                                &_light.m_constant);
+  _shader.set_uniform<float, 1>((_name + ".linear").c_str(), &_light.m_linear);
+  _shader.set_uniform<float, 1>((_name + ".quadratic").c_str(),
+                                &_light.m_quadratic);
+  _shader.set_uniform<float, 1>((_name + ".cutoff").c_str(), &_light.m_cutoff);
+  _shader.set_uniform<float, 1>((_name + ".outer_cutoff").c_str(),
+                                &_light.m_outer_cutoff);
 }
 
 inline void ui(light &_light) {
@@ -87,11 +71,9 @@ inline void ui(light &_light) {
   case light_type::k_point:
     ImGui::SliderFloat3("Position", &_light.m_position.x, -10.0f, 10.0f,
                         "%.2f");
-    if (_light.m_enable_decay) {
-      ImGui::SliderFloat("Constant", &_light.m_constant, 0.0f, 1.0f, "%.2f");
-      ImGui::SliderFloat("Linear", &_light.m_linear, 0.0f, 1.0f, "%.2f");
-      ImGui::SliderFloat("Quadratic", &_light.m_quadratic, 0.0f, 1.0f, "%.2f");
-    }
+    ImGui::SliderFloat("Constant", &_light.m_constant, 0.0f, 1.0f, "%.2f");
+    ImGui::SliderFloat("Linear", &_light.m_linear, 0.0f, 1.0f, "%.2f");
+    ImGui::SliderFloat("Quadratic", &_light.m_quadratic, 0.0f, 1.0f, "%.2f");
     break;
   case light_type::k_spot:
     ImGui::SliderFloat3("Position", &_light.m_position.x, -10.0f, 10.0f,

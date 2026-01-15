@@ -110,16 +110,14 @@ void light_type_scene::init(GLFWwindow *_window) {
   // Load shaders using helper
   load_shader_pair("shaders/light_type_test/vertex.shader",
                    "shaders/light_type_test/fragment.shader",
-                   "shaders/light_type_test/light_fragment.shader",
-                   m_shader, m_light_shader);
+                   "shaders/light_type_test/light_fragment.shader", m_shader,
+                   m_light_shader);
 
   // Initialize camera
   m_camera.m_position = {10.0f, 10.0f, 10.0f};
   m_camera.m_front = glm::vec3{0.0f, 0.0f, 0.0f} - m_camera.m_position;
   m_camera.m_up = glm::normalize(glm::vec3{-1, -1, 2});
   m_camera.update_view_matrix();
-
-  m_light.m_enable_decay = true;
 }
 
 void light_type_scene::render() {
