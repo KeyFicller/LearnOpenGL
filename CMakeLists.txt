@@ -121,7 +121,6 @@ set(IMGUI_SOURCES
 add_executable(LearnOpenGL 
     main.cpp 
     shader.cpp 
-    misc_functions.cpp 
     texture.cpp
     test_suit.cpp
     tests/scenes/scene_base.cpp
