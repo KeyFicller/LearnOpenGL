@@ -21,9 +21,9 @@ void renderable_scene_base::set_matrices(shader *_shader,
     return;
   }
   _shader->use();
-  _shader->set_uniform<glm::mat4, 1>("model", &model);
-  _shader->set_uniform<glm::mat4, 1>("view", &m_camera.m_view_matrix);
-  _shader->set_uniform<glm::mat4, 1>("projection", &m_camera.m_projection_matrix);
+  _shader->set_uniform("model", model);
+  _shader->set_uniform("view", m_camera.m_view_matrix);
+  _shader->set_uniform("projection", m_camera.m_projection_matrix);
 }
 
 void renderable_scene_base::render_mesh() {

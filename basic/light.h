@@ -25,8 +25,10 @@ public:
   float m_linear = 0.09f;
   float m_quadratic = 0.032f;
 
-  float m_cutoff = glm::cos(glm::radians(12.5f));
-  float m_outer_cutoff = glm::cos(glm::radians(17.5f));
+  // Cutoff angles in degrees (will be converted to cos(radians) when setting
+  // uniforms)
+  float m_cutoff = 12.5f;       // Inner cutoff angle in degrees
+  float m_outer_cutoff = 17.5f; // Outer cutoff angle in degrees
 };
 
 inline void uniform(shader &_shader, const light &_light, std::string _name) {
@@ -50,9 +52,12 @@ inline void uniform(shader &_shader, const light &_light, std::string _name) {
   _shader.set_uniform<float, 1>((_name + ".linear").c_str(), &_light.m_linear);
   _shader.set_uniform<float, 1>((_name + ".quadratic").c_str(),
                                 &_light.m_quadratic);
-  _shader.set_uniform<float, 1>((_name + ".cutoff").c_str(), &_light.m_cutoff);
+  // Convert cutoff angles (degrees) to cos(radians) for shader
+  float cutoff_cos = glm::cos(glm::radians(_light.m_cutoff));
+  float outer_cutoff_cos = glm::cos(glm::radians(_light.m_outer_cutoff));
+  _shader.set_uniform<float, 1>((_name + ".cutoff").c_str(), &cutoff_cos);
   _shader.set_uniform<float, 1>((_name + ".outer_cutoff").c_str(),
-                                &_light.m_outer_cutoff);
+                                &outer_cutoff_cos);
 }
 
 inline void ui(light &_light) {
@@ -80,9 +85,10 @@ inline void ui(light &_light) {
                         "%.2f");
     ImGui::SliderFloat3("Direction", &_light.m_direction.x, -1.0f, 1.0f,
                         "%.2f");
-    ImGui::SliderFloat("Cutoff", &_light.m_cutoff, 0.0f, 1.0f, "%.2f");
-    ImGui::SliderFloat("Outer Cutoff", &_light.m_outer_cutoff, 0.0f, 1.0f,
-                       "%.2f");
+    ImGui::SliderFloat("Cutoff (degrees)", &_light.m_cutoff, 0.0f, 90.0f,
+                       "%.1f");
+    ImGui::SliderFloat("Outer Cutoff (degrees)", &_light.m_outer_cutoff, 0.0f,
+                       90.0f, "%.1f");
     break;
   }
 }

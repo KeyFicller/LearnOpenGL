@@ -19,8 +19,9 @@ public:
   // Event handlers for camera control
   bool on_mouse_moved(double _xpos, double _ypos) override;
   bool on_mouse_scroll(double _xoffset, double _yoffset) override;
+  void on_framebuffer_resized(int _width, int _height) override;
 
-  // Render camera controller UI (checkbox)
+  // Render camera controller UI (checkbox and settings)
   // Subclasses should call this in their render_ui() implementation
   void render_camera_ui();
 

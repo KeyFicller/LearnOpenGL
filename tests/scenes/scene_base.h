@@ -31,6 +31,7 @@ public:
   virtual bool on_mouse_scroll(double _xoffset, double _yoffset) {
     return false;
   }
+  virtual void on_framebuffer_resized(int _width, int _height) {}
 
 protected:
   std::string m_name;

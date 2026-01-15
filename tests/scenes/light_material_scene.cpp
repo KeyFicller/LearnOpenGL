@@ -113,10 +113,10 @@ void light_material_scene::init(GLFWwindow *_window) {
                    "shaders/light_material_test/light_fragment.shader",
                    m_shader, m_light_shader);
 
-  // Initialize camera
+  // Initialize camera - position at (10, 10, 10) looking at origin
   m_camera.m_position = {10.0f, 10.0f, 10.0f};
-  m_camera.m_front = glm::vec3{0.0f, 0.0f, 0.0f} - m_camera.m_position;
-  m_camera.m_up = glm::normalize(glm::vec3{-1, -1, 2});
+  m_camera.m_yaw = -135.0f;   // Looking from (10,10,10) towards (0,0,0)
+  m_camera.m_pitch = -35.26f;
   m_camera.update_view_matrix();
 }
 

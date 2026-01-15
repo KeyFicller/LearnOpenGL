@@ -115,10 +115,10 @@ void light_texture_scene::init(GLFWwindow *_window) {
                    "shaders/light_texture_test/light_fragment.shader",
                    m_shader, m_light_shader);
 
-  // Initialize camera
+  // Initialize camera - position at (3, 3, 0) looking at origin
   m_camera.m_position = {3.0f, 3.0f, 0.0f};
-  m_camera.m_front = glm::vec3{0.0f, 0.0f, 0.0f} - m_camera.m_position;
-  m_camera.m_up = glm::normalize(glm::vec3{0.0f, 0.0f, 1.0f});
+  m_camera.m_yaw = 180.0f;    // Looking from (3,3,0) towards (0,0,0)
+  m_camera.m_pitch = -45.0f;
   m_camera.update_view_matrix();
 
   // Load textures

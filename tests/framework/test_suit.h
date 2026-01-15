@@ -42,6 +42,7 @@ public:
   // Event handlers
   bool on_mouse_moved(double _xpos, double _ypos);
   bool on_mouse_scroll(double _xoffset, double _yoffset);
+  void on_framebuffer_resized(int _width, int _height);
 
 private:
   // Current active test scene

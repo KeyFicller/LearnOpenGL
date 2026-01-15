@@ -116,6 +116,12 @@ public:
     uniform_function<tType, COUNT>::call(get_uniform_location(_name), _values);
   }
 
+  // Overload for single value (COUNT=1) - accepts temporary values
+  template <typename tType>
+  void set_uniform(const char *_name, const tType &_value) {
+    uniform_function<tType, 1>::call(get_uniform_location(_name), &_value);
+  }
+
   template <typename tType, unsigned COUNT>
   void set_uniform(const char *_name, const std::vector<tType> &_values) {
     if (_values.size() != COUNT) {

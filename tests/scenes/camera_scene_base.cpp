@@ -37,7 +37,45 @@ bool camera_scene_base::on_mouse_scroll(double _xoffset, double _yoffset) {
   return false;
 }
 
+void camera_scene_base::on_framebuffer_resized(int _width, int _height) {
+  if (m_camera_controller) {
+    m_camera_controller->on_framebuffer_resized(_width, _height);
+  }
+}
+
 void camera_scene_base::render_camera_ui() {
   ImGui::Checkbox("Camera Controller", &m_camera_controller_enabled);
+
+  if (m_camera_controller_enabled && m_camera_controller) {
+    ImGui::Indent();
+    
+    // Mouse capture toggle
+    bool mouse_captured = m_camera_controller->is_mouse_captured();
+    if (ImGui::Checkbox("Capture Mouse", &mouse_captured)) {
+      m_camera_controller->set_mouse_captured(mouse_captured);
+    }
+
+    // Configuration
+    if (ImGui::CollapsingHeader("Camera Settings")) {
+      float speed = m_camera_controller->get_movement_speed();
+      if (ImGui::SliderFloat("Movement Speed", &speed, 0.1f, 10.0f, "%.1f")) {
+        m_camera_controller->set_movement_speed(speed);
+      }
+
+      float sensitivity = m_camera_controller->get_mouse_sensitivity();
+      if (ImGui::SliderFloat("Mouse Sensitivity", &sensitivity, 0.01f, 1.0f,
+                             "%.2f")) {
+        m_camera_controller->set_mouse_sensitivity(sensitivity);
+      }
+
+      float scroll_sensitivity = m_camera_controller->get_scroll_sensitivity();
+      if (ImGui::SliderFloat("Scroll Sensitivity", &scroll_sensitivity, 0.1f,
+                             10.0f, "%.1f")) {
+        m_camera_controller->set_scroll_sensitivity(scroll_sensitivity);
+      }
+    }
+
+    ImGui::Unindent();
+  }
 }
 

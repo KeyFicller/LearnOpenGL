@@ -80,16 +80,11 @@ void camera_test_scene::render_ui() {
   // View matrix controls
   bool update_view_matrix = false;
   update_view_matrix |=
-      ImGui::SliderFloat3("eye", &m_camera.m_position[0], -10.0f, 10.0f);
+      ImGui::SliderFloat3("Position", &m_camera.m_position[0], -10.0f, 10.0f);
   update_view_matrix |=
-      ImGui::SliderFloat3("front", &m_camera.m_front[0], -1.0f, 1.0f);
+      ImGui::SliderFloat("Yaw", &m_camera.m_yaw, -180.0f, 180.0f);
   update_view_matrix |=
-      ImGui::SliderFloat3("up", &m_camera.m_up[0], -1.0f, 1.0f);
-  ImGui::SameLine();
-  if (ImGui::Button("Normalize Up")) {
-    m_camera.m_up = glm::normalize(m_camera.m_up);
-    update_view_matrix = true;
-  }
+      ImGui::SliderFloat("Pitch", &m_camera.m_pitch, -89.0f, 89.0f);
   if (update_view_matrix) {
     m_camera.update_view_matrix();
   }

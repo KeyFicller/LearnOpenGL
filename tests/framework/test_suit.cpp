@@ -103,3 +103,10 @@ bool test_suit::on_mouse_scroll(double _xoffset, double _yoffset) {
   return false;
 }
 
+void test_suit::on_framebuffer_resized(int _width, int _height) {
+  test_scene_base *scene = get_scene(m_current_scene);
+  if (scene) {
+    scene->on_framebuffer_resized(_width, _height);
+  }
+}
+

@@ -177,6 +177,13 @@ void error_callback(int error, const char *description) {
 // GLFW framebuffer size callback
 void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
   glViewport(0, 0, width, height);
+
+  // Notify test suit about framebuffer resize
+  test_suit *test_suit_ptr =
+      static_cast<test_suit *>(glfwGetWindowUserPointer(window));
+  if (test_suit_ptr) {
+    test_suit_ptr->on_framebuffer_resized(width, height);
+  }
 }
 
 // GLFW mouse cursor callback
