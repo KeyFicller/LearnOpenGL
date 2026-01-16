@@ -124,6 +124,15 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(glm)
 # ---------------------------------------------------------------
 
+# ------------------------ Vendor:  assimp ------------------------
+FetchContent_Declare(
+  assimp
+  GIT_REPOSITORY https://bgithub.xyz/assimp/assimp.git
+  GIT_TAG        v6.0.0
+)
+FetchContent_MakeAvailable(assimp)
+# ---------------------------------------------------------------
+
 # ImGui sources
 # Note: We use a wrapper for imgui_impl_opengl3.cpp to include GLAD before it
 set(IMGUI_SOURCES
@@ -158,17 +167,21 @@ add_executable(LearnOpenGL
     tests/scenes/light_texture_scene.cpp
     tests/scenes/light_type_scene.cpp
     tests/scenes/multiple_light_scene.cpp
+    tests/scenes/import_mesh.cpp
+    tests/scenes/import_model.cpp
+    tests/scenes/import_model_scene.cpp
     tests/component/camera_controller.cpp
     ${IMGUI_SOURCES}
 )
 
-target_link_libraries(LearnOpenGL PRIVATE glfw glad_gl)
+target_link_libraries(LearnOpenGL PRIVATE glfw glad_gl assimp)
 target_include_directories(LearnOpenGL PUBLIC 
     "${CMAKE_CURRENT_SOURCE_DIR}"
     "${stb_image_SOURCE_DIR}" 
     "${glm_SOURCE_DIR}"
     "${imgui_SOURCE_DIR}"
     "${imgui_SOURCE_DIR}/backends"
+    "${assimp_SOURCE_DIR}/include"
 )
 
 # Use GLAD as OpenGL loader for ImGui (instead of imgui's built-in loader)

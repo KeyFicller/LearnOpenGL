@@ -3,8 +3,8 @@
 #include <glad/gl.h>
 
 #include <cstddef>
-#include <vector>
 #include <stdexcept>
+#include <vector>
 
 class vertex_buffer_object {
 public:
@@ -18,6 +18,7 @@ public:
                 GLenum usage = GL_STATIC_DRAW) const {
     glBufferData(GL_ARRAY_BUFFER, size, data, usage);
   }
+  unsigned int id() const { return m_ID; }
 
 protected:
   unsigned int m_ID = -1;
@@ -62,6 +63,7 @@ public:
     }
     unbind();
   }
+  unsigned int id() const { return m_ID; }
 
 protected:
   unsigned int m_ID = -1;

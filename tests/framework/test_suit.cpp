@@ -3,6 +3,7 @@
 #include "tests/scenes/camera_test_scene.h"
 #include "tests/scenes/color_test_scene.h"
 #include "tests/scenes/coordinate_test_scene.h"
+#include "tests/scenes/import_model_scene.h"
 #include "tests/scenes/light_color_scene.h"
 #include "tests/scenes/light_material_scene.h"
 #include "tests/scenes/light_texture_scene.h"
@@ -14,8 +15,8 @@
 #include "tests/scenes/triangle_test_scene.h"
 
 #include "imgui.h"
-#include <iostream>
 #include <exception>
+#include <iostream>
 
 test_suit::test_suit() : m_current_scene(test_scene::k_texture_test) {}
 
@@ -38,6 +39,8 @@ void test_suit::init(GLFWwindow *_window) {
     REGISTER_SCENE(test_scene::k_light_material_test, light_material_scene);
     REGISTER_SCENE(test_scene::k_light_texture_test, light_texture_scene);
     REGISTER_SCENE(test_scene::k_light_type_test, light_type_scene);
+    REGISTER_SCENE(test_scene::k_multiple_light_test, multiple_light_scene);
+    REGISTER_SCENE(test_scene::k_import_model_test, import_model_scene);
   } catch (const std::exception &e) {
     std::cerr << "Error initializing test scenes: " << e.what() << std::endl;
     throw; // Re-throw to be caught by main
@@ -83,7 +86,8 @@ void test_suit::render_scene() {
       scene->render();
     } catch (const std::exception &e) {
       std::cerr << "Error in scene render: " << e.what() << std::endl;
-      std::cerr << "Scene: " << (scene ? scene->get_name() : "unknown") << std::endl;
+      std::cerr << "Scene: " << (scene ? scene->get_name() : "unknown")
+                << std::endl;
       throw; // Re-throw to be caught by main
     }
   }
@@ -126,4 +130,3 @@ void test_suit::on_framebuffer_resized(int _width, int _height) {
     scene->on_framebuffer_resized(_width, _height);
   }
 }
-

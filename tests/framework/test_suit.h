@@ -16,6 +16,7 @@ enum class test_scene {
   k_light_texture_test,
   k_light_type_test,
   k_multiple_light_test,
+  k_import_model_test,
   k_count
 };
 
@@ -55,4 +56,3 @@ private:
   // Get scene instance by enum
   test_scene_base *get_scene(test_scene _scene);
 };
-
