@@ -15,6 +15,7 @@ enum class test_scene {
   k_light_material_test,
   k_light_texture_test,
   k_light_type_test,
+  k_multiple_light_test,
   k_count
 };
 

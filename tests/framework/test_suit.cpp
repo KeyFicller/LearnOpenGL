@@ -7,12 +7,15 @@
 #include "tests/scenes/light_material_scene.h"
 #include "tests/scenes/light_texture_scene.h"
 #include "tests/scenes/light_type_scene.h"
+#include "tests/scenes/multiple_light_scene.h"
 #include "tests/scenes/scene_factory.h"
 #include "tests/scenes/texture_test_scene.h"
 #include "tests/scenes/transform_test_scene.h"
 #include "tests/scenes/triangle_test_scene.h"
 
 #include "imgui.h"
+#include <iostream>
+#include <exception>
 
 test_suit::test_suit() : m_current_scene(test_scene::k_texture_test) {}
 
@@ -23,17 +26,25 @@ test_suit::~test_suit() {
 }
 
 void test_suit::init(GLFWwindow *_window) {
-  // Create and initialize all test scenes
-  REGISTER_SCENE(test_scene::k_texture_test, texture_test_scene);
-  REGISTER_SCENE(test_scene::k_triangle_test, triangle_test_scene);
-  REGISTER_SCENE(test_scene::k_color_test, color_test_scene);
-  REGISTER_SCENE(test_scene::k_transform_test, transform_test_scene);
-  REGISTER_SCENE(test_scene::k_coordinate_test, coordinate_test_scene);
-  REGISTER_SCENE(test_scene::k_camera_test, camera_test_scene);
-  REGISTER_SCENE(test_scene::k_light_color_test, light_color_scene);
-  REGISTER_SCENE(test_scene::k_light_material_test, light_material_scene);
-  REGISTER_SCENE(test_scene::k_light_texture_test, light_texture_scene);
-  REGISTER_SCENE(test_scene::k_light_type_test, light_type_scene);
+  try {
+    // Create and initialize all test scenes
+    REGISTER_SCENE(test_scene::k_texture_test, texture_test_scene);
+    REGISTER_SCENE(test_scene::k_triangle_test, triangle_test_scene);
+    REGISTER_SCENE(test_scene::k_color_test, color_test_scene);
+    REGISTER_SCENE(test_scene::k_transform_test, transform_test_scene);
+    REGISTER_SCENE(test_scene::k_coordinate_test, coordinate_test_scene);
+    REGISTER_SCENE(test_scene::k_camera_test, camera_test_scene);
+    REGISTER_SCENE(test_scene::k_light_color_test, light_color_scene);
+    REGISTER_SCENE(test_scene::k_light_material_test, light_material_scene);
+    REGISTER_SCENE(test_scene::k_light_texture_test, light_texture_scene);
+    REGISTER_SCENE(test_scene::k_light_type_test, light_type_scene);
+  } catch (const std::exception &e) {
+    std::cerr << "Error initializing test scenes: " << e.what() << std::endl;
+    throw; // Re-throw to be caught by main
+  } catch (...) {
+    std::cerr << "Unknown error initializing test scenes" << std::endl;
+    throw;
+  }
 }
 
 void test_suit::render_ui() {
@@ -68,7 +79,13 @@ void test_suit::render_ui() {
 void test_suit::render_scene() {
   test_scene_base *scene = get_scene(m_current_scene);
   if (scene) {
-    scene->render();
+    try {
+      scene->render();
+    } catch (const std::exception &e) {
+      std::cerr << "Error in scene render: " << e.what() << std::endl;
+      std::cerr << "Scene: " << (scene ? scene->get_name() : "unknown") << std::endl;
+      throw; // Re-throw to be caught by main
+    }
   }
 }
 

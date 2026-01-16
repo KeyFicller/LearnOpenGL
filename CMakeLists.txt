@@ -5,6 +5,24 @@ project(LearnOpenGL LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Set default build type to Debug if not specified
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
+endif()
+
+# Generate compile_commands.json for better IDE support
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+# Enable debug symbols for all build types (helps with stack traces)
+if(MSVC)
+  # MSVC compiler flags
+  add_compile_options(/Zi)  # Generate debug information
+  add_link_options(/DEBUG)  # Generate debug link information
+else()
+  # GCC/Clang compiler flags
+  add_compile_options(-g)   # Generate debug information
+endif()
+
 include(FetchContent)
 
 # ------------------------ Vendor:  GLFW ------------------------
@@ -139,6 +157,7 @@ add_executable(LearnOpenGL
     tests/scenes/light_material_scene.cpp
     tests/scenes/light_texture_scene.cpp
     tests/scenes/light_type_scene.cpp
+    tests/scenes/multiple_light_scene.cpp
     tests/component/camera_controller.cpp
     ${IMGUI_SOURCES}
 )

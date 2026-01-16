@@ -1,4 +1,6 @@
 #include <iostream>
+#include <exception>
+#include <stdexcept>
 
 // GLAD
 #include <glad/gl.h>
@@ -29,11 +31,12 @@ const GLuint WIDTH = 800, HEIGHT = 600;
 
 // The MAIN function, from here we start the application and run the game loop
 int main() {
-  // Init GLFW
-  if (!glfwInit()) {
-    std::cout << "Failed to initialize GLFW" << std::endl;
-    return -1;
-  }
+  try {
+    // Init GLFW
+    if (!glfwInit()) {
+      std::cerr << "Failed to initialize GLFW" << std::endl;
+      return -1;
+    }
   // Set all the required options for GLFW
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -98,7 +101,13 @@ int main() {
 
   // Initialize test suit
   test_suit test_suit;
-  test_suit.init(window);
+  try {
+    test_suit.init(window);
+  } catch (const std::exception &e) {
+    std::cerr << "Failed to initialize test suit: " << e.what() << std::endl;
+    glfwTerminate();
+    return -1;
+  }
 
   // Set user pointer to access test_suit in callbacks
   glfwSetWindowUserPointer(window, &test_suit);
@@ -142,7 +151,23 @@ int main() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     // Render current test scene
-    test_suit.render_scene();
+    try {
+      test_suit.render_scene();
+      
+      // Check for OpenGL errors after rendering
+      GLenum error = glGetError();
+      if (error != GL_NO_ERROR) {
+        std::cerr << "OpenGL error after render: " << error << std::endl;
+      }
+    } catch (const std::exception &e) {
+      std::cerr << "Error rendering scene: " << e.what() << std::endl;
+      // Check OpenGL error state
+      GLenum error = glGetError();
+      if (error != GL_NO_ERROR) {
+        std::cerr << "OpenGL error code: " << error << std::endl;
+      }
+      // Continue to next frame instead of crashing
+    }
 
     // Render ImGui
     ImGui::Render();
@@ -157,9 +182,37 @@ int main() {
   ImGui_ImplGlfw_Shutdown();
   ImGui::DestroyContext();
 
-  // Terminates GLFW, clearing any resources allocated by GLFW.
-  glfwTerminate();
-  return 0;
+    // Terminates GLFW, clearing any resources allocated by GLFW.
+    glfwTerminate();
+    return 0;
+  } catch (const std::exception &e) {
+    std::cerr << "\n========================================\n";
+    std::cerr << "EXCEPTION CAUGHT: " << e.what() << std::endl;
+    std::cerr << "Exception type: " << typeid(e).name() << std::endl;
+    std::cerr << "========================================\n";
+    
+    // Try to cleanup
+    try {
+      glfwTerminate();
+    } catch (...) {
+      // Ignore cleanup errors
+    }
+    
+    return -1;
+  } catch (...) {
+    std::cerr << "\n========================================\n";
+    std::cerr << "UNKNOWN EXCEPTION CAUGHT!" << std::endl;
+    std::cerr << "========================================\n";
+    
+    // Try to cleanup
+    try {
+      glfwTerminate();
+    } catch (...) {
+      // Ignore cleanup errors
+    }
+    
+    return -1;
+  }
 }
 
 // Is called whenever a key is pressed/released via GLFW

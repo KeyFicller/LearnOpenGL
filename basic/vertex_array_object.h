@@ -4,6 +4,7 @@
 
 #include <cstddef>
 #include <vector>
+#include <stdexcept>
 
 class vertex_buffer_object {
 public:
