@@ -172,6 +172,7 @@ add_executable(LearnOpenGL
     tests/scenes/import_model_scene.cpp
     tests/scenes/depth_test_scene.cpp
     tests/component/camera_controller.cpp
+    tests/scenes/stencil_test_scene.cpp
     ${IMGUI_SOURCES}
 )
 

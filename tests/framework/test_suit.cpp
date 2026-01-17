@@ -11,6 +11,7 @@
 #include "tests/scenes/light_type_scene.h"
 #include "tests/scenes/multiple_light_scene.h"
 #include "tests/scenes/scene_factory.h"
+#include "tests/scenes/stencil_test_scene.h"
 #include "tests/scenes/texture_test_scene.h"
 #include "tests/scenes/transform_test_scene.h"
 #include "tests/scenes/triangle_test_scene.h"
@@ -43,6 +44,7 @@ void test_suit::init(GLFWwindow *_window) {
     REGISTER_SCENE(test_scene::k_multiple_light_test, multiple_light_scene);
     REGISTER_SCENE(test_scene::k_import_model_test, import_model_scene);
     REGISTER_SCENE(test_scene::k_depth_test_test, depth_test_scene);
+    REGISTER_SCENE(test_scene::k_stencil_test_test, stencil_test_scene);
   } catch (const std::exception &e) {
     std::cerr << "Error initializing test scenes: " << e.what() << std::endl;
     throw; // Re-throw to be caught by main
