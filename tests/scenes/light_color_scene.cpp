@@ -2,95 +2,11 @@
 
 #include "glad/gl.h"
 #include "imgui.h"
-#include "mesh_helper.h"
-#include "shader_helper.h"
+#include "tests/component/mesh_manager.h"
+#include "tests/component/shader_loader.h"
+#include "tests/component/prefab_cube.h"
 #include <GLFW/glfw3.h>
 #include <glm/gtc/matrix_transform.hpp>
-
-// Cube vertices: 24 vertices (6 faces * 4 vertices), each with 6 floats
-// (position: 3, normal: 3)
-static float box_vertices[] = {
-    // Back face (z = -0.5), normal: (0, 0, -1)
-    -0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f, // 0: back bottom left
-    0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f,  // 1: back bottom right
-    0.5f, 0.5f, -0.5f, 0.0f, 0.0f, -1.0f,   // 2: back top right
-    -0.5f, 0.5f, -0.5f, 0.0f, 0.0f, -1.0f,  // 3: back top left
-
-    // Front face (z = 0.5), normal: (0, 0, 1)
-    0.5f, -0.5f, 0.5f, 0.0f, 0.0f, 1.0f,  // 4: front bottom right
-    -0.5f, -0.5f, 0.5f, 0.0f, 0.0f, 1.0f, // 5: front bottom left
-    -0.5f, 0.5f, 0.5f, 0.0f, 0.0f, 1.0f,  // 6: front top left
-    0.5f, 0.5f, 0.5f, 0.0f, 0.0f, 1.0f,   // 7: front top right
-
-    // Left face (x = -0.5), normal: (-1, 0, 0)
-    -0.5f, -0.5f, 0.5f, -1.0f, 0.0f, 0.0f,  // 8: left bottom front
-    -0.5f, -0.5f, -0.5f, -1.0f, 0.0f, 0.0f, // 9: left bottom back
-    -0.5f, 0.5f, -0.5f, -1.0f, 0.0f, 0.0f,  // 10: left top back
-    -0.5f, 0.5f, 0.5f, -1.0f, 0.0f, 0.0f,   // 11: left top front
-
-    // Right face (x = 0.5), normal: (1, 0, 0)
-    0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 0.0f, // 12: right bottom back
-    0.5f, -0.5f, 0.5f, 1.0f, 0.0f, 0.0f,  // 13: right bottom front
-    0.5f, 0.5f, 0.5f, 1.0f, 0.0f, 0.0f,   // 14: right top front
-    0.5f, 0.5f, -0.5f, 1.0f, 0.0f, 0.0f,  // 15: right top back
-
-    // Bottom face (y = -0.5), normal: (0, -1, 0)
-    -0.5f, -0.5f, 0.5f, 0.0f, -1.0f, 0.0f,  // 16: bottom front left
-    0.5f, -0.5f, 0.5f, 0.0f, -1.0f, 0.0f,   // 17: bottom front right
-    0.5f, -0.5f, -0.5f, 0.0f, -1.0f, 0.0f,  // 18: bottom back right
-    -0.5f, -0.5f, -0.5f, 0.0f, -1.0f, 0.0f, // 19: bottom back left
-
-    // Top face (y = 0.5), normal: (0, 1, 0)
-    -0.5f, 0.5f, -0.5f, 0.0f, 1.0f, 0.0f, // 20: top back left
-    0.5f, 0.5f, -0.5f, 0.0f, 1.0f, 0.0f,  // 21: top back right
-    0.5f, 0.5f, 0.5f, 0.0f, 1.0f, 0.0f,   // 22: top front right
-    -0.5f, 0.5f, 0.5f, 0.0f, 1.0f, 0.0f,  // 23: top front left
-};
-
-static unsigned int box_indices[] = {
-    // Back face
-    0,
-    1,
-    2,
-    2,
-    3,
-    0,
-    // Front face
-    4,
-    5,
-    6,
-    6,
-    7,
-    4,
-    // Left face
-    8,
-    9,
-    10,
-    10,
-    11,
-    8,
-    // Right face
-    12,
-    13,
-    14,
-    14,
-    15,
-    12,
-    // Bottom face
-    16,
-    17,
-    18,
-    18,
-    19,
-    16,
-    // Top face
-    20,
-    21,
-    22,
-    22,
-    23,
-    20,
-};
 
 light_color_scene::light_color_scene()
     : renderable_scene_base("Light Color Test") {}
@@ -98,14 +14,10 @@ light_color_scene::light_color_scene()
 void light_color_scene::init(GLFWwindow *_window) {
   renderable_scene_base::init(_window);
 
-  // Setup mesh using helper
-  mesh_data data;
-  data.vertices = box_vertices;
-  data.vertex_size = sizeof(box_vertices);
-  data.indices = box_indices;
-  data.index_count = sizeof(box_indices) / sizeof(unsigned int);
-  data.attributes = {{3, GL_FLOAT, GL_FALSE}, {3, GL_FLOAT, GL_FALSE}};
-  setup_mesh(data);
+  // Setup mesh using cube helper
+  prefab_cube::cube_mesh_data cube_data(
+      prefab_cube::vertex_format::position_normal);
+  setup_mesh(cube_data.mesh);
 
   // Load shaders using helper
   load_shader_pair("shaders/light_color_test/vertex.shader",

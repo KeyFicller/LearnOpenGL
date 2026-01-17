@@ -1,16 +1,16 @@
-#include "mesh_helper.h"
+#include "tests/component/mesh_manager.h"
 
 #include "glad/gl.h"
 
-mesh_helper::mesh_helper() = default;
+mesh_manager::mesh_manager() = default;
 
-mesh_helper::~mesh_helper() {
+mesh_manager::~mesh_manager() {
   delete m_VAO;
   delete m_VBO;
   delete m_EBO;
 }
 
-mesh_helper::mesh_helper(mesh_helper &&other) noexcept
+mesh_manager::mesh_manager(mesh_manager &&other) noexcept
     : m_VAO(other.m_VAO), m_VBO(other.m_VBO), m_EBO(other.m_EBO),
       m_index_count(other.m_index_count) {
   other.m_VAO = nullptr;
@@ -19,7 +19,7 @@ mesh_helper::mesh_helper(mesh_helper &&other) noexcept
   other.m_index_count = 0;
 }
 
-mesh_helper &mesh_helper::operator=(mesh_helper &&other) noexcept {
+mesh_manager &mesh_manager::operator=(mesh_manager &&other) noexcept {
   if (this != &other) {
     // Clean up existing resources
     delete m_VAO;
@@ -41,7 +41,7 @@ mesh_helper &mesh_helper::operator=(mesh_helper &&other) noexcept {
   return *this;
 }
 
-void mesh_helper::setup_mesh(const mesh_data &data) {
+void mesh_manager::setup_mesh(const mesh_data &data) {
   // Clean up existing resources
   delete m_VAO;
   delete m_VBO;
@@ -67,7 +67,7 @@ void mesh_helper::setup_mesh(const mesh_data &data) {
   m_index_count = data.index_count;
 }
 
-void mesh_helper::bind() const {
+void mesh_manager::bind() const {
   if (m_VAO) {
     m_VAO->bind();
   }
@@ -76,7 +76,7 @@ void mesh_helper::bind() const {
   }
 }
 
-void mesh_helper::draw() const {
+void mesh_manager::draw() const {
   if (m_VAO && m_EBO && m_index_count > 0) {
     bind();
     glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(m_index_count),

@@ -2,7 +2,7 @@
 
 #include "basic/shader.h"
 #include "camera_scene_base.h"
-#include "mesh_helper.h"
+#include "tests/component/mesh_manager.h"
 #include <glm/glm.hpp>
 
 // Base class for scenes that render objects with model/view/projection matrices
@@ -26,7 +26,7 @@ protected:
                            const glm::vec3 &scale = glm::vec3(0.2f));
 
 protected:
-  mesh_helper m_mesh;
+  mesh_manager m_mesh;
   shader *m_shader = nullptr;
   shader *m_light_shader = nullptr;
 };

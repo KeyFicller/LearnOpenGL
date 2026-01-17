@@ -1,7 +1,7 @@
 #pragma once
 
 #include "camera_scene_base.h"
-#include "mesh_helper.h"
+#include "tests/component/mesh_manager.h"
 #include "basic/shader.h"
 
 class camera_test_scene : public camera_scene_base {
@@ -20,6 +20,6 @@ public:
   void render_ui() override;
 
 private:
-  mesh_helper m_mesh;
+  mesh_manager m_mesh;
   shader *m_shader = nullptr;
 };

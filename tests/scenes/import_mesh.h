@@ -2,7 +2,7 @@
 
 #include "basic/shader.h"
 #include "basic/texture.h"
-#include "tests/scenes/mesh_helper.h"
+#include "tests/component/mesh_manager.h"
 #include <glm/glm.hpp>
 #include <memory>
 #include <string>
@@ -45,5 +45,5 @@ public:
   std::vector<import_texture> textures;
 
 private:
-  mesh_helper m_mesh_helper;
+  mesh_manager m_mesh_manager;
 };

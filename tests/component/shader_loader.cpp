@@ -1,4 +1,4 @@
-#include "shader_helper.h"
+#include "tests/component/shader_loader.h"
 
 #include <iostream>
 

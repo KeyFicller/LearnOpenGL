@@ -13,18 +13,18 @@ struct mesh_data {
 };
 
 // Helper class to manage VAO/VBO/EBO setup
-class mesh_helper {
+class mesh_manager {
 public:
-  mesh_helper();
-  ~mesh_helper();
+  mesh_manager();
+  ~mesh_manager();
 
   // Disable copy constructor and copy assignment
-  mesh_helper(const mesh_helper &) = delete;
-  mesh_helper &operator=(const mesh_helper &) = delete;
+  mesh_manager(const mesh_manager &) = delete;
+  mesh_manager &operator=(const mesh_manager &) = delete;
 
   // Enable move constructor and move assignment
-  mesh_helper(mesh_helper &&other) noexcept;
-  mesh_helper &operator=(mesh_helper &&other) noexcept;
+  mesh_manager(mesh_manager &&other) noexcept;
+  mesh_manager &operator=(mesh_manager &&other) noexcept;
 
   // Setup mesh with vertex and index data
   void setup_mesh(const mesh_data &data);

@@ -1,5 +1,5 @@
 #include "import_model_scene.h"
-#include "shader_helper.h"
+#include "tests/component/shader_loader.h"
 
 import_model_scene::import_model_scene()
     : renderable_scene_base("Import Model Scene"),

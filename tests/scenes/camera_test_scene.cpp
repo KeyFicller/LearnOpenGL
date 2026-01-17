@@ -2,38 +2,11 @@
 
 #include "glad/gl.h"
 #include "imgui.h"
-#include "mesh_helper.h"
-#include "shader_helper.h"
+#include "tests/component/prefab_cube.h"
+#include "tests/component/mesh_manager.h"
+#include "tests/component/shader_loader.h"
 #include <GLFW/glfw3.h>
 #include <glm/gtc/matrix_transform.hpp>
-
-// Cube vertices: 8 vertices, each with 3 coordinates (x, y, z)
-static float box_vertices[] = {
-    // Back face (z = -0.5)
-    -0.5f, -0.5f, -0.5f, // 0: back bottom left
-    0.5f, -0.5f, -0.5f,  // 1: back bottom right
-    0.5f, 0.5f, -0.5f,   // 2: back top right
-    -0.5f, 0.5f, -0.5f,  // 3: back top left
-    // Front face (z = 0.5)
-    -0.5f, -0.5f, 0.5f, // 4: front bottom left
-    0.5f, -0.5f, 0.5f,  // 5: front bottom right
-    0.5f, 0.5f, 0.5f,   // 6: front top right
-    -0.5f, 0.5f, 0.5f,  // 7: front top left
-};
-
-static unsigned int box_indices[] = {
-    // Back face
-    0, 1, 2, 2, 3, 0,
-    // Front face
-    4, 5, 6, 6, 7, 4,
-    // Left face
-    7, 4, 0, 0, 3, 7,
-    // Right face
-    1, 5, 6, 6, 2, 1,
-    // Bottom face
-    4, 5, 1, 1, 0, 4,
-    // Top face
-    3, 2, 6, 6, 7, 3};
 
 camera_test_scene::camera_test_scene()
     : camera_scene_base("Camera Test") {}
@@ -41,14 +14,10 @@ camera_test_scene::camera_test_scene()
 void camera_test_scene::init(GLFWwindow *_window) {
   camera_scene_base::init(_window);
 
-  // Setup mesh using helper
-  mesh_data data;
-  data.vertices = box_vertices;
-  data.vertex_size = sizeof(box_vertices);
-  data.indices = box_indices;
-  data.index_count = sizeof(box_indices) / sizeof(unsigned int);
-  data.attributes = {{3, GL_FLOAT, GL_FALSE}};
-  m_mesh.setup_mesh(data);
+  // Setup mesh using cube helper
+  prefab_cube::cube_mesh_data cube_data(
+      prefab_cube::vertex_format::position_only);
+  m_mesh.setup_mesh(cube_data.mesh);
 
   // Load shader using helper
   m_shader = load_shader("shaders/camera_test/vertex.shader",

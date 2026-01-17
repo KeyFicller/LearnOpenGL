@@ -15,20 +15,20 @@ import_mesh::import_mesh(const std::vector<import_vertex> &_vertices,
   data.attributes = {{3, GL_FLOAT, GL_FALSE},
                      {3, GL_FLOAT, GL_FALSE},
                      {2, GL_FLOAT, GL_FALSE}};
-  m_mesh_helper.setup_mesh(data);
+  m_mesh_manager.setup_mesh(data);
 }
 
 import_mesh::import_mesh(import_mesh &&other) noexcept
     : vertices(std::move(other.vertices)), indices(std::move(other.indices)),
       textures(std::move(other.textures)),
-      m_mesh_helper(std::move(other.m_mesh_helper)) {}
+      m_mesh_manager(std::move(other.m_mesh_manager)) {}
 
 import_mesh &import_mesh::operator=(import_mesh &&other) noexcept {
   if (this != &other) {
     vertices = std::move(other.vertices);
     indices = std::move(other.indices);
     textures = std::move(other.textures);
-    m_mesh_helper = std::move(other.m_mesh_helper);
+    m_mesh_manager = std::move(other.m_mesh_manager);
   }
   return *this;
 }
@@ -55,6 +55,6 @@ void import_mesh::draw(shader *_shader) {
   }
 
   // Draw the mesh
-  m_mesh_helper.draw();
+  m_mesh_manager.draw();
 }
 
