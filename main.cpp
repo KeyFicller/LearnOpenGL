@@ -13,6 +13,7 @@
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
 
+#include "basic/framebuffer.h"
 #include "tests/framework/test_suit.h"
 
 // Function prototypes
@@ -87,7 +88,8 @@ int main() {
     ImGuiIO &io = ImGui::GetIO();
     (void)io;
     io.ConfigFlags |=
-        ImGuiConfigFlags_NavEnableKeyboard; // Enable Keyboard Controls
+        ImGuiConfigFlags_NavEnableKeyboard | // Enable Keyboard Controls
+        ImGuiConfigFlags_DockingEnable;      // Enable Docking
 
     // Setup Dear ImGui style
     ImGui::StyleColorsDark();
@@ -111,6 +113,11 @@ int main() {
 
     // Set user pointer to access test_suit in callbacks
     glfwSetWindowUserPointer(window, &test_suit);
+
+    // Create framebuffer for scene rendering
+    int framebuffer_width = WIDTH;
+    int framebuffer_height = HEIGHT;
+    framebuffer scene_framebuffer(framebuffer_width, framebuffer_height);
 
     // ImGui state
     bool show_demo_window = false;
@@ -136,17 +143,60 @@ int main() {
       ImGui_ImplGlfw_NewFrame();
       ImGui::NewFrame();
 
+      // Create dockspace
+      ImGuiViewport *viewport = ImGui::GetMainViewport();
+      ImGui::SetNextWindowPos(viewport->Pos);
+      ImGui::SetNextWindowSize(viewport->Size);
+      ImGui::SetNextWindowViewport(viewport->ID);
+      ImGuiWindowFlags window_flags =
+          ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoTitleBar |
+          ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize |
+          ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus |
+          ImGuiWindowFlags_NoNavFocus;
+
+      ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+      ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+      ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+      ImGui::Begin("DockSpace", nullptr, window_flags);
+      ImGui::PopStyleVar(3);
+
+      ImGuiID dockspace_id = ImGui::GetID("MainDockSpace");
+      ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f),
+                       ImGuiDockNodeFlags_PassthruCentralNode);
+      ImGui::End();
+
       // Show the big demo window
       if (show_demo_window)
         ImGui::ShowDemoWindow(&show_demo_window);
 
-      // Render test suit UI
+      // Render test suit UI in dock window
       test_suit.render_ui();
 
       // Process input
       processInput(window);
 
-      // Render
+      // Get viewport size first to adjust framebuffer
+      ImVec2 viewport_size =
+          ImVec2(scene_framebuffer.get_width(), scene_framebuffer.get_height());
+      ImGui::Begin("Scene Viewport");
+      ImVec2 available_size = ImGui::GetContentRegionAvail();
+      if (available_size.x > 0 && available_size.y > 0) {
+        viewport_size = available_size;
+      }
+      ImGui::End();
+
+      // Resize framebuffer if needed (with some minimum size)
+      if (viewport_size.x > 0 && viewport_size.y > 0) {
+        int new_width = static_cast<int>(viewport_size.x);
+        int new_height = static_cast<int>(viewport_size.y);
+        if (new_width != scene_framebuffer.get_width() ||
+            new_height != scene_framebuffer.get_height()) {
+          scene_framebuffer.resize(new_width, new_height);
+        }
+      }
+
+      // Render scene to framebuffer
+      scene_framebuffer.bind();
       // Clear the colorbuffer
       glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
       glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT |
@@ -170,6 +220,17 @@ int main() {
         }
         // Continue to next frame instead of crashing
       }
+
+      // Unbind framebuffer (back to default)
+      scene_framebuffer.unbind();
+
+      // Display scene in ImGui window
+      ImGui::Begin("Scene Viewport");
+      // Display framebuffer texture in ImGui window
+      ImVec2 display_size = ImGui::GetContentRegionAvail();
+      ImGui::Image((void *)(intptr_t)scene_framebuffer.get_color_texture(),
+                   display_size, ImVec2(0, 1), ImVec2(1, 0));
+      ImGui::End();
 
       // Render ImGui
       ImGui::Render();

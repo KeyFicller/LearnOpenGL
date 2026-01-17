@@ -55,8 +55,8 @@ void test_suit::init(GLFWwindow *_window) {
 }
 
 void test_suit::render_ui() {
-  ImGui::Begin("Test Scene Control");
-
+  // Scene selection window
+  ImGui::Begin("Scene Selection");
   ImGui::Text("Select Test Scene:");
   ImGui::Separator();
 
@@ -67,11 +67,14 @@ void test_suit::render_ui() {
       m_current_scene = scene;
     }
   }
+  ImGui::End();
 
-  ImGui::Separator();
+  // Scene properties window
+  ImGui::Begin("Scene Properties");
   test_scene_base *current = get_scene(m_current_scene);
   if (current) {
     ImGui::Text("Current Scene: %s", current->get_name());
+    ImGui::Separator();
 
     // Render scene-specific UI controls
     current->render_ui();
@@ -79,7 +82,6 @@ void test_suit::render_ui() {
   ImGui::Separator();
   ImGui::Text("Application average %.3f ms/frame (%.1f FPS)",
               1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-
   ImGui::End();
 }
 

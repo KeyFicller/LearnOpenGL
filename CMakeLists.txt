@@ -149,6 +149,7 @@ add_executable(LearnOpenGL
     main.cpp 
     basic/shader.cpp 
     basic/texture.cpp
+    basic/framebuffer.cpp
     basic/imgui_impl_opengl3_wrapper.cpp
     tests/framework/test_suit.cpp
     tests/scenes/scene_base.cpp
