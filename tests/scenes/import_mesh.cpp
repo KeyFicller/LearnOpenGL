@@ -44,10 +44,14 @@ void import_mesh::draw(shader *_shader) {
   for (unsigned int i = 0; i < textures.size(); i++) {
     if (textures[i].texture) {
       textures[i].texture->bind(i);
-      int texture_slot = static_cast<int>(i);
-      _shader->set_uniform<int>((textures[i].type + std::to_string(i)).c_str(),
-                                 texture_slot);
+      std::string uniform_name = textures[i].type + std::to_string(i);
+      _shader->set_uniform(uniform_name.c_str(), static_cast<int>(i));
     }
+  }
+
+  // If no textures, set a default texture unit to avoid shader errors
+  if (textures.empty()) {
+    _shader->set_uniform("uTextureDiffuse0", 0);
   }
 
   // Draw the mesh

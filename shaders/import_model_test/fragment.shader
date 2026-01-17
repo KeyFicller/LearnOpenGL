@@ -27,7 +27,7 @@ in vec3 FragPos;
 in vec3 Normal;
 in vec2 TexCoords;
 
-uniform sampler2D uTextureDiffuse1;
+uniform sampler2D uTextureDiffuse0;
 
 // vec3 calc_directional_light(Light light, vec3 normal, vec3 view_dir)
 // {
@@ -94,6 +94,13 @@ uniform sampler2D uTextureDiffuse1;
 
 void main()
 {
-    FragColor = texture(uTextureDiffuse1, TexCoords);
+    // Use texture if available, otherwise use a default color
+    vec4 texColor = texture(uTextureDiffuse0, TexCoords);
+    if (texColor.a < 0.1) {
+        // If texture is not loaded or transparent, use a default color
+        FragColor = vec4(0.8, 0.8, 0.8, 1.0);
+    } else {
+        FragColor = vec4(texColor.rgb, 1.0);
+    }
 }
 

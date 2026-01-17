@@ -3,7 +3,7 @@
 
 import_model_scene::import_model_scene()
     : renderable_scene_base("Import Model Scene"),
-      m_import_model("assets/models/backpack/backpack.obj") {}
+      m_import_model("assets/models/tom/tom.obj") {}
 
 void import_model_scene::init(GLFWwindow *_window) {
   renderable_scene_base::init(_window);
@@ -14,9 +14,9 @@ void import_model_scene::init(GLFWwindow *_window) {
                    "shaders/import_model_test/light_fragment.shader", m_shader,
                    m_light_shader);
 
-  // Setup camera
-  m_camera.m_position = {0.0f, 0.0f, 3.0f};
-  m_camera.m_yaw = 0.0f;
+  // Setup camera - position it to view the model
+  m_camera.m_position = {0.0f, 0.0f, 5.0f};
+  m_camera.m_yaw = -90.0f;
   m_camera.m_pitch = 0.0f;
   m_camera.update_view_matrix();
 }
@@ -30,4 +30,7 @@ void import_model_scene::render() {
   m_import_model.draw(m_shader);
 }
 
-void import_model_scene::render_ui() { renderable_scene_base::render_ui(); }
+void import_model_scene::render_ui() {
+  renderable_scene_base::render_ui();
+  render_camera_ui();
+}
