@@ -170,6 +170,7 @@ add_executable(LearnOpenGL
     tests/scenes/import_mesh.cpp
     tests/scenes/import_model.cpp
     tests/scenes/import_model_scene.cpp
+    tests/scenes/depth_test_scene.cpp
     tests/component/camera_controller.cpp
     ${IMGUI_SOURCES}
 )

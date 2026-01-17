@@ -3,6 +3,7 @@
 #include "tests/scenes/camera_test_scene.h"
 #include "tests/scenes/color_test_scene.h"
 #include "tests/scenes/coordinate_test_scene.h"
+#include "tests/scenes/depth_test_scene.h"
 #include "tests/scenes/import_model_scene.h"
 #include "tests/scenes/light_color_scene.h"
 #include "tests/scenes/light_material_scene.h"
@@ -41,6 +42,7 @@ void test_suit::init(GLFWwindow *_window) {
     REGISTER_SCENE(test_scene::k_light_type_test, light_type_scene);
     REGISTER_SCENE(test_scene::k_multiple_light_test, multiple_light_scene);
     REGISTER_SCENE(test_scene::k_import_model_test, import_model_scene);
+    REGISTER_SCENE(test_scene::k_depth_test_test, depth_test_scene);
   } catch (const std::exception &e) {
     std::cerr << "Error initializing test scenes: " << e.what() << std::endl;
     throw; // Re-throw to be caught by main
