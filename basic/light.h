@@ -4,91 +4,66 @@
 #include "imgui.h"
 #include "shader.h"
 
+/**
+ * @brief Light type
+ */
 enum class light_type : int {
-  k_directional,
-  k_point,
-  k_spot,
+  k_directional, // Light is coming from a direction
+  k_point,       // Light is coming from a point
+  k_spot,        // Light is coming from a spot
 };
 
+/**
+ * @brief Light
+ */
 struct light {
-public:
-  glm::vec3 m_ambient = glm::vec3(1.0f, 1.0f, 1.0f);
-  glm::vec3 m_diffuse = glm::vec3(1.0f, 1.0f, 1.0f);
-  glm::vec3 m_specular = glm::vec3(1.0f, 1.0f, 1.0f);
+  // Common properties
+  glm::vec3 Ambient = glm::vec3(1.0f, 1.0f, 1.0f);
+  glm::vec3 Diffuse = glm::vec3(1.0f, 1.0f, 1.0f);
+  glm::vec3 Specular = glm::vec3(1.0f, 1.0f, 1.0f);
 
-  light_type m_type = light_type::k_point;
+  // Type of light
+  light_type Type = light_type::k_point;
 
-  glm::vec3 m_direction = glm::vec3(0.0f, 0.0f, -1.0f);
+  // Properties for directional and spot lights
+  glm::vec3 Direction = glm::vec3(0.0f, 0.0f, -1.0f);
 
-  glm::vec3 m_position = glm::vec3(1.0f, 1.0f, 0.0f);
-  float m_constant = 1.0f;
-  float m_linear = 0.09f;
-  float m_quadratic = 0.032f;
+  // Properties for point and spot lights
+  glm::vec3 Position = glm::vec3(1.0f, 1.0f, 0.0f);
+  float Constant = 1.0f;
+  float Linear = 0.09f;
+  float Quadratic = 0.032f;
 
-  // Cutoff angles in degrees (will be converted to cos(radians) when setting
-  // uniforms)
-  float m_cutoff = 12.5f;       // Inner cutoff angle in degrees
-  float m_outer_cutoff = 17.5f; // Outer cutoff angle in degrees
+  // Properties for spot lights
+  float Cutoff = 12.5f;      // Inner cutoff angle in degrees
+  float OuterCutoff = 17.5f; // Outer cutoff angle in degrees
 };
 
-inline void uniform(shader &_shader, const light &_light, std::string _name) {
+// -----------------------------------------------------------------------------
+/**
+ * @brief Set uniform values for a light
+ * @param _shader The shader to set the uniform values for
+ * @param _light The light to set the uniform values for
+ * @param _name The name of the light
+ * note: Light struct defines in shader like: struct Light {
+ *   int type;
+ *   vec3 ambient;
+ *   vec3 diffuse;
+ *   vec3 specular;
+ *   vec3 position;
+ *   vec3 direction;
+ *   float constant;
+ *   float linear;
+ *   float quadratic;
+ *   float cutoff;
+ *   float outer_cutoff;
+ * };
+ */
+void uniform(shader &_shader, const light &_light, std::string _name);
 
-  _shader.set_uniform<int, 1>((_name + ".type").c_str(),
-                              &((int &)_light.m_type));
-  _shader.set_uniform<glm::vec3, 1>((_name + ".ambient").c_str(),
-                                    &_light.m_ambient);
-  _shader.set_uniform<glm::vec3, 1>((_name + ".diffuse").c_str(),
-                                    &_light.m_diffuse);
-  _shader.set_uniform<glm::vec3, 1>((_name + ".specular").c_str(),
-                                    &_light.m_specular);
-
-  // Always set all fields to ensure shader receives valid values
-  _shader.set_uniform<glm::vec3, 1>((_name + ".position").c_str(),
-                                    &_light.m_position);
-  _shader.set_uniform<glm::vec3, 1>((_name + ".direction").c_str(),
-                                    &_light.m_direction);
-  _shader.set_uniform<float, 1>((_name + ".constant").c_str(),
-                                &_light.m_constant);
-  _shader.set_uniform<float, 1>((_name + ".linear").c_str(), &_light.m_linear);
-  _shader.set_uniform<float, 1>((_name + ".quadratic").c_str(),
-                                &_light.m_quadratic);
-  // Convert cutoff angles (degrees) to cos(radians) for shader
-  float cutoff_cos = glm::cos(glm::radians(_light.m_cutoff));
-  float outer_cutoff_cos = glm::cos(glm::radians(_light.m_outer_cutoff));
-  _shader.set_uniform<float, 1>((_name + ".cutoff").c_str(), &cutoff_cos);
-  _shader.set_uniform<float, 1>((_name + ".outer_cutoff").c_str(),
-                                &outer_cutoff_cos);
-}
-
-inline void ui(light &_light) {
-
-  ImGui::Combo("Type", &(int &)_light.m_type, "Directional\0Point\0Spot\0");
-
-  ImGui::SliderFloat3("Ambient", &_light.m_ambient.x, 0.0f, 1.0f, "%.2f");
-  ImGui::SliderFloat3("Diffuse", &_light.m_diffuse.x, 0.0f, 1.0f, "%.2f");
-  ImGui::SliderFloat3("Specular", &_light.m_specular.x, 0.0f, 1.0f, "%.2f");
-
-  switch (_light.m_type) {
-  case light_type::k_directional:
-    ImGui::SliderFloat3("Direction", &_light.m_direction.x, -1.0f, 1.0f,
-                        "%.2f");
-    break;
-  case light_type::k_point:
-    ImGui::SliderFloat3("Position", &_light.m_position.x, -10.0f, 10.0f,
-                        "%.2f");
-    ImGui::SliderFloat("Constant", &_light.m_constant, 0.0f, 1.0f, "%.2f");
-    ImGui::SliderFloat("Linear", &_light.m_linear, 0.0f, 1.0f, "%.2f");
-    ImGui::SliderFloat("Quadratic", &_light.m_quadratic, 0.0f, 1.0f, "%.2f");
-    break;
-  case light_type::k_spot:
-    ImGui::SliderFloat3("Position", &_light.m_position.x, -10.0f, 10.0f,
-                        "%.2f");
-    ImGui::SliderFloat3("Direction", &_light.m_direction.x, -1.0f, 1.0f,
-                        "%.2f");
-    ImGui::SliderFloat("Cutoff (degrees)", &_light.m_cutoff, 0.0f, 90.0f,
-                       "%.1f");
-    ImGui::SliderFloat("Outer Cutoff (degrees)", &_light.m_outer_cutoff, 0.0f,
-                       90.0f, "%.1f");
-    break;
-  }
-}
+// -----------------------------------------------------------------------------
+/**
+ * @brief UI for a light
+ * @param _light The light to display in the UI
+ */
+void ui(light &_light);

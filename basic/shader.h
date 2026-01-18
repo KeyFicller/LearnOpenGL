@@ -11,6 +11,9 @@
 #include <type_traits>
 #include <vector>
 
+/**
+ * @brief Shader program wrapper
+ */
 class shader {
 public:
   shader(const char *_vertex_path, const char *_fragment_path);
@@ -22,9 +25,13 @@ public:
   shader &operator=(shader &&) = delete;
 
 public:
+  /**
+   * @brief Activate the shader program
+   */
   void use();
 
 public:
+  // Uniform function template specializations
   template <typename tType, unsigned COUNT> struct uniform_function {};
 
   template <> struct uniform_function<float, 1> {
@@ -111,17 +118,31 @@ public:
     }
   };
 
+  /**
+   * @brief Set uniform value(s) from pointer
+   * @param _name Uniform name
+   * @param _values Pointer to value(s)
+   */
   template <typename tType, unsigned COUNT>
   void set_uniform(const char *_name, const tType *_values) {
     uniform_function<tType, COUNT>::call(get_uniform_location(_name), _values);
   }
 
-  // Overload for single value (COUNT=1) - accepts temporary values
+  /**
+   * @brief Set uniform value (accepts temporary values)
+   * @param _name Uniform name
+   * @param _value Value to set
+   */
   template <typename tType>
   void set_uniform(const char *_name, const tType &_value) {
     uniform_function<tType, 1>::call(get_uniform_location(_name), &_value);
   }
 
+  /**
+   * @brief Set uniform values from vector
+   * @param _name Uniform name
+   * @param _values Vector of values
+   */
   template <typename tType, unsigned COUNT>
   void set_uniform(const char *_name, const std::vector<tType> &_values) {
     if (_values.size() != COUNT) {
@@ -132,6 +153,11 @@ public:
                                          _values.data());
   }
 
+  /**
+   * @brief Set uniform values from variadic arguments
+   * @param _name Uniform name
+   * @param _values Variadic arguments of the same type
+   */
   template <typename tType, typename... tArgs>
   typename std::enable_if<
       std::conjunction_v<std::is_same<tType, std::decay_t<tArgs>>...>,
@@ -143,10 +169,15 @@ public:
                                          values_array);
   }
 
+  /**
+   * @brief Get uniform location by name
+   * @param _name Uniform name
+   * @return Uniform location, or -1 if not found
+   */
   int get_uniform_location(const char *_name) const {
     return glGetUniformLocation(m_ID, _name);
   }
 
 protected:
-  GLuint m_ID = -1;
+  GLuint m_ID = -1; // OpenGL shader program ID
 };

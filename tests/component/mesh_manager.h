@@ -1,6 +1,6 @@
 #pragma once
 
-#include "basic/vertex_array_object.h"
+#include "basic/vertex_array.h"
 #include <vector>
 
 // Helper struct to encapsulate mesh data
@@ -40,8 +40,8 @@ public:
 
 private:
   friend struct import_model_scene;
-  vertex_array_object *m_VAO = nullptr;
-  vertex_buffer_object *m_VBO = nullptr;
-  index_buffer_object *m_EBO = nullptr;
+  vertex_array *m_VAO = nullptr;
+  vertex_buffer *m_VBO = nullptr;
+  index_buffer *m_EBO = nullptr;
   size_t m_index_count = 0;
 };

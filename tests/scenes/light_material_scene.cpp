@@ -45,7 +45,7 @@ void light_material_scene::render() {
   m_mesh.draw();
 
   // Render light source using helper
-  render_light_source(m_light_shader, m_light.m_position);
+  render_light_source(m_light_shader, m_light.Position);
 }
 
 void light_material_scene::render_ui() {

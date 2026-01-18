@@ -134,7 +134,8 @@ FetchContent_MakeAvailable(assimp)
 # ---------------------------------------------------------------
 
 # ImGui sources
-# Note: We use a wrapper for imgui_impl_opengl3.cpp to include GLAD before it
+# Note: We use imgui_opengl3_glad.cpp to ensure GLAD is included before
+# imgui_impl_opengl3.cpp (required when using IMGUI_IMPL_OPENGL_LOADER_CUSTOM)
 set(IMGUI_SOURCES
     "${imgui_SOURCE_DIR}/imgui.cpp"
     "${imgui_SOURCE_DIR}/imgui_draw.cpp"
@@ -142,7 +143,7 @@ set(IMGUI_SOURCES
     "${imgui_SOURCE_DIR}/imgui_widgets.cpp"
     "${imgui_SOURCE_DIR}/imgui_demo.cpp"
     "${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp"
-    "basic/imgui_impl_opengl3_wrapper.cpp"
+    "vendor/imgui_opengl3_glad.cpp"
 )
 
 add_executable(LearnOpenGL 
@@ -150,7 +151,10 @@ add_executable(LearnOpenGL
     basic/shader.cpp 
     basic/texture.cpp
     basic/framebuffer.cpp
-    basic/imgui_impl_opengl3_wrapper.cpp
+    basic/light.cpp
+    basic/material.cpp
+    basic/vertex_array.cpp
+    vendor/imgui_opengl3_glad.cpp
     tests/framework/test_suit.cpp
     tests/scenes/scene_base.cpp
     tests/component/mesh_manager.cpp

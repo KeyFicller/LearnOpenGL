@@ -3,6 +3,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 #include <iostream>
+#include "imgui.h"
 
 texture_2d::texture_2d(const char *_path, wrap_mode _wrap_mode,
                        filter_mode _filter_mode)
@@ -80,4 +81,40 @@ void texture_2d::set_filter_mode(filter_mode _filter_mode) {
   }
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter_mode_gl);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter_mode_gl);
+}
+
+// -----------------------------------------------------------------------------
+void ui(texture_2d &_texture) {
+  // Display texture preview
+  ImGui::Text("Texture Preview");
+  ImGui::Image((void *)(intptr_t)_texture.ID(), ImVec2(200, 200),
+               ImVec2(0.0, 1.0), ImVec2(1.0, 0.0));
+
+  // Display texture information
+  ImGui::Separator();
+  ImGui::Text("Texture Info");
+  ImGui::Text("Width: %d", _texture.width());
+  ImGui::Text("Height: %d", _texture.height());
+  ImGui::Text("Channels: %d", _texture.channels());
+  ImGui::Text("ID: %u", _texture.ID());
+
+  // Wrap mode control
+  ImGui::Separator();
+  int wrap_mode_current = static_cast<int>(_texture.get_wrap_mode());
+  const char *wrap_mode_names[] = {"Repeat", "Mirrored Repeat",
+                                    "Clamp to Edge", "Clamp to Border"};
+  if (ImGui::Combo("Wrap Mode", &wrap_mode_current, wrap_mode_names,
+                   IM_ARRAYSIZE(wrap_mode_names))) {
+    _texture.set_wrap_mode(
+        static_cast<texture_2d::wrap_mode>(wrap_mode_current));
+  }
+
+  // Filter mode control
+  int filter_mode_current = static_cast<int>(_texture.get_filter_mode());
+  const char *filter_mode_names[] = {"Nearest", "Linear"};
+  if (ImGui::Combo("Filter Mode", &filter_mode_current, filter_mode_names,
+                   IM_ARRAYSIZE(filter_mode_names))) {
+    _texture.set_filter_mode(
+        static_cast<texture_2d::filter_mode>(filter_mode_current));
+  }
 }

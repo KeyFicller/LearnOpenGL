@@ -27,11 +27,11 @@ void transform_test_scene::init(GLFWwindow *_window) {
   test_scene_base::init(_window);
 
   // Create VAO
-  m_VAO = new vertex_array_object();
+  m_VAO = new vertex_array();
   m_VAO->bind();
 
   // Create and bind VBO
-  m_VBO = new vertex_buffer_object();
+  m_VBO = new vertex_buffer();
   m_VBO->bind();
   m_VBO->set_data(triangle_vertices, sizeof(triangle_vertices), GL_STATIC_DRAW);
 

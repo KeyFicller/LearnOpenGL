@@ -36,11 +36,11 @@ triangle_test_scene::~triangle_test_scene() {
 void triangle_test_scene::init(GLFWwindow *_window) {
   test_scene_base::init(_window);
   // Create and bind VAO
-  m_VAO = new vertex_array_object();
+  m_VAO = new vertex_array();
   m_VAO->bind();
 
   // Create and bind VBO
-  m_VBO = new vertex_buffer_object();
+  m_VBO = new vertex_buffer();
   m_VBO->bind();
 
   // Set vertex attributes (position + color, no texture)

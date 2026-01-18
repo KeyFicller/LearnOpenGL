@@ -33,8 +33,8 @@ void multiple_light_scene::init(GLFWwindow *_window) {
   m_camera.update_view_matrix();
 
   for (int i = 0; i < 4; i++) {
-    m_lights[i].m_position = {0.0f, 0.0f, (float)i};
-    m_lights[i].m_type = light_type::k_point;
+    m_lights[i].Position = {0.0f, 0.0f, (float)i};
+    m_lights[i].Type = light_type::k_point;
   }
 }
 
@@ -55,7 +55,7 @@ void multiple_light_scene::render() {
 
   // Render light source using helper
   for (int i = 0; i < 4; i++) {
-    render_light_source(m_light_shader, m_lights[i].m_position);
+    render_light_source(m_light_shader, m_lights[i].Position);
   }
 }
 

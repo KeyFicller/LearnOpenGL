@@ -2,7 +2,7 @@
 
 #include "scene_base.h"
 #include "basic/shader.h"
-#include "basic/vertex_array_object.h"
+#include "basic/vertex_array.h"
 
 // Color test scene
 class color_test_scene : public test_scene_base {
@@ -15,9 +15,9 @@ public:
   void render_ui() override;
 
 private:
-  vertex_array_object *m_VAO = nullptr;
-  vertex_buffer_object *m_VBO = nullptr;
-  index_buffer_object *m_EBO = nullptr;
+  vertex_array *m_VAO = nullptr;
+  vertex_buffer *m_VBO = nullptr;
+  index_buffer *m_EBO = nullptr;
   shader *m_shader = nullptr;
   // Color control (RGB)
   float m_color[3];

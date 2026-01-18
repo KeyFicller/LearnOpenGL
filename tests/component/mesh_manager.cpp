@@ -48,16 +48,16 @@ void mesh_manager::setup_mesh(const mesh_data &data) {
   delete m_EBO;
 
   // Create VAO
-  m_VAO = new vertex_array_object();
+  m_VAO = new vertex_array();
   m_VAO->bind();
 
   // Create and bind VBO
-  m_VBO = new vertex_buffer_object();
+  m_VBO = new vertex_buffer();
   m_VBO->bind();
   m_VBO->set_data(data.vertices, data.vertex_size, GL_STATIC_DRAW);
 
   // Create and bind EBO
-  m_EBO = new index_buffer_object();
+    m_EBO = new index_buffer();
   m_EBO->bind();
   m_EBO->set_data(data.indices, data.index_count * sizeof(unsigned int));
 

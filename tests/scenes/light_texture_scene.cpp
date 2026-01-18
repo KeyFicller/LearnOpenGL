@@ -32,9 +32,9 @@ void light_texture_scene::init(GLFWwindow *_window) {
   m_camera.update_view_matrix();
 
   // Load textures
-  m_texture_material.m_diffuse_texture =
+  m_texture_material.DiffuseTexture =
       new texture_2d("assets/images/spider_man.jpeg");
-  m_texture_material.m_specular_texture =
+  m_texture_material.SpecularTexture =
       new texture_2d("assets/images/spider_man.jpeg");
 }
 
@@ -51,7 +51,7 @@ void light_texture_scene::render() {
   m_mesh.draw();
 
   // Render light source using helper
-  render_light_source(m_light_shader, m_light.m_position);
+  render_light_source(m_light_shader, m_light.Position);
 }
 
 void light_texture_scene::render_ui() {

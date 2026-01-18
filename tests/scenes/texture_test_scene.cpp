@@ -35,17 +35,17 @@ void texture_test_scene::init(GLFWwindow *_window) {
   test_scene_base::init(_window);
 
   // Create VAO
-  m_VAO = new vertex_array_object();
+  m_VAO = new vertex_array();
   m_VAO->bind();
 
   // Create and bind VBO
-  m_VBO = new vertex_buffer_object();
+  m_VBO = new vertex_buffer();
   m_VBO->bind();
   m_VBO->set_data(texture_quad_vertices, sizeof(texture_quad_vertices),
                   GL_STATIC_DRAW);
 
   // Create and bind EBO
-  m_EBO = new index_buffer_object();
+  m_EBO = new index_buffer();
   m_EBO->bind();
   m_EBO->set_data(texture_quad_indices, sizeof(texture_quad_indices));
 
@@ -102,4 +102,20 @@ void texture_test_scene::render_ui() {
   ImGui::Text("Texture Controls");
   ImGui::Spacing();
   ImGui::SliderFloat("Mix Ratio", &m_mix_ratio, 0.0f, 1.0f);
+
+  ImGui::Separator();
+  if (m_texture1) {
+    ImGui::PushID("texture1");
+    ImGui::Text("Texture 1");
+    ui(*m_texture1);
+    ImGui::PopID();
+  }
+
+  ImGui::Separator();
+  if (m_texture2) {
+    ImGui::PushID("texture2");
+    ImGui::Text("Texture 2");
+    ui(*m_texture2);
+    ImGui::PopID();
+  }
 }
