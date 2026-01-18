@@ -99,17 +99,48 @@ static const float cube_vertices_position_only[] = {
 // CCW winding order (OpenGL default)
 static const unsigned int cube_indices[] = {
     // Back face (normal: (0,0,-1), view from +Z for CCW)
-    0, 3, 1, 3, 2, 1, // CCW: bottom-left -> top-left -> bottom-right, then top-left -> top-right -> bottom-right
+    0,
+    3,
+    1,
+    3,
+    2,
+    1, // CCW: bottom-left -> top-left -> bottom-right, then top-left ->
+       // top-right -> bottom-right
     // Front face
-    4, 5, 6, 6, 7, 4,
+    4,
+    5,
+    6,
+    6,
+    7,
+    4,
     // Left face
-    8, 9, 10, 10, 11, 8,
+    8,
+    9,
+    10,
+    10,
+    11,
+    8,
     // Right face
-    12, 13, 14, 14, 15, 12,
+    12,
+    13,
+    14,
+    14,
+    15,
+    12,
     // Bottom face
-    16, 17, 18, 18, 19, 16,
+    16,
+    17,
+    18,
+    18,
+    19,
+    16,
     // Top face
-    20, 21, 22, 22, 23, 20,
+    20,
+    21,
+    22,
+    22,
+    23,
+    20,
 };
 
 // Simplified indices for position-only format (using 8 vertices)
@@ -158,7 +189,8 @@ std::vector<vertex_attribute> get_attributes(vertex_format format) {
   case vertex_format::position_normal:
     return {{3, GL_FLOAT, GL_FALSE}, {3, GL_FLOAT, GL_FALSE}};
   case vertex_format::position_normal_tex:
-    return {{3, GL_FLOAT, GL_FALSE}, {3, GL_FLOAT, GL_FALSE},
+    return {{3, GL_FLOAT, GL_FALSE},
+            {3, GL_FLOAT, GL_FALSE},
             {2, GL_FLOAT, GL_FALSE}};
   default:
     return {};
@@ -168,7 +200,7 @@ std::vector<vertex_attribute> get_attributes(vertex_format format) {
 cube_mesh_data::cube_mesh_data(vertex_format format) {
   vertices = get_vertices(format);
   indices = get_indices();
-  
+
   // For position_only format, use the simplified indices
   if (format == vertex_format::position_only) {
     const unsigned int *idx_data = cube_indices_position_only;
@@ -183,4 +215,3 @@ cube_mesh_data::cube_mesh_data(vertex_format format) {
 }
 
 } // namespace prefab_cube
-

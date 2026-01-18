@@ -176,6 +176,7 @@ add_executable(LearnOpenGL
     tests/component/camera_controller.cpp
     tests/component/prefab_cube.cpp
     tests/scenes/stencil_test_scene.cpp
+    tests/scenes/stencil_sub_scenes.cpp
     tests/scenes/blender_test_scene.cpp
     tests/scenes/cull_test_scene.cpp
     ${IMGUI_SOURCES}
