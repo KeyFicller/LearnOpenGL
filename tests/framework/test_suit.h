@@ -19,6 +19,8 @@ enum class test_scene {
   k_import_model_test,
   k_depth_test_test,
   k_stencil_test_test,
+  k_blender_test_test,
+  k_cull_test_test,
   k_count
 };
 

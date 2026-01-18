@@ -155,6 +155,7 @@ add_executable(LearnOpenGL
     tests/scenes/scene_base.cpp
     tests/component/mesh_manager.cpp
     tests/component/shader_loader.cpp
+    tests/component/prefab_quad.cpp
     tests/scenes/renderable_scene_base.cpp
     tests/scenes/texture_test_scene.cpp
     tests/scenes/triangle_test_scene.cpp
@@ -175,6 +176,8 @@ add_executable(LearnOpenGL
     tests/component/camera_controller.cpp
     tests/component/prefab_cube.cpp
     tests/scenes/stencil_test_scene.cpp
+    tests/scenes/blender_test_scene.cpp
+    tests/scenes/cull_test_scene.cpp
     ${IMGUI_SOURCES}
 )
 

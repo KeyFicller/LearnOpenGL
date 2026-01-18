@@ -21,6 +21,8 @@ public:
   float m_yaw = -90.0f; // Default looking along -Z axis
   float m_pitch = 0.0f;
 
+  bool m_orthographic = false;
+
 public:
   void update_view_matrix() {
     // Recalculate front vector from yaw and pitch
@@ -38,8 +40,13 @@ public:
   }
 
   void update_projection_matrix() {
-    m_projection_matrix =
-        glm::perspective(glm::radians(m_fov), m_aspect_ratio, m_near, m_far);
+    if (m_orthographic) {
+      m_projection_matrix = glm::ortho(-m_aspect_ratio, m_aspect_ratio, -1.0f,
+                                       1.0f, m_near, m_far);
+    } else {
+      m_projection_matrix =
+          glm::perspective(glm::radians(m_fov), m_aspect_ratio, m_near, m_far);
+    }
   }
 
   void set_aspect_ratio(float _aspect_ratio) {

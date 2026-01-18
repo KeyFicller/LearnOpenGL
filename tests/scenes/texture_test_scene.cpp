@@ -87,6 +87,7 @@ void texture_test_scene::render() {
   m_shader->use();
   float time = glfwGetTime();
   m_shader->set_uniform<float>("ourColor", sin(time), 0.0f, 0.0f, 1.0f);
+  m_shader->set_uniform<float>("uMin", m_mix_ratio);
   m_texture1->bind(0);
   m_texture2->bind(1);
   m_shader->set_uniform<int>("texture1", 0);

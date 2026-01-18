@@ -96,9 +96,10 @@ static const float cube_vertices_position_only[] = {
 };
 
 // Cube indices (36 indices for 6 faces * 2 triangles * 3 vertices)
+// CCW winding order (OpenGL default)
 static const unsigned int cube_indices[] = {
-    // Back face
-    0, 1, 2, 2, 3, 0,
+    // Back face (normal: (0,0,-1), view from +Z for CCW)
+    0, 3, 1, 3, 2, 1, // CCW: bottom-left -> top-left -> bottom-right, then top-left -> top-right -> bottom-right
     // Front face
     4, 5, 6, 6, 7, 4,
     // Left face
