@@ -21,6 +21,7 @@ enum class test_scene {
   k_stencil_test_test,
   k_blender_test_test,
   k_cull_test_test,
+  k_texture_cube_test_test,
   k_count
 };
 

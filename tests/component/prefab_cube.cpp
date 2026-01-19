@@ -207,11 +207,10 @@ cube_mesh_data::cube_mesh_data(vertex_format format) {
     indices = std::vector<unsigned int>(idx_data, idx_data + 36);
   }
 
-  mesh.vertices = vertices.data();
-  mesh.vertex_size = sizeof(vertices[0]) * vertices.size();
-  mesh.indices = indices.data();
-  mesh.index_count = indices.size();
-  mesh.attributes = get_attributes(format);
+  mesh = new mesh_data(vertices.data(), sizeof(vertices[0]) * vertices.size(),
+                       indices.data(), indices.size(), get_attributes(format));
 }
+
+cube_mesh_data::~cube_mesh_data() { delete mesh; }
 
 } // namespace prefab_cube

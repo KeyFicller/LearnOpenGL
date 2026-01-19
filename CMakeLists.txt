@@ -183,6 +183,7 @@ add_executable(LearnOpenGL
     tests/scenes/stencil_sub_scenes.cpp
     tests/scenes/blender_test_scene.cpp
     tests/scenes/cull_test_scene.cpp
+    tests/scenes/texture_cube_scene.cpp
     ${IMGUI_SOURCES}
 )
 

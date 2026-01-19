@@ -25,8 +25,14 @@ std::vector<vertex_attribute> get_attributes(vertex_format format);
 struct quad_mesh_data {
   std::vector<float> vertices;
   std::vector<unsigned int> indices;
-  mesh_data mesh;
+  mesh_data *mesh = nullptr;
 
   quad_mesh_data(vertex_format format);
+  ~quad_mesh_data();
+
+  quad_mesh_data(const quad_mesh_data &) = delete;
+  quad_mesh_data &operator=(const quad_mesh_data &) = delete;
+  quad_mesh_data(quad_mesh_data &&) = delete;
+  quad_mesh_data &operator=(quad_mesh_data &&) = delete;
 };
 } // namespace prefab_quad

@@ -6,15 +6,12 @@ import_mesh::import_mesh(const std::vector<import_vertex> &_vertices,
                          const std::vector<import_texture> &_textures)
     : vertices(_vertices), indices(_indices), textures(_textures) {
   // Setup mesh data for OpenGL
-  mesh_data data;
-  data.vertices = vertices.data();
-  data.vertex_size = sizeof(vertices[0]);
-  data.indices = indices.data();
-  data.index_count = indices.size();
-  // Vertex attributes: position (3), normal (3), texture_coords (2)
-  data.attributes = {{3, GL_FLOAT, GL_FALSE},
-                     {3, GL_FLOAT, GL_FALSE},
-                     {2, GL_FLOAT, GL_FALSE}};
+  mesh_data data = {
+      vertices.data(),
+      sizeof(vertices[0]) * vertices.size(),
+      indices.data(),
+      indices.size(),
+      {{3, GL_FLOAT, false}, {3, GL_FLOAT, false}, {2, GL_FLOAT, false}}};
   m_mesh_manager.setup_mesh(data);
 }
 
@@ -57,4 +54,3 @@ void import_mesh::draw(shader *_shader) {
   // Draw the mesh
   m_mesh_manager.draw();
 }
-

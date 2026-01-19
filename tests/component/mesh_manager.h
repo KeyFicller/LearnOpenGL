@@ -10,6 +10,15 @@ struct mesh_data {
   const void *indices;
   size_t index_count;
   std::vector<vertex_attribute> attributes;
+
+  mesh_data(const void *_vertices, size_t _vertex_size, const void *_indices,
+            size_t _index_count, std::vector<vertex_attribute> _attributes)
+      : vertices(_vertices), vertex_size(_vertex_size), indices(_indices),
+        index_count(_index_count), attributes(_attributes) {}
+  mesh_data(const void *_vertices, size_t _vertex_size, size_t _vertex_count,
+            const std::vector<vertex_attribute> &_attributes)
+      : vertices(_vertices), vertex_size(_vertex_size), indices(nullptr),
+        index_count(_vertex_count), attributes(_attributes) {}
 };
 
 // Helper class to manage VAO/VBO/EBO setup

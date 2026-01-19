@@ -2,14 +2,13 @@
 
 #include "glad/gl.h"
 #include "imgui.h"
-#include "tests/component/prefab_cube.h"
 #include "tests/component/mesh_manager.h"
+#include "tests/component/prefab_cube.h"
 #include "tests/component/shader_loader.h"
 #include <GLFW/glfw3.h>
 #include <glm/gtc/matrix_transform.hpp>
 
-camera_test_scene::camera_test_scene()
-    : camera_scene_base("Camera Test") {}
+camera_test_scene::camera_test_scene() : camera_scene_base("Camera Test") {}
 
 void camera_test_scene::init(GLFWwindow *_window) {
   camera_scene_base::init(_window);
@@ -17,7 +16,7 @@ void camera_test_scene::init(GLFWwindow *_window) {
   // Setup mesh using cube helper
   prefab_cube::cube_mesh_data cube_data(
       prefab_cube::vertex_format::position_only);
-  m_mesh.setup_mesh(cube_data.mesh);
+  m_mesh.setup_mesh(*cube_data.mesh);
 
   // Load shader using helper
   m_shader = load_shader("shaders/camera_test/vertex.shader",

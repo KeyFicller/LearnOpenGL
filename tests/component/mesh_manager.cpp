@@ -57,9 +57,14 @@ void mesh_manager::setup_mesh(const mesh_data &data) {
   m_VBO->set_data(data.vertices, data.vertex_size, GL_STATIC_DRAW);
 
   // Create and bind EBO
+  if (data.indices) {
     m_EBO = new index_buffer();
-  m_EBO->bind();
-  m_EBO->set_data(data.indices, data.index_count * sizeof(unsigned int));
+    m_EBO->bind();
+    m_EBO->set_data(data.indices, data.index_count * sizeof(unsigned int));
+  } else {
+    delete m_EBO;
+    m_EBO = nullptr;
+  }
 
   // Set vertex attributes
   m_VAO->add_attributes(data.attributes);
@@ -81,6 +86,8 @@ void mesh_manager::draw() const {
     bind();
     glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(m_index_count),
                    GL_UNSIGNED_INT, 0);
+  } else if (m_VAO && m_index_count > 0) {
+    bind();
+    glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(m_index_count));
   }
 }
-

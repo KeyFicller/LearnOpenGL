@@ -68,12 +68,12 @@ void texture_test_scene::init(GLFWwindow *_window) {
   // Load textures
   try {
     m_texture1 = new texture_2d("assets/images/spider_man.jpeg");
-    m_texture1->set_wrap_mode(texture_2d::wrap_mode::k_repeat);
-    m_texture1->set_filter_mode(texture_2d::filter_mode::k_nearest);
+    m_texture1->set_wrap_mode(wrap_mode::k_repeat);
+    m_texture1->set_filter_mode(filter_mode::k_nearest);
 
     m_texture2 = new texture_2d("assets/images/sea.jpeg");
-    m_texture2->set_wrap_mode(texture_2d::wrap_mode::k_repeat);
-    m_texture2->set_filter_mode(texture_2d::filter_mode::k_nearest);
+    m_texture2->set_wrap_mode(wrap_mode::k_repeat);
+    m_texture2->set_filter_mode(filter_mode::k_nearest);
   } catch (const std::exception &e) {
     std::cerr << "Failed to load texture: " << e.what() << std::endl;
   }

@@ -89,11 +89,10 @@ std::vector<vertex_attribute> get_attributes(vertex_format format) {
 quad_mesh_data::quad_mesh_data(vertex_format format) {
   vertices = get_vertices(format);
   indices = get_indices();
-  mesh.vertices = vertices.data();
-  mesh.vertex_size = sizeof(vertices[0]) * vertices.size();
-  mesh.indices = indices.data();
-  mesh.index_count = indices.size();
-  mesh.attributes = get_attributes(format);
+  mesh = new mesh_data(vertices.data(), sizeof(vertices[0]) * vertices.size(),
+                       indices.data(), indices.size(), get_attributes(format));
 }
+
+quad_mesh_data::~quad_mesh_data() { delete mesh; }
 
 } // namespace prefab_quad

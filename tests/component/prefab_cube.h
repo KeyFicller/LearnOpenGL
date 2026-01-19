@@ -25,9 +25,13 @@ std::vector<vertex_attribute> get_attributes(vertex_format format);
 struct cube_mesh_data {
   std::vector<float> vertices;
   std::vector<unsigned int> indices;
-  mesh_data mesh;
+  mesh_data *mesh = nullptr;
 
   cube_mesh_data(vertex_format format);
+  ~cube_mesh_data();
+  cube_mesh_data(const cube_mesh_data &) = delete;
+  cube_mesh_data &operator=(const cube_mesh_data &) = delete;
+  cube_mesh_data(cube_mesh_data &&) = delete;
+  cube_mesh_data &operator=(cube_mesh_data &&) = delete;
 };
 } // namespace prefab_cube
-

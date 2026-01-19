@@ -23,7 +23,7 @@ void stencil_test_scene::init(GLFWwindow *_window) {
   // Setup mesh using cube helper
   prefab_cube::cube_mesh_data cube_data(
       prefab_cube::vertex_format::position_normal);
-  setup_mesh(cube_data.mesh);
+  setup_mesh(*cube_data.mesh);
 
   // Load shaders using helper
   load_shader_pair("shaders/stencil_test_test/vertex.shader",

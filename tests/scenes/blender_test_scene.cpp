@@ -18,7 +18,7 @@ void blender_test_scene::init(GLFWwindow *window) {
   // Setup mesh using quad helper
   prefab_quad::quad_mesh_data quad_data(
       prefab_quad::vertex_format::position_normal);
-  setup_mesh(quad_data.mesh);
+  setup_mesh(*quad_data.mesh);
 
   // Load shaders using helper
   load_shader_pair("shaders/blender_test_test/vertex.shader",
