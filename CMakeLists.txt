@@ -186,6 +186,8 @@ add_executable(LearnOpenGL
     tests/scenes/texture_cube_scene.cpp
     tests/scenes/advanced_glsl_scene.cpp
     tests/scenes/advanced_glsl_sub_scenes.cpp
+    tests/scenes/geometry_shader_scene.cpp
+    tests/scenes/geometry_shader_sub_scenes.cpp
     ${IMGUI_SOURCES}
 )
 

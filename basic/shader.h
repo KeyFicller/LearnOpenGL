@@ -16,7 +16,8 @@
  */
 class shader {
 public:
-  shader(const char *_vertex_path, const char *_fragment_path);
+  shader(const char *_vertex_path, const char *_fragment_path,
+         const char *_geometry_path = nullptr);
   virtual ~shader();
 
   shader(const shader &) = delete;

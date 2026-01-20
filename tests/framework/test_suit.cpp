@@ -8,6 +8,7 @@
 #include "tests/scenes/coordinate_test_scene.h"
 #include "tests/scenes/cull_test_scene.h"
 #include "tests/scenes/depth_test_scene.h"
+#include "tests/scenes/geometry_shader_scene.h"
 #include "tests/scenes/import_model_scene.h"
 #include "tests/scenes/light_color_scene.h"
 #include "tests/scenes/light_material_scene.h"
@@ -52,6 +53,8 @@ void test_suit::init(GLFWwindow *_window) {
     REGISTER_SCENE(test_scene::k_cull_test_test, cull_test_scene);
     REGISTER_SCENE(test_scene::k_texture_cube_test_test, texture_cube_scene);
     REGISTER_SCENE(test_scene::k_advanced_glsl_test_test, advanced_glsl_scene);
+    REGISTER_SCENE(test_scene::k_geometry_shader_test_test,
+                   geometry_shader_scene);
   } catch (const std::exception &e) {
     std::cerr << "Error initializing test scenes: " << e.what() << std::endl;
     throw; // Re-throw to be caught by main

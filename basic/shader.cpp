@@ -52,7 +52,8 @@ int create_shader_from_file(const char *_path, GLenum _shader_type) {
 }
 
 int create_shader_program_from_shaders(GLuint _vertex_shader,
-                                       GLuint _fragment_shader) {
+                                       GLuint _fragment_shader,
+                                       GLuint _geometry_shader) {
   GLuint shader_program = glCreateProgram();
   check_gl_error("glCreateProgram");
 
@@ -61,6 +62,11 @@ int create_shader_program_from_shaders(GLuint _vertex_shader,
 
   glAttachShader(shader_program, _fragment_shader);
   check_gl_error("glAttachShader (fragment)");
+
+  if (_geometry_shader != 0) {
+    glAttachShader(shader_program, _geometry_shader);
+    check_gl_error("glAttachShader (geometry)");
+  }
 
   glLinkProgram(shader_program);
   check_gl_error("glLinkProgram");
@@ -75,20 +81,32 @@ int create_shader_program_from_shaders(GLuint _vertex_shader,
     glDeleteProgram(shader_program);
     glDeleteShader(_vertex_shader);
     glDeleteShader(_fragment_shader);
+    if (_geometry_shader != 0) {
+      glDeleteShader(_geometry_shader);
+    }
     throw std::runtime_error(ss.str());
   }
 
   glDeleteShader(_vertex_shader);
   glDeleteShader(_fragment_shader);
+  if (_geometry_shader != 0) {
+    glDeleteShader(_geometry_shader);
+  }
   return shader_program;
 }
 
-shader::shader(const char *_vertex_path, const char *_fragment_path) {
+shader::shader(const char *_vertex_path, const char *_fragment_path,
+               const char *_geometry_path) {
   GLuint vertex_shader =
       create_shader_from_file(_vertex_path, GL_VERTEX_SHADER);
   GLuint fragment_shader =
       create_shader_from_file(_fragment_path, GL_FRAGMENT_SHADER);
-  m_ID = create_shader_program_from_shaders(vertex_shader, fragment_shader);
+  GLuint geometry_shader =
+      _geometry_path
+          ? create_shader_from_file(_geometry_path, GL_GEOMETRY_SHADER)
+          : 0;
+  m_ID = create_shader_program_from_shaders(vertex_shader, fragment_shader,
+                                            geometry_shader);
 }
 
 shader::~shader() { glDeleteProgram(m_ID); }
