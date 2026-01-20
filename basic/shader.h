@@ -178,6 +178,12 @@ public:
     return glGetUniformLocation(m_ID, _name);
   }
 
+  /**
+   * @brief Get shader program ID
+   * @return Shader program ID
+   */
+  unsigned int id() const { return m_ID; }
+
 protected:
   GLuint m_ID = -1; // OpenGL shader program ID
 };

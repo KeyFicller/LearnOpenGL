@@ -1,5 +1,7 @@
 #include "tests/framework/test_suit.h"
 
+#include "imgui.h"
+#include "tests/scenes/advanced_glsl_scene.h"
 #include "tests/scenes/blender_test_scene.h"
 #include "tests/scenes/camera_test_scene.h"
 #include "tests/scenes/color_test_scene.h"
@@ -18,8 +20,6 @@
 #include "tests/scenes/texture_test_scene.h"
 #include "tests/scenes/transform_test_scene.h"
 #include "tests/scenes/triangle_test_scene.h"
-
-#include "imgui.h"
 #include <exception>
 #include <iostream>
 
@@ -51,6 +51,7 @@ void test_suit::init(GLFWwindow *_window) {
     REGISTER_SCENE(test_scene::k_blender_test_test, blender_test_scene);
     REGISTER_SCENE(test_scene::k_cull_test_test, cull_test_scene);
     REGISTER_SCENE(test_scene::k_texture_cube_test_test, texture_cube_scene);
+    REGISTER_SCENE(test_scene::k_advanced_glsl_test_test, advanced_glsl_scene);
   } catch (const std::exception &e) {
     std::cerr << "Error initializing test scenes: " << e.what() << std::endl;
     throw; // Re-throw to be caught by main
