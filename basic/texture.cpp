@@ -1,10 +1,11 @@
 #include "basic/texture.h"
+
 #include "glad/gl.h"
+#include "imgui.h"
+#include <iostream>
 
 #define STB_IMAGE_IMPLEMENTATION
-#include "imgui.h"
 #include "stb_image.h"
-#include <iostream>
 
 namespace {
 void apply_wrap_mode_impl(unsigned int _texture_type, unsigned int _texture_id,

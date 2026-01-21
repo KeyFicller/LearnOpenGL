@@ -7,7 +7,7 @@
 #include <vector>
 
 /**
- * @brief Vertex buffer object (VBO) wrapper
+ * @brief Vertex buffer (VBO) wrapper
  */
 class vertex_buffer {
 public:
@@ -56,7 +56,7 @@ struct vertex_attribute {
 };
 
 /**
- * @brief Vertex array object (VAO) wrapper
+ * @brief Vertex array (VAO) wrapper
  */
 class vertex_array {
 public:
@@ -91,7 +91,7 @@ protected:
 };
 
 /**
- * @brief Index buffer object (EBO/IBO) wrapper
+ * @brief Index buffer (EBO/IBO) wrapper
  */
 class index_buffer {
 public:

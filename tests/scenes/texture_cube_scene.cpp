@@ -70,9 +70,9 @@ void texture_cube_scene::init(GLFWwindow *window) {
                    m_light_shader);
 
   // Initialize camera
-  m_camera.m_position = {0.0f, 0.0f, 3.0f};
-  m_camera.m_yaw = -90.0f; // Default looking along -Z axis
-  m_camera.m_pitch = 0.0f;
+  m_camera.Position = {0.0f, 0.0f, 3.0f};
+  m_camera.Yaw = -90.0f; // Default looking along -Z axis
+  m_camera.Pitch = 0.0f;
   m_camera.update_view_matrix();
 }
 
@@ -86,7 +86,7 @@ void texture_cube_scene::render() {
   set_matrices(m_shader);
   m_texture_cube->bind();
   m_shader->set_uniform("uTestMode", m_test_mode);
-  m_shader->set_uniform("uEyePosition", m_camera.m_position);
+  m_shader->set_uniform("uEyePosition", m_camera.Position);
   m_shader->set_uniform("uCubeMap", 0);
   m_shader->set_uniform("uRefractRatio", m_refract_ratio);
   m_mesh.draw();
@@ -96,8 +96,8 @@ void texture_cube_scene::render() {
   m_skybox_shader->use();
   m_skybox_shader->set_uniform("model", glm::mat4(1.0f));
   m_skybox_shader->set_uniform("view",
-                               glm::mat4(glm::mat3(m_camera.m_view_matrix)));
-  m_skybox_shader->set_uniform("projection", m_camera.m_projection_matrix);
+                               glm::mat4(glm::mat3(m_camera.ViewMatrix)));
+  m_skybox_shader->set_uniform("projection", m_camera.ProjectionMatrix);
 
   m_texture_cube->bind();
   m_skybox_shader->set_uniform("uCubeMap", 0);

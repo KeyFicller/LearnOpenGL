@@ -148,12 +148,14 @@ set(IMGUI_SOURCES
 
 add_executable(LearnOpenGL 
     main.cpp 
+    callbacks.cpp
     basic/shader.cpp 
     basic/texture.cpp
     basic/framebuffer.cpp
     basic/light.cpp
     basic/material.cpp
     basic/vertex_array.cpp
+    basic/camera.cpp
     vendor/imgui_opengl3_glad.cpp
     tests/framework/test_suit.cpp
     tests/scenes/scene_base.cpp

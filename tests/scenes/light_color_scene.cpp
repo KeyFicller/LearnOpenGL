@@ -26,9 +26,9 @@ void light_color_scene::init(GLFWwindow *_window) {
                    m_light_shader);
 
   // Initialize camera - position at (10, 10, 10) looking at origin
-  m_camera.m_position = {10.0f, 10.0f, 10.0f};
-  m_camera.m_yaw = -135.0f; // Looking from (10,10,10) towards (0,0,0)
-  m_camera.m_pitch = -35.26f;
+  m_camera.Position = {10.0f, 10.0f, 10.0f};
+  m_camera.Yaw = -135.0f; // Looking from (10,10,10) towards (0,0,0)
+  m_camera.Pitch = -35.26f;
   m_camera.update_view_matrix();
 }
 
@@ -39,13 +39,13 @@ void light_color_scene::render() {
 
   // Set matrices and render object
   set_matrices(m_shader);
-  m_shader->set_uniform<float, 3>("uLightColor", &m_light_color.x);
-  m_shader->set_uniform<float, 3>("uObjectColor", &m_object_color.x);
-  m_shader->set_uniform<float, 1>("uAmbientStrength", &m_ambient_strength);
-  m_shader->set_uniform<float, 3>("uLightPosition", &m_light_position.x);
-  m_shader->set_uniform<float, 1>("uSpecularStrength", &m_specular_strength);
-  m_shader->set_uniform<float, 3>("uEyePosition", &m_camera.m_position.x);
-  m_shader->set_uniform<float, 1>("uShininess", &m_shininess);
+  m_shader->set_uniform("uLightColor", m_light_color);
+  m_shader->set_uniform("uObjectColor", m_object_color);
+  m_shader->set_uniform("uAmbientStrength", m_ambient_strength);
+  m_shader->set_uniform("uLightPosition", m_light_position);
+  m_shader->set_uniform("uSpecularStrength", m_specular_strength);
+  m_shader->set_uniform("uEyePosition", m_camera.Position);
+  m_shader->set_uniform("uShininess", m_shininess);
   m_mesh.draw();
 
   // Render light source using helper

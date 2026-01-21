@@ -29,9 +29,9 @@ void advanced_glsl_scene::init(GLFWwindow *_window) {
                    m_light_shader);
 
   // Initialize camera - position at (10, 10, 10) looking at origin
-  m_camera.m_position = {10.0f, 10.0f, 10.0f};
-  m_camera.m_yaw = -135.0f; // Looking from (10,10,10) towards (0,0,0)
-  m_camera.m_pitch = -35.26f;
+  m_camera.Position = {10.0f, 10.0f, 10.0f};
+  m_camera.Yaw = -135.0f; // Looking from (10,10,10) towards (0,0,0)
+  m_camera.Pitch = -35.26f;
   m_camera.update_view_matrix();
 
   // Initialize sub-scenes

@@ -26,9 +26,9 @@ void light_texture_scene::init(GLFWwindow *_window) {
                    m_light_shader);
 
   // Initialize camera - position at (3, 3, 0) looking at origin
-  m_camera.m_position = {3.0f, 3.0f, 0.0f};
-  m_camera.m_yaw = 180.0f; // Looking from (3,3,0) towards (0,0,0)
-  m_camera.m_pitch = -45.0f;
+  m_camera.Position = {3.0f, 3.0f, 0.0f};
+  m_camera.Yaw = 180.0f; // Looking from (3,3,0) towards (0,0,0)
+  m_camera.Pitch = -45.0f;
   m_camera.update_view_matrix();
 
   // Load textures
@@ -47,7 +47,7 @@ void light_texture_scene::render() {
   set_matrices(m_shader);
   uniform(*m_shader, m_light, "uLight");
   uniform(*m_shader, m_texture_material, "uMaterial");
-  m_shader->set_uniform<glm::vec3, 1>("uEyePosition", &m_camera.m_position);
+  m_shader->set_uniform("uEyePosition", m_camera.Position);
   m_mesh.draw();
 
   // Render light source using helper

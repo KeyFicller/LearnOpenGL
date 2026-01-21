@@ -67,8 +67,8 @@ void coordinate_test_scene::render() {
     projection =
         glm::perspective(glm::radians(m_fov), m_width / m_height, 0.1f, 100.0f);
 
-    m_shader->set_uniform<glm::mat4, 1>("view", &view);
-    m_shader->set_uniform<glm::mat4, 1>("projection", &projection);
+    m_shader->set_uniform("view", view);
+    m_shader->set_uniform("projection", projection);
 
     m_VAO->bind();
     m_EBO->bind();
@@ -78,7 +78,7 @@ void coordinate_test_scene::render() {
       model = glm::translate(model, position);
       model =
           glm::rotate(model, glm::radians(m_rotation_angle), m_rotation_axis);
-      m_shader->set_uniform<glm::mat4, 1>("model", &model);
+      m_shader->set_uniform("model", model);
       glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
     }
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);

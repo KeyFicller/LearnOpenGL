@@ -27,9 +27,9 @@ void multiple_light_scene::init(GLFWwindow *_window) {
                    m_shader, m_light_shader);
 
   // Initialize camera - position at (10, 10, 10) looking at origin
-  m_camera.m_position = {10.0f, 10.0f, 10.0f};
-  m_camera.m_yaw = -135.0f; // Looking from (10,10,10) towards (0,0,0)
-  m_camera.m_pitch = -35.26f;
+  m_camera.Position = {10.0f, 10.0f, 10.0f};
+  m_camera.Yaw = -135.0f; // Looking from (10,10,10) towards (0,0,0)
+  m_camera.Pitch = -35.26f;
   m_camera.update_view_matrix();
 
   for (int i = 0; i < 4; i++) {
@@ -50,7 +50,7 @@ void multiple_light_scene::render() {
     uniform(*m_shader, m_lights[i], light_name);
   }
   uniform(*m_shader, m_material, "uMaterial");
-  m_shader->set_uniform<glm::vec3, 1>("uEyePosition", &m_camera.m_position);
+  m_shader->set_uniform("uEyePosition", m_camera.Position);
   m_mesh.draw();
 
   // Render light source using helper

@@ -50,7 +50,7 @@ void camera_scene_base::render_camera_ui() {
   if (m_camera_controller_enabled && m_camera_controller) {
     ImGui::Indent();
 
-    if (ImGui::Checkbox("Orthographic", &m_camera.m_orthographic)) {
+    if (ImGui::Checkbox("Orthographic", &m_camera.Orthographic)) {
       m_camera.update_projection_matrix();
     }
 

@@ -29,9 +29,9 @@ void cull_test_scene::init(GLFWwindow *window) {
                    m_light_shader);
 
   // Initialize camera
-  m_camera.m_position = {0.0f, 0.0f, 3.0f};
-  m_camera.m_yaw = -90.0f; // Default looking along -Z axis
-  m_camera.m_pitch = 0.0f;
+  m_camera.Position = {0.0f, 0.0f, 3.0f};
+  m_camera.Yaw = -90.0f; // Default looking along -Z axis
+  m_camera.Pitch = 0.0f;
   m_camera.update_view_matrix();
 }
 

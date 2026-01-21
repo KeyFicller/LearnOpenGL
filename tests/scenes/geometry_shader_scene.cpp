@@ -19,10 +19,10 @@ void geometry_shader_scene::init(GLFWwindow *_window) {
   renderable_scene_base::init(_window);
 
   // Initialize camera
-  m_camera.m_position = {0.0f, 0.0f, 3.0f};
-  m_camera.m_yaw = -90.0f;
-  m_camera.m_pitch = 0.0f;
-  m_camera.m_orthographic = true;
+  m_camera.Position = {0.0f, 0.0f, 3.0f};
+  m_camera.Yaw = -90.0f;
+  m_camera.Pitch = 0.0f;
+  m_camera.Orthographic = true;
   m_camera.update_view_matrix();
 
   // Initialize sub-scenes

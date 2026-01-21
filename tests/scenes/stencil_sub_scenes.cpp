@@ -28,15 +28,13 @@ void stencil_object_outline_sub_scene::render() {
   p->m_shader->use();
   p->set_matrices(p->m_shader,
                   glm::translate(glm::mat4(1.0f), m_object_position));
-  p->m_shader->set_uniform<float, 3>("uLightColor", &p->m_light_color.x);
-  p->m_shader->set_uniform<float, 3>("uObjectColor", &p->m_object_color.x);
-  p->m_shader->set_uniform<float, 1>("uAmbientStrength",
-                                     &p->m_ambient_strength);
-  p->m_shader->set_uniform<float, 3>("uLightPosition", &p->m_light_position.x);
-  p->m_shader->set_uniform<float, 1>("uSpecularStrength",
-                                     &p->m_specular_strength);
-  p->m_shader->set_uniform<float, 3>("uEyePosition", &p->m_camera.m_position.x);
-  p->m_shader->set_uniform<float, 1>("uShininess", &p->m_shininess);
+  p->m_shader->set_uniform("uLightColor", p->m_light_color);
+  p->m_shader->set_uniform("uObjectColor", p->m_object_color);
+  p->m_shader->set_uniform("uAmbientStrength", p->m_ambient_strength);
+  p->m_shader->set_uniform("uLightPosition", p->m_light_position);
+  p->m_shader->set_uniform("uSpecularStrength", p->m_specular_strength);
+  p->m_shader->set_uniform("uEyePosition", p->m_camera.Position);
+  p->m_shader->set_uniform("uShininess", p->m_shininess);
   p->m_shader->set_uniform("uDrawBoundaries", 0); // false = 0
   p->m_mesh.draw();
 
@@ -83,15 +81,13 @@ void stencil_mirror_sub_scene::render() {
   p->m_shader->use();
   p->set_matrices(p->m_shader,
                   glm::translate(glm::mat4(1.0f), m_object_position));
-  p->m_shader->set_uniform<float, 3>("uLightColor", &p->m_light_color.x);
-  p->m_shader->set_uniform<float, 3>("uObjectColor", &p->m_object_color.x);
-  p->m_shader->set_uniform<float, 1>("uAmbientStrength",
-                                     &p->m_ambient_strength);
-  p->m_shader->set_uniform<float, 3>("uLightPosition", &p->m_light_position.x);
-  p->m_shader->set_uniform<float, 1>("uSpecularStrength",
-                                     &p->m_specular_strength);
-  p->m_shader->set_uniform<float, 3>("uEyePosition", &p->m_camera.m_position.x);
-  p->m_shader->set_uniform<float, 1>("uShininess", &p->m_shininess);
+  p->m_shader->set_uniform("uLightColor", p->m_light_color);
+  p->m_shader->set_uniform("uObjectColor", p->m_object_color);
+  p->m_shader->set_uniform("uAmbientStrength", p->m_ambient_strength);
+  p->m_shader->set_uniform("uLightPosition", p->m_light_position);
+  p->m_shader->set_uniform("uSpecularStrength", p->m_specular_strength);
+  p->m_shader->set_uniform("uEyePosition", p->m_camera.Position);
+  p->m_shader->set_uniform("uShininess", p->m_shininess);
   p->m_shader->set_uniform("uDrawBoundaries", 0);
   p->m_mesh.draw();
 
@@ -132,19 +128,17 @@ void stencil_mirror_sub_scene::render() {
       glm::translate(glm::mat4(1.0f), m_object_position);
 
   p->set_matrices(p->m_shader, reflected_model);
-  p->m_shader->set_uniform<float, 3>("uLightColor", &p->m_light_color.x);
-  p->m_shader->set_uniform<float, 3>("uObjectColor", &p->m_object_color.x);
-  p->m_shader->set_uniform<float, 1>("uAmbientStrength",
-                                     &p->m_ambient_strength);
-  p->m_shader->set_uniform<float, 3>("uLightPosition", &p->m_light_position.x);
-  p->m_shader->set_uniform<float, 1>("uSpecularStrength",
-                                     &p->m_specular_strength);
-  p->m_shader->set_uniform<float, 3>("uEyePosition", &p->m_camera.m_position.x);
-  p->m_shader->set_uniform<float, 1>("uShininess", &p->m_shininess);
+  p->m_shader->set_uniform("uLightColor", p->m_light_color);
+  p->m_shader->set_uniform("uObjectColor", p->m_object_color);
+  p->m_shader->set_uniform("uAmbientStrength", p->m_ambient_strength);
+  p->m_shader->set_uniform("uLightPosition", p->m_light_position);
+  p->m_shader->set_uniform("uSpecularStrength", p->m_specular_strength);
+  p->m_shader->set_uniform("uEyePosition", p->m_camera.Position);
+  p->m_shader->set_uniform("uShininess", p->m_shininess);
   p->m_shader->set_uniform("uDrawBoundaries", 0);
   // Scale down color to simulate reflection
   glm::vec3 reflected_color = p->m_object_color * 0.6f;
-  p->m_shader->set_uniform<float, 3>("uObjectColor", &reflected_color.x);
+  p->m_shader->set_uniform("uObjectColor", reflected_color);
   p->m_mesh.draw();
 
   // Step 4: Draw mirror plane surface (with transparency, clipped by stencil)

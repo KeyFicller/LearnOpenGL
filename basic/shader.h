@@ -1,9 +1,6 @@
 #pragma once
 
-#include "glm/fwd.hpp"
 #include <glad/gl.h>
-
-#include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 
 #include <stdexcept>
@@ -136,9 +133,9 @@ public:
   }
 
   /**
-   * @brief Set uniform value (accepts temporary values)
+   * @brief Set uniform value from reference
    * @param _name Uniform name
-   * @param _value Value to set
+   * @param _value Value to set (passed by reference)
    */
   template <typename tType>
   void set_uniform(const char *_name, const tType &_value) {
@@ -189,7 +186,7 @@ public:
    * @brief Get shader program ID
    * @return Shader program ID
    */
-  unsigned int id() const { return m_ID; }
+  unsigned int ID() const { return m_ID; }
 
 protected:
   GLuint m_ID = -1; // OpenGL shader program ID

@@ -15,28 +15,28 @@ void camera_controller::update(float _delta_time) {
 
   // W/S: Move forward/backward
   if (glfwGetKey(m_window, GLFW_KEY_W) == GLFW_PRESS) {
-    m_camera.m_position += m_camera.front() * speed;
+    m_camera.Position += m_camera.front() * speed;
   }
   if (glfwGetKey(m_window, GLFW_KEY_S) == GLFW_PRESS) {
-    m_camera.m_position -= m_camera.front() * speed;
+    m_camera.Position -= m_camera.front() * speed;
   }
 
   // A/D: Move left/right
   if (glfwGetKey(m_window, GLFW_KEY_A) == GLFW_PRESS) {
-    m_camera.m_position -= m_camera.right() * speed;
+    m_camera.Position -= m_camera.right() * speed;
   }
   if (glfwGetKey(m_window, GLFW_KEY_D) == GLFW_PRESS) {
-    m_camera.m_position += m_camera.right() * speed;
+    m_camera.Position += m_camera.right() * speed;
   }
 
   // Q/E or Space/Shift: Move up/down
   if (glfwGetKey(m_window, GLFW_KEY_Q) == GLFW_PRESS ||
       glfwGetKey(m_window, GLFW_KEY_SPACE) == GLFW_PRESS) {
-    m_camera.m_position += m_camera.m_world_up * speed;
+    m_camera.Position += m_camera.WorldUp * speed;
   }
   if (glfwGetKey(m_window, GLFW_KEY_E) == GLFW_PRESS ||
       glfwGetKey(m_window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) {
-    m_camera.m_position -= m_camera.m_world_up * speed;
+    m_camera.Position -= m_camera.WorldUp * speed;
   }
 
   m_camera.update_view_matrix();
@@ -63,15 +63,15 @@ void camera_controller::on_mouse_moved(double _xpos, double _ypos) {
   m_last_ypos = _ypos;
 
   // Update yaw and pitch
-  m_camera.m_yaw += xoffset;
-  m_camera.m_pitch += yoffset;
+  m_camera.Yaw += xoffset;
+  m_camera.Pitch += yoffset;
 
   // Clamp pitch to prevent gimbal lock
-  if (m_camera.m_pitch > m_max_pitch) {
-    m_camera.m_pitch = m_max_pitch;
+  if (m_camera.Pitch > m_max_pitch) {
+    m_camera.Pitch = m_max_pitch;
   }
-  if (m_camera.m_pitch < -m_max_pitch) {
-    m_camera.m_pitch = -m_max_pitch;
+  if (m_camera.Pitch < -m_max_pitch) {
+    m_camera.Pitch = -m_max_pitch;
   }
 
   m_camera.update_view_matrix();
@@ -79,12 +79,12 @@ void camera_controller::on_mouse_moved(double _xpos, double _ypos) {
 
 void camera_controller::on_mouse_scroll(double _xoffset, double _yoffset) {
   // Adjust FOV based on scroll offset (yoffset is the main scroll direction)
-  m_camera.m_fov -= static_cast<float>(_yoffset) * m_scroll_sensitivity;
-  if (m_camera.m_fov < m_min_fov) {
-    m_camera.m_fov = m_min_fov;
+  m_camera.FOV -= static_cast<float>(_yoffset) * m_scroll_sensitivity;
+  if (m_camera.FOV < m_min_fov) {
+    m_camera.FOV = m_min_fov;
   }
-  if (m_camera.m_fov > m_max_fov) {
-    m_camera.m_fov = m_max_fov;
+  if (m_camera.FOV > m_max_fov) {
+    m_camera.FOV = m_max_fov;
   }
   m_camera.update_projection_matrix();
 }

@@ -113,9 +113,9 @@ void advanced_glsl_uniform_buffer_sub_scene::render() {
 
   glBindBuffer(GL_UNIFORM_BUFFER, m_ubo_handle);
   glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(glm::mat4),
-                  &p->m_camera.m_view_matrix);
+                  &p->m_camera.ViewMatrix);
   glBufferSubData(GL_UNIFORM_BUFFER, sizeof(glm::mat4), sizeof(glm::mat4),
-                  &p->m_camera.m_projection_matrix);
+                  &p->m_camera.ProjectionMatrix);
   glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
   for (const auto &object : m_objects) {
@@ -137,9 +137,9 @@ void advanced_glsl_uniform_buffer_sub_scene::render_ui() {
         "shaders/advanced_glsl_test/vertex_with_uniform_buffer.shader",
         "shaders/advanced_glsl_test/fragment.shader");
     unsigned int uniform_blk_index = glGetUniformBlockIndex(
-        m_objects.back()->Shader->id(), "uCameraMatrics");
+        m_objects.back()->Shader->ID(), "uCameraMatrics");
     if (uniform_blk_index != GL_INVALID_INDEX) {
-      glUniformBlockBinding(m_objects.back()->Shader->id(), uniform_blk_index,
+      glUniformBlockBinding(m_objects.back()->Shader->ID(), uniform_blk_index,
                             0);
     }
     m_objects.back()->Position =

@@ -30,10 +30,9 @@ void camera_test_scene::render() {
 
   m_shader->use();
   glm::mat4 model = glm::mat4(1.0f);
-  m_shader->set_uniform<glm::mat4, 1>("model", &model);
-  m_shader->set_uniform<glm::mat4, 1>("view", &m_camera.m_view_matrix);
-  m_shader->set_uniform<glm::mat4, 1>("projection",
-                                      &m_camera.m_projection_matrix);
+  m_shader->set_uniform("model", model);
+  m_shader->set_uniform("view", m_camera.ViewMatrix);
+  m_shader->set_uniform("projection", m_camera.ProjectionMatrix);
 
   m_mesh.draw();
 }
@@ -48,11 +47,11 @@ void camera_test_scene::render_ui() {
   // View matrix controls
   bool update_view_matrix = false;
   update_view_matrix |=
-      ImGui::SliderFloat3("Position", &m_camera.m_position[0], -10.0f, 10.0f);
+      ImGui::SliderFloat3("Position", &m_camera.Position[0], -10.0f, 10.0f);
   update_view_matrix |=
-      ImGui::SliderFloat("Yaw", &m_camera.m_yaw, -180.0f, 180.0f);
+      ImGui::SliderFloat("Yaw", &m_camera.Yaw, -180.0f, 180.0f);
   update_view_matrix |=
-      ImGui::SliderFloat("Pitch", &m_camera.m_pitch, -89.0f, 89.0f);
+      ImGui::SliderFloat("Pitch", &m_camera.Pitch, -89.0f, 89.0f);
   if (update_view_matrix) {
     m_camera.update_view_matrix();
   }
@@ -60,13 +59,13 @@ void camera_test_scene::render_ui() {
   // Projection matrix controls
   bool update_projection_matrix = false;
   update_projection_matrix |=
-      ImGui::SliderFloat("fov", &m_camera.m_fov, 0.0f, 180.0f);
+      ImGui::SliderFloat("fov", &m_camera.FOV, 0.0f, 180.0f);
   update_projection_matrix |=
-      ImGui::SliderFloat("aspect ratio", &m_camera.m_aspect_ratio, 0.1f, 10.0f);
+      ImGui::SliderFloat("aspect ratio", &m_camera.AspectRatio, 0.1f, 10.0f);
   update_projection_matrix |=
-      ImGui::SliderFloat("near", &m_camera.m_near, 0.01f, 10.0f);
+      ImGui::SliderFloat("near", &m_camera.Near, 0.01f, 10.0f);
   update_projection_matrix |=
-      ImGui::SliderFloat("far", &m_camera.m_far, 10.0f, 100.0f);
+      ImGui::SliderFloat("far", &m_camera.Far, 10.0f, 100.0f);
   if (update_projection_matrix) {
     m_camera.update_projection_matrix();
   }

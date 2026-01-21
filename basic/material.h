@@ -3,7 +3,6 @@
 #include "basic/shader.h"
 #include "basic/texture.h"
 #include "glm/glm.hpp"
-#include "imgui.h"
 
 /**
  * @brief Material with color properties

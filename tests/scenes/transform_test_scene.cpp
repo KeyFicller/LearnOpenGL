@@ -59,7 +59,7 @@ void transform_test_scene::render() {
   m_transform = glm::rotate(glm::mat4(1.0f), angle, m_rotation_axis);
 
   m_shader->use();
-  m_shader->set_uniform<glm::mat4, 1>("transform", &m_transform);
+  m_shader->set_uniform("transform", m_transform);
   m_VAO->bind();
   glDrawArrays(GL_TRIANGLES, 0, 3);
 }

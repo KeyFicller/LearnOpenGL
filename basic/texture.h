@@ -1,10 +1,7 @@
 #pragma once
 
-#include <glad/gl.h>
-
-#include <GLFW/glfw3.h>
-
 #include <array>
+#include <glad/gl.h>
 
 /**
  * @brief Texture wrap mode

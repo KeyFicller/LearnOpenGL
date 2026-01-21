@@ -15,9 +15,9 @@ void import_model_scene::init(GLFWwindow *_window) {
                    m_light_shader);
 
   // Setup camera - position it to view the model
-  m_camera.m_position = {0.0f, 0.0f, 5.0f};
-  m_camera.m_yaw = -90.0f;
-  m_camera.m_pitch = 0.0f;
+  m_camera.Position = {0.0f, 0.0f, 5.0f};
+  m_camera.Yaw = -90.0f;
+  m_camera.Pitch = 0.0f;
   m_camera.update_view_matrix();
 }
 
