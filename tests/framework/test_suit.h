@@ -24,6 +24,7 @@ enum class test_scene {
   k_texture_cube_test_test,
   k_advanced_glsl_test_test,
   k_geometry_shader_test_test,
+  k_instance_test,
   k_count
 };
 

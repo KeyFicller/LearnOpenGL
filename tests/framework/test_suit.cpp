@@ -10,6 +10,7 @@
 #include "tests/scenes/depth_test_scene.h"
 #include "tests/scenes/geometry_shader_scene.h"
 #include "tests/scenes/import_model_scene.h"
+#include "tests/scenes/instance_scene.h"
 #include "tests/scenes/light_color_scene.h"
 #include "tests/scenes/light_material_scene.h"
 #include "tests/scenes/light_texture_scene.h"
@@ -55,6 +56,7 @@ void test_suit::init(GLFWwindow *_window) {
     REGISTER_SCENE(test_scene::k_advanced_glsl_test_test, advanced_glsl_scene);
     REGISTER_SCENE(test_scene::k_geometry_shader_test_test,
                    geometry_shader_scene);
+    REGISTER_SCENE(test_scene::k_instance_test, instance_scene);
   } catch (const std::exception &e) {
     std::cerr << "Error initializing test scenes: " << e.what() << std::endl;
     throw; // Re-throw to be caught by main

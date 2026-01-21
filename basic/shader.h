@@ -119,6 +119,12 @@ public:
     }
   };
 
+  template <> struct uniform_function<glm::vec2, 1> {
+    static void call(GLuint _location, const glm::vec2 *_values) {
+      glUniform2f(_location, (*_values)[0], (*_values)[1]);
+    }
+  };
+
   /**
    * @brief Set uniform value(s) from pointer
    * @param _name Uniform name
