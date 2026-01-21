@@ -7,10 +7,12 @@
 #include "tests/scenes/geometry_shader_sub_scenes.h"
 #include <glm/glm.hpp>
 
-class geometry_shader_sub_scene;
+class geometry_shader_point_sub_scene;
+class geometry_shader_cube_sub_scene;
 
 class geometry_shader_scene : public renderable_scene_base {
-  friend class geometry_shader_sub_scene;
+  friend class geometry_shader_point_sub_scene;
+  friend class geometry_shader_cube_sub_scene;
 
 public:
   geometry_shader_scene();
@@ -24,6 +26,4 @@ public:
 private:
   // Sub-scene manager
   sub_scene_manager<geometry_shader_scene> m_sub_scene_manager;
-
-  mesh_manager m_points_mesh_manager;
 };

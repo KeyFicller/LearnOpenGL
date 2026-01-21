@@ -106,13 +106,14 @@ static const unsigned int cube_indices[] = {
     2,
     1, // CCW: bottom-left -> top-left -> bottom-right, then top-left ->
        // top-right -> bottom-right
-    // Front face
+    // Front face (normal: (0,0,1), view from -Z for CCW)
     4,
+    6,
     5,
-    6,
-    6,
-    7,
     4,
+    7,
+    6, // CCW: bottom-right -> top-left -> bottom-left, then bottom-right ->
+       // top-right -> top-left
     // Left face
     8,
     9,

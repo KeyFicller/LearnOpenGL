@@ -129,6 +129,3 @@ public:
 protected:
   unsigned int m_ID = -1;
 };
-
-
-

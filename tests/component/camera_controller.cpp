@@ -98,11 +98,10 @@ void camera_controller::on_framebuffer_resized(int _width, int _height) {
 
 void camera_controller::set_mouse_captured(bool _captured) {
   m_mouse_captured = _captured;
-  if (_captured) {
-    glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-    m_first_mouse = true;
-  } else {
-    glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-  }
+  // if (_captured) {
+  //   glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+  //   m_first_mouse = true;
+  // } else {
+  //   glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+  // }
 }
-

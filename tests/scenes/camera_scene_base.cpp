@@ -44,7 +44,8 @@ void camera_scene_base::on_framebuffer_resized(int _width, int _height) {
 }
 
 void camera_scene_base::render_camera_ui() {
-  ImGui::Checkbox("Camera Controller", &m_camera_controller_enabled);
+  if (ImGui::Checkbox("Camera Controller", &m_camera_controller_enabled))
+    m_camera_controller->set_mouse_captured(m_camera_controller_enabled);
 
   if (m_camera_controller_enabled && m_camera_controller) {
     ImGui::Indent();
@@ -54,10 +55,10 @@ void camera_scene_base::render_camera_ui() {
     }
 
     // Mouse capture toggle
-    bool mouse_captured = m_camera_controller->is_mouse_captured();
-    if (ImGui::Checkbox("Capture Mouse", &mouse_captured)) {
-      m_camera_controller->set_mouse_captured(mouse_captured);
-    }
+    // bool mouse_captured = m_camera_controller->is_mouse_captured();
+    // if (ImGui::Checkbox("Capture Mouse", &mouse_captured)) {
+    //   m_camera_controller->set_mouse_captured(mouse_captured);
+    // }
 
     // Configuration
     if (ImGui::CollapsingHeader("Camera Settings")) {

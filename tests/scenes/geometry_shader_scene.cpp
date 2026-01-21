@@ -18,18 +18,6 @@ geometry_shader_scene::geometry_shader_scene()
 void geometry_shader_scene::init(GLFWwindow *_window) {
   renderable_scene_base::init(_window);
 
-  // Setup mesh
-  std::vector<glm::vec3> points = {
-      {-0.5f, -0.5f, 0.0f},
-      {1.0f, 0.0f, 0.0f},
-      {0.5f, 0.5f, 0.0f},
-      {0.5f, -0.5f, 0.0f},
-  };
-  mesh_data points_mesh_data(points.data(), points.size() * sizeof(glm::vec3),
-                             points.size(),
-                             {vertex_attribute{3, GL_FLOAT, false}});
-  m_points_mesh_manager.setup_mesh(points_mesh_data);
-
   // Initialize camera
   m_camera.m_position = {0.0f, 0.0f, 3.0f};
   m_camera.m_yaw = -90.0f;
@@ -43,6 +31,12 @@ void geometry_shader_scene::init(GLFWwindow *_window) {
 
   m_sub_scene_manager.add_sub_scene(
       std::make_unique<geometry_shader_triangle_strip_scene>(this));
+
+  m_sub_scene_manager.add_sub_scene(
+      std::make_unique<geometry_shader_explosion_scene>(this));
+
+  m_sub_scene_manager.add_sub_scene(
+      std::make_unique<geometry_shader_show_normal_scene>(this));
 }
 
 void geometry_shader_scene::render() {
