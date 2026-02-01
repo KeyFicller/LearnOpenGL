@@ -23,6 +23,7 @@
 #include "tests/scenes/transform_test_scene.h"
 #include "tests/scenes/triangle_test_scene.h"
 #include <exception>
+#include <fstream>
 #include <iostream>
 
 test_suit::test_suit() : m_current_scene(test_scene::k_texture_test) {}
@@ -31,6 +32,13 @@ test_suit::~test_suit() {
   for (auto &[scene, test_scene] : m_scenes) {
     delete test_scene;
   }
+
+  std::ofstream fout(".output/test.md");
+  for (const auto &str : m_str_caches) {
+    fout << str << std::endl;
+    fout << "--------------- Next graph -----------------" << std::endl;
+  }
+  fout.close();
 }
 
 void test_suit::init(GLFWwindow *_window) {
@@ -64,6 +72,15 @@ void test_suit::init(GLFWwindow *_window) {
     std::cerr << "Unknown error initializing test scenes" << std::endl;
     throw;
   }
+
+  m_ps_graph.set<periscope::GP_output_format>(
+      periscope::graph_output_format::k_markdown);
+  m_ps_graph.set<periscope::GP_flowchart_direction>(
+      periscope::GP_flowchart_direction<int>::k_top_to_down);
+  auto &ps_node = m_ps_graph.new_object<periscope::node>();
+  ps_node.set<periscope::OP_name>(m_scenes[m_current_scene]->get_name());
+  m_last_node = &ps_node;
+  m_str_caches.emplace_back(m_ps_graph.to_string());
 }
 
 void test_suit::render_ui() {
@@ -77,6 +94,14 @@ void test_suit::render_ui() {
     bool is_selected = (m_current_scene == scene);
     if (ImGui::RadioButton(get_scene_name(scene), is_selected)) {
       m_current_scene = scene;
+
+      auto &ps_node = m_ps_graph.new_object<periscope::node>();
+      ps_node.set<periscope::OP_name>(m_scenes[m_current_scene]->get_name());
+      m_ps_graph.new_object<periscope::link>()
+          .set<periscope::LP_source>(*m_last_node)
+          .set<periscope::LP_target>(ps_node);
+      m_last_node = &ps_node;
+      m_str_caches.emplace_back(m_ps_graph.to_string());
     }
   }
   ImGui::End();

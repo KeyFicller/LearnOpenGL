@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.15)
 
 project(LearnOpenGL LANGUAGES C CXX)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Set default build type to Debug if not specified
@@ -133,6 +133,15 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(assimp)
 # ---------------------------------------------------------------
 
+# ------------------------ Vendor: periscope ------------------------
+FetchContent_Declare(
+  periscope
+  GIT_REPOSITORY https://bgithub.xyz/KeyFicller/periscope.git
+  GIT_TAG        2b7d5bc
+)
+FetchContent_MakeAvailable(periscope)
+# ---------------------------------------------------------------
+
 # ImGui sources
 # Note: We use imgui_opengl3_glad.cpp to ensure GLAD is included before
 # imgui_impl_opengl3.cpp (required when using IMGUI_IMPL_OPENGL_LOADER_CUSTOM)
@@ -203,6 +212,7 @@ target_include_directories(LearnOpenGL PUBLIC
     "${imgui_SOURCE_DIR}"
     "${imgui_SOURCE_DIR}/backends"
     "${assimp_SOURCE_DIR}/include"
+    "${periscope_SOURCE_DIR}/include"
 )
 
 # Use GLAD as OpenGL loader for ImGui (instead of imgui's built-in loader)

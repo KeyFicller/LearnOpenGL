@@ -1,5 +1,6 @@
 #pragma once
 
+#include "periscope.h"
 #include "tests/scenes/scene_base.h"
 #include <map>
 
@@ -63,4 +64,9 @@ private:
 
   // Get scene instance by enum
   test_scene_base *get_scene(test_scene _scene);
+
+  // --------------- just for test ---------------
+  periscope::graph<int> m_ps_graph;
+  periscope::node *m_last_node = nullptr;
+  std::vector<std::string> m_str_caches;
 };
