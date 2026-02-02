@@ -110,6 +110,7 @@ int main() {
 
     // ImGui state
     bool show_demo_window = false;
+    ImGui::StyleColorsClassic();
 
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_STENCIL_TEST);

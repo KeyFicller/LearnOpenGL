@@ -39,8 +39,11 @@ public:
   virtual void update(float delta_time) {} // Called each frame before render
 
   // Rendering methods (must be implemented)
-  virtual void render() = 0;      // Render the sub-scene
-  virtual void render_ui() = 0;   // Render sub-scene UI
+  virtual void render() = 0;    // Render the sub-scene
+  virtual void render_ui() = 0; // Render sub-scene UI
+
+  // Event handlers
+  virtual bool on_mouse_moved(double _xpos, double _ypos) { return false; }
 
 protected:
   ParentScene *m_parent;
@@ -136,8 +139,15 @@ public:
     }
   }
 
+  // Event handlers
+  bool on_mouse_moved(double _xpos, double _ypos) {
+    if (auto *current_scene = current()) {
+      return current_scene->on_mouse_moved(_xpos, _ypos);
+    }
+    return false;
+  }
+
 private:
   std::vector<sub_scene_ptr> m_sub_scenes;
   int m_current_index = -1;
 };
-

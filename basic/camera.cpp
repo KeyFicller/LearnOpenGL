@@ -23,8 +23,7 @@ void camera::update_view_matrix() {
 
 void camera::update_projection_matrix() {
   if (Orthographic) {
-    ProjectionMatrix = glm::ortho(-AspectRatio, AspectRatio, -1.0f, 1.0f, Near,
-                                  Far);
+    ProjectionMatrix = glm::ortho(Left, Right, Bottom, Top, Near, Far);
   } else {
     ProjectionMatrix =
         glm::perspective(glm::radians(FOV), AspectRatio, Near, Far);
@@ -48,4 +47,3 @@ camera::camera() {
   update_view_matrix();
   update_projection_matrix();
 }
-

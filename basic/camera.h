@@ -17,8 +17,14 @@ struct camera {
   float Near = 0.1f;
   float Far = 100.0f;
 
+  // Orthographic parameters
+  float Left = -1.0f;
+  float Right = 1.0f;
+  float Bottom = -1.0f;
+  float Top = 1.0f;
+
   // Yaw and pitch angles (in degrees)
-  float Yaw = -90.0f;   // Default looking along -Z axis
+  float Yaw = -90.0f; // Default looking along -Z axis
   float Pitch = 0.0f;
 
   // Projection type
