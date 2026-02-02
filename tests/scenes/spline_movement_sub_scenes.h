@@ -32,8 +32,8 @@ private:
   shader *m_shader = nullptr;
   shader *m_line_strip_shader = nullptr;
   std::vector<glm::vec3> m_points;
+  std::vector<glm::vec3> m_smooth_points;
   int m_point_count = 20;
   float m_segment_length = 0.06f;
-  float m_update_frequency = 0.033f; // 30fps
-  float m_update_timer = 0.0f;
+  bool m_draw_control_points = true;
 };
