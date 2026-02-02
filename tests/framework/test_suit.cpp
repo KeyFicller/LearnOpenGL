@@ -75,12 +75,18 @@ void test_suit::init(GLFWwindow *_window) {
     throw;
   }
 
-  m_ps_graph.set<periscope::GP_output_format>(
-      periscope::graph_output_format::k_markdown);
-  m_ps_graph.set<periscope::GP_flowchart_direction>(
-      periscope::GP_flowchart_direction<int>::k_top_to_down);
-  auto &ps_node = m_ps_graph.new_object<periscope::node>();
-  ps_node.set<periscope::OP_name>(m_scenes[m_current_scene]->get_name());
+  using namespace periscope;
+  m_ps_graph.set<GP_output_format>(graph_output_format::k_markdown);
+  m_ps_graph.set<GP_flowchart_direction>(
+      GP_flowchart_direction<int>::k_top_to_down);
+  auto &active_obj = m_ps_graph.new_object<class_def>();
+  active_obj.set<OP_name>("ActType")
+      .set<MCD_fill>("#4A90E2")
+      .set<MCD_stroke>("#2E5C8A")
+      .set<MCD_color>("#fff");
+  auto &ps_node = m_ps_graph.new_object<node>();
+  ps_node.set<OP_name>(m_scenes[m_current_scene]->get_name());
+  ps_node.set<NP_class_def>("ActType");
   m_last_node = &ps_node;
   m_str_caches.emplace_back(m_ps_graph.to_string());
 }
@@ -97,11 +103,14 @@ void test_suit::render_ui() {
     if (ImGui::RadioButton(get_scene_name(scene), is_selected)) {
       m_current_scene = scene;
 
-      auto &ps_node = m_ps_graph.new_object<periscope::node>();
-      ps_node.set<periscope::OP_name>(m_scenes[m_current_scene]->get_name());
-      m_ps_graph.new_object<periscope::link>()
-          .set<periscope::LP_source>(*m_last_node)
-          .set<periscope::LP_target>(ps_node);
+      using namespace periscope;
+      auto &ps_node = m_ps_graph.new_object<node>();
+      ps_node.set<OP_name>(m_scenes[m_current_scene]->get_name());
+      m_ps_graph.new_object<link>()
+          .set<LP_source>(*m_last_node)
+          .set<LP_target>(ps_node);
+      m_last_node->remove<NP_class_def>();
+      ps_node.set<NP_class_def>("ActType");
       m_last_node = &ps_node;
       m_str_caches.emplace_back(m_ps_graph.to_string());
     }

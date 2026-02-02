@@ -137,7 +137,7 @@ FetchContent_MakeAvailable(assimp)
 FetchContent_Declare(
   periscope
   GIT_REPOSITORY https://bgithub.xyz/KeyFicller/periscope.git
-  GIT_TAG        2b7d5bc
+  GIT_TAG        4c0e70a
 )
 FetchContent_MakeAvailable(periscope)
 # ---------------------------------------------------------------
