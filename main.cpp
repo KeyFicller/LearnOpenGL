@@ -173,6 +173,19 @@ int main() {
       if (available_size.x > 0 && available_size.y > 0) {
         viewport_size = available_size;
       }
+
+      // Get window position and content region to account for ToolBar and
+      // padding
+      ImVec2 window_pos = ImGui::GetWindowPos();
+      ImVec2 content_min = ImGui::GetWindowContentRegionMin();
+      ImVec2 content_max = ImGui::GetWindowContentRegionMax();
+
+      // Calculate actual content region position (window pos + content region
+      // offset)
+      test_suit.m_viewport_x = window_pos.x + content_min.x;
+      test_suit.m_viewport_y = window_pos.y + content_min.y;
+      test_suit.m_viewport_width = content_max.x - content_min.x;
+      test_suit.m_viewport_height = content_max.y - content_min.y;
       ImGui::End();
 
       // Resize framebuffer if needed (with some minimum size)

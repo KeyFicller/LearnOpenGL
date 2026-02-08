@@ -56,6 +56,13 @@ public:
   bool on_mouse_scroll(double _xoffset, double _yoffset);
   void on_framebuffer_resized(int _width, int _height);
 
+public:
+  // Cached viewport window information
+  float m_viewport_x = 0.0f;
+  float m_viewport_y = 0.0f;
+  float m_viewport_width = 0.0f;
+  float m_viewport_height = 0.0f;
+
 private:
   // Current active test scene
   test_scene m_current_scene;

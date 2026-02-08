@@ -36,7 +36,8 @@ void mouse_callback(GLFWwindow *window, double xpos, double ypos) {
   test_suit *test_suit_ptr =
       static_cast<test_suit *>(glfwGetWindowUserPointer(window));
   if (test_suit_ptr) {
-    test_suit_ptr->on_mouse_moved(xpos, ypos);
+    test_suit_ptr->on_mouse_moved(xpos - test_suit_ptr->m_viewport_x,
+                                  ypos - test_suit_ptr->m_viewport_y);
   }
 }
 
