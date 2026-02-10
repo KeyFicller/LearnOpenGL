@@ -11,8 +11,8 @@ public:
          int _point_count) {
     m_points.resize(_point_count);
     m_orientations.resize(_point_count);
-    m_segment_length =
-        glm::length(_end_point - _start_point) / float(_point_count - 1);
+    m_init_length = glm::length(_end_point - _start_point);
+    m_segment_length = m_init_length / float(_point_count - 1);
     m_points[0] = _start_point;
     m_points[_point_count - 1] = _end_point;
     for (int i = 1; i < _point_count - 1; i++) {
@@ -115,9 +115,7 @@ public:
       }
     }
 
-    m_segment_length =
-        glm::length(m_points[m_points.size() - 1] - m_points[0]) /
-        float(_new_point_count - 1);
+    m_segment_length = m_init_length / float(_new_point_count - 1);
 
     // Update orientations after resampling
     update_orientation();
@@ -229,6 +227,7 @@ public:
   }
 
 public:
+  float m_init_length = 1.0f;
   float m_segment_length = 0.1f;
   std::vector<glm::vec3> m_points;
   std::vector<glm::vec3> m_orientations;
@@ -304,11 +303,11 @@ void spline_movement_snake_sub_scene::draw_snake() {
     m_shaders[spline_shader_type::k_head]->set_uniform("uHeadDirection",
                                                        headDirection);
     m_shaders[spline_shader_type::k_head]->set_uniform(
-        "uHeadSize", gs_snake_spline.m_segment_length * 1.5f);
+        "uHeadSize", gs_snake_spline.m_init_length * 0.075f);
     m_shaders[spline_shader_type::k_head]->set_uniform(
-        "uEyeRadius", gs_snake_spline.m_segment_length * 0.15f);
+        "uEyeRadius", gs_snake_spline.m_init_length * 0.0075f);
     m_shaders[spline_shader_type::k_head]->set_uniform(
-        "uEyeOffset", gs_snake_spline.m_segment_length * 0.15f);
+        "uEyeOffset", gs_snake_spline.m_init_length * 0.0075f);
 
     m_points_mesh_manager.bind();
     glDrawArrays(GL_POINTS, 0, 1);
@@ -321,7 +320,7 @@ void spline_movement_snake_sub_scene::draw_snake() {
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     m_shaders[spline_shader_type::k_spline]->use();
     m_shaders[spline_shader_type::k_spline]->set_uniform(
-        "uLineWidth", gs_snake_spline.m_segment_length * 0.3f);
+        "uLineWidth", gs_snake_spline.m_init_length * 0.015f);
     m_shaders[spline_shader_type::k_spline]->set_uniform(
         "uShapeFactor", gs_snake_spline.m_shape_factor);
     m_shaders[spline_shader_type::k_spline]->set_uniform(
