@@ -4,11 +4,19 @@
 #include "tests/component/mesh_manager.h"
 #include "tests/component/sub_scene.h"
 #include <glm/glm.hpp>
+#include <map>
 #include <memory>
 #include <string>
 
 // Forward declaration
 class spline_movement_scene;
+
+enum class spline_shader_type {
+  k_control_points,
+  k_spline,
+  k_head,
+  k_attachment
+};
 
 /**
  * @brief Sub-scene: Spline Movement - Snake
@@ -23,14 +31,14 @@ public:
   void render_ui() override;
   void update(float _delta_time) override;
   bool on_mouse_moved(double _xpos, double _ypos) override;
+  void draw_snake();
 
   void update_mesh_data();
 
 private:
   mesh_manager m_points_mesh_manager;
   mesh_manager m_line_strip_mesh_manager;
-  shader *m_shader = nullptr;
-  shader *m_line_strip_shader = nullptr;
+  std::map<spline_shader_type, shader *> m_shaders;
   std::vector<glm::vec3> m_smooth_points;
   bool m_draw_control_points = true;
 };

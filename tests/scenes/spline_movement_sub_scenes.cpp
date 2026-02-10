@@ -252,62 +252,121 @@ spline_movement_snake_sub_scene::spline_movement_snake_sub_scene(
   update_mesh_data();
 
   // Setup shader
-  m_shader = new shader("shaders/spline_movement_test/snake_vertex.shader",
-                        "shaders/spline_movement_test/snake_fragment.shader",
-                        "shaders/spline_movement_test/snake_geometry.shader");
+  m_shaders[spline_shader_type::k_control_points] =
+      new shader("shaders/spline_movement_test/control_point_vertex.shader",
+                 "shaders/spline_movement_test/control_point_fragment.shader",
+                 "shaders/spline_movement_test/control_point_geometry.shader");
 
-#ifdef __APPLE__
-  m_line_strip_shader =
-      new shader("shaders/spline_movement_test/snake_line_vertex.shader",
-                 "shaders/spline_movement_test/snake_line_fragment.shader",
-                 "shaders/spline_movement_test/snake_line_geometry.shader");
-#else
-  m_line_strip_shader =
-      new shader("shaders/spline_movement_test/snake_line_vertex.shader",
-                 "shaders/spline_movement_test/snake_line_fragment.shader");
-#endif
+  m_shaders[spline_shader_type::k_spline] =
+      new shader("shaders/spline_movement_test/snake/body_vertex.shader",
+                 "shaders/spline_movement_test/snake/body_fragment.shader",
+                 "shaders/spline_movement_test/snake/body_geometry.shader");
+
+  m_shaders[spline_shader_type::k_head] =
+      new shader("shaders/spline_movement_test/snake/head_vertex.shader",
+                 "shaders/spline_movement_test/snake/head_fragment.shader",
+                 "shaders/spline_movement_test/snake/head_geometry.shader");
 }
 
 spline_movement_snake_sub_scene::~spline_movement_snake_sub_scene() {
-  delete m_shader;
+  for (auto &shader : m_shaders) {
+    delete shader.second;
+  }
+}
+
+void spline_movement_snake_sub_scene::draw_snake() {
+  {
+    // Draw Control Points
+    m_shaders[spline_shader_type::k_control_points]->use();
+    m_shaders[spline_shader_type::k_control_points]->set_uniform(
+        "uTotalPoints", static_cast<int>(gs_snake_spline.m_points.size()));
+    m_shaders[spline_shader_type::k_control_points]->set_uniform(
+        "uShapeFactor", gs_snake_spline.m_shape_factor);
+    m_shaders[spline_shader_type::k_control_points]->set_uniform(
+        "uBaseRadius", gs_snake_spline.m_segment_length * 0.3f);
+    m_points_mesh_manager.bind();
+    if (m_draw_control_points) {
+      glDrawArrays(GL_POINTS, 0, m_points_mesh_manager.get_index_count());
+    }
+  }
+
+  {
+    // Draw Head
+    m_shaders[spline_shader_type::k_head]->use();
+
+    // Calculate head direction (from first point to second point)
+    glm::vec3 headDirection =
+        gs_snake_spline.m_points[0] - gs_snake_spline.m_points[1];
+    if (glm::length(headDirection) < 0.0001f) {
+      headDirection = glm::vec3(1.0f, 0.0f, 0.0f); // Default direction
+    }
+
+    m_shaders[spline_shader_type::k_head]->set_uniform("uHeadDirection",
+                                                       headDirection);
+    m_shaders[spline_shader_type::k_head]->set_uniform(
+        "uHeadSize", gs_snake_spline.m_segment_length * 1.5f);
+    m_shaders[spline_shader_type::k_head]->set_uniform(
+        "uEyeRadius", gs_snake_spline.m_segment_length * 0.15f);
+    m_shaders[spline_shader_type::k_head]->set_uniform(
+        "uEyeOffset", gs_snake_spline.m_segment_length * 0.15f);
+
+    m_points_mesh_manager.bind();
+    glDrawArrays(GL_POINTS, 0, 1);
+  }
+
+  {
+    // Draw Spline
+    // Render smooth connecting lines with better appearance
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    m_shaders[spline_shader_type::k_spline]->use();
+    m_shaders[spline_shader_type::k_spline]->set_uniform(
+        "uLineWidth", gs_snake_spline.m_segment_length * 0.3f);
+    m_shaders[spline_shader_type::k_spline]->set_uniform(
+        "uShapeFactor", gs_snake_spline.m_shape_factor);
+    m_shaders[spline_shader_type::k_spline]->set_uniform(
+        "uTotalPoints", static_cast<int>(m_smooth_points.size()));
+    m_line_strip_mesh_manager.bind();
+    glDrawElements(GL_LINES, m_line_strip_mesh_manager.get_index_count(),
+                   GL_UNSIGNED_INT, 0);
+    glDisable(GL_BLEND);
+  }
 }
 
 void spline_movement_snake_sub_scene::render() {
-  if (!m_shader) {
-    return;
+  // Configure stencil test for writing
+  glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+  glStencilFunc(GL_ALWAYS, 1, 0xFF);
+  glStencilMask(0xFF);
+
+  // Draw normal object and write to stencil buffer
+  for (auto &shader : m_shaders) {
+    if (shader.first != spline_shader_type::k_head &&
+        shader.first != spline_shader_type::k_spline) {
+      continue;
+    }
+    shader.second->use();
+    shader.second->set_uniform("uOffsetRatio", 1.0f);
   }
+  draw_snake();
 
-  m_shader->use();
-  m_shader->set_uniform("totalPoints",
-                        static_cast<int>(gs_snake_spline.m_points.size()));
+  // Draw boundary outline using stencil test
+  glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
+  glStencilMask(0x00); // Disable writing to stencil buffer
+  glDisable(GL_DEPTH_TEST);
 
-  m_points_mesh_manager.bind();
-  m_shader->set_uniform("uDrawingHead", 1);
-  m_shader->set_uniform("uDrawingHeadRadius",
-                        gs_snake_spline.m_segment_length * 0.3f);
-  glDrawArrays(GL_POINTS, 0, 1);
-
-  if (m_draw_control_points) {
-    m_shader->set_uniform("uDrawingHead", 0);
-    glDrawArrays(GL_POINTS, 0, m_points_mesh_manager.get_index_count());
+  for (auto &shader : m_shaders) {
+    if (shader.first != spline_shader_type::k_head &&
+        shader.first != spline_shader_type::k_spline) {
+      continue;
+    }
+    shader.second->use();
+    shader.second->set_uniform("uOffsetRatio", 1.1f);
   }
+  draw_snake();
 
-  // Render smooth connecting lines with better appearance
-  glEnable(GL_BLEND);
-  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-  m_line_strip_shader->use();
-  m_line_strip_shader->set_uniform("uLineWidth",
-                                   gs_snake_spline.m_segment_length * 0.3f);
-  m_line_strip_shader->set_uniform("uShapeFactor",
-                                   gs_snake_spline.m_shape_factor);
-  m_line_strip_shader->use();
-  // Use smooth_points count for accurate progress calculation
-  m_line_strip_shader->set_uniform("uTotalPoints",
-                                   static_cast<int>(m_smooth_points.size()));
-  m_line_strip_mesh_manager.bind();
-  glDrawElements(GL_LINES, m_line_strip_mesh_manager.get_index_count(),
-                 GL_UNSIGNED_INT, 0);
-  glDisable(GL_BLEND);
+  glEnable(GL_DEPTH_TEST);
+  glStencilMask(0xFF); // Re-enable stencil writing for next frame
 }
 
 void spline_movement_snake_sub_scene::render_ui() {
