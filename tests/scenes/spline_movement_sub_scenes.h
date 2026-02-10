@@ -31,9 +31,6 @@ private:
   mesh_manager m_line_strip_mesh_manager;
   shader *m_shader = nullptr;
   shader *m_line_strip_shader = nullptr;
-  std::vector<glm::vec3> m_points;
   std::vector<glm::vec3> m_smooth_points;
-  int m_point_count = 20;
-  float m_segment_length = 0.06f;
   bool m_draw_control_points = true;
 };
