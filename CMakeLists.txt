@@ -203,6 +203,7 @@ add_executable(LearnOpenGL
     tests/scenes/instance_sub_scenes.cpp
     tests/scenes/spline_movement_scene.cpp
     tests/scenes/spline_movement_sub_scenes.cpp
+    tests/scenes/spline_movement_driver.cpp
     ${IMGUI_SOURCES}
 )
 

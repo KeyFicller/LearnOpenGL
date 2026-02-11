@@ -21,6 +21,8 @@ void spline_movement_scene::init(GLFWwindow *_window) {
 
   m_sub_scene_manager.add_sub_scene(
       std::make_unique<spline_movement_snake_sub_scene>(this));
+  m_sub_scene_manager.add_sub_scene(
+      std::make_unique<spline_movement_lizard_sub_scene>(this));
 }
 
 void spline_movement_scene::render() { m_sub_scene_manager.render(); }

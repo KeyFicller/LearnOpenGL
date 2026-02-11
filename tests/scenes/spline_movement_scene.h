@@ -4,9 +4,11 @@
 #include "tests/component/sub_scene.h"
 
 class spline_movement_snake_sub_scene;
+class spline_movement_lizard_sub_scene;
 
 class spline_movement_scene : public renderable_scene_base {
   friend class spline_movement_snake_sub_scene;
+  friend class spline_movement_lizard_sub_scene;
 
 public:
   spline_movement_scene();
