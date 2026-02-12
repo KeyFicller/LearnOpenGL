@@ -26,7 +26,9 @@ enum class test_scene {
   k_advanced_glsl_test_test,
   k_geometry_shader_test_test,
   k_instance_test,
+  k_basic_test_count,
   k_spline_movement_test,
+  k_advanced_test_count,
   k_count
 };
 
@@ -72,9 +74,4 @@ private:
 
   // Get scene instance by enum
   test_scene_base *get_scene(test_scene _scene);
-
-  // --------------- just for test ---------------
-  periscope::graph<int> m_ps_graph;
-  periscope::node *m_last_node = nullptr;
-  std::vector<std::string> m_str_caches;
 };

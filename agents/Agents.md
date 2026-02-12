@@ -5,3 +5,4 @@
 3. Do not modify code when the question ends with "?"
 4. Ensure compilation passes after modifying files
 5. To avoid auto-formatting issues, include GLAD after GLFW, with a blank line between them
+6. End each reply with the phrase "喵～" as a tone marker

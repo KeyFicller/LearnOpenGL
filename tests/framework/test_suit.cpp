@@ -33,13 +33,6 @@ test_suit::~test_suit() {
   for (auto &[scene, test_scene] : m_scenes) {
     delete test_scene;
   }
-
-  std::ofstream fout(".output/test.md");
-  for (const auto &str : m_str_caches) {
-    fout << str << std::endl;
-    fout << "--------------- Next graph -----------------" << std::endl;
-  }
-  fout.close();
 }
 
 void test_suit::init(GLFWwindow *_window) {
@@ -74,21 +67,6 @@ void test_suit::init(GLFWwindow *_window) {
     std::cerr << "Unknown error initializing test scenes" << std::endl;
     throw;
   }
-
-  using namespace periscope;
-  m_ps_graph.set<GP_output_format>(graph_output_format::k_markdown);
-  m_ps_graph.set<GP_flowchart_direction>(
-      GP_flowchart_direction<int>::k_top_to_down);
-  auto &active_obj = m_ps_graph.new_object<class_def>();
-  active_obj.set<OP_name>("ActType")
-      .set<MCD_fill>("#4A90E2")
-      .set<MCD_stroke>("#2E5C8A")
-      .set<MCD_color>("#fff");
-  auto &ps_node = m_ps_graph.new_object<node>();
-  ps_node.set<OP_name>(m_scenes[m_current_scene]->get_name());
-  ps_node.set<NP_class_def>("ActType");
-  m_last_node = &ps_node;
-  m_str_caches.emplace_back(m_ps_graph.to_string());
 }
 
 void test_suit::render_ui() {
@@ -97,24 +75,28 @@ void test_suit::render_ui() {
   ImGui::Text("Select Test Scene:");
   ImGui::Separator();
 
-  for (int i = 0; i < static_cast<int>(test_scene::k_count); i++) {
-    test_scene scene = static_cast<test_scene>(i);
-    bool is_selected = (m_current_scene == scene);
-    if (ImGui::RadioButton(get_scene_name(scene), is_selected)) {
-      m_current_scene = scene;
-
-      using namespace periscope;
-      auto &ps_node = m_ps_graph.new_object<node>();
-      ps_node.set<OP_name>(m_scenes[m_current_scene]->get_name());
-      m_ps_graph.new_object<link>()
-          .set<LP_source>(*m_last_node)
-          .set<LP_target>(ps_node);
-      m_last_node->remove<NP_class_def>();
-      ps_node.set<NP_class_def>("ActType");
-      m_last_node = &ps_node;
-      m_str_caches.emplace_back(m_ps_graph.to_string());
+  if (ImGui::CollapsingHeader("Basic Tests")) {
+    for (int i = 0; i < static_cast<int>(test_scene::k_basic_test_count); i++) {
+      test_scene scene = static_cast<test_scene>(i);
+      bool is_selected = (m_current_scene == scene);
+      if (ImGui::RadioButton(get_scene_name(scene), is_selected)) {
+        m_current_scene = scene;
+      }
     }
   }
+
+  if (ImGui::CollapsingHeader("Advanced Tests")) {
+
+    for (int i = static_cast<int>(test_scene::k_basic_test_count) + 1;
+         i < static_cast<int>(test_scene::k_advanced_test_count); i++) {
+      test_scene scene = static_cast<test_scene>(i);
+      bool is_selected = (m_current_scene == scene);
+      if (ImGui::RadioButton(get_scene_name(scene), is_selected)) {
+        m_current_scene = scene;
+      }
+    }
+  }
+
   ImGui::End();
 
   // Scene properties window

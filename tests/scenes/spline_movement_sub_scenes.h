@@ -32,7 +32,8 @@ public:
   void render_ui() override;
   void update(float _delta_time) override;
   bool on_mouse_moved(double _xpos, double _ypos) override;
-  void draw_snake();
+  virtual void draw_attachments() {}
+  void draw_spline();
 
   virtual void update_mesh_data();
 
@@ -56,7 +57,7 @@ public:
   ~spline_movement_lizard_sub_scene() override;
 
   void render() override;
-
+  void draw_attachments() override;
   void update_mesh_data() override;
 
   void render_ui() override;
@@ -64,4 +65,5 @@ public:
 protected:
   mesh_manager m_legs_control_points_manager[4];
   mesh_manager m_legs_line_strip_manager[4];
+  float m_leg_size = 0.005f;
 };

@@ -36,7 +36,7 @@ spline_movement_snake_sub_scene::~spline_movement_snake_sub_scene() {
   }
 }
 
-void spline_movement_snake_sub_scene::draw_snake() {
+void spline_movement_snake_sub_scene::draw_spline() {
   {
     // Draw Control Points
     m_shaders[spline_shader_type::k_control_points]->use();
@@ -103,14 +103,14 @@ void spline_movement_snake_sub_scene::render() {
 
   // Draw normal object and write to stencil buffer
   for (auto &shader : m_shaders) {
-    if (shader.first != spline_shader_type::k_head &&
-        shader.first != spline_shader_type::k_spline) {
+    if (shader.first == spline_shader_type::k_control_points) {
       continue;
     }
     shader.second->use();
     shader.second->set_uniform("uOffsetRatio", 1.0f);
   }
-  draw_snake();
+  draw_spline();
+  draw_attachments();
 
   // Draw boundary outline using stencil test
   glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
@@ -118,14 +118,14 @@ void spline_movement_snake_sub_scene::render() {
   glDisable(GL_DEPTH_TEST);
 
   for (auto &shader : m_shaders) {
-    if (shader.first != spline_shader_type::k_head &&
-        shader.first != spline_shader_type::k_spline) {
+    if (shader.first == spline_shader_type::k_control_points) {
       continue;
     }
     shader.second->use();
-    shader.second->set_uniform("uOffsetRatio", 1.1f);
+    shader.second->set_uniform("uOffsetRatio", 1.15f);
   }
-  draw_snake();
+  draw_spline();
+  draw_attachments();
 
   glEnable(GL_DEPTH_TEST);
   glStencilMask(0xFF); // Re-enable stencil writing for next frame
@@ -228,14 +228,17 @@ spline_movement_lizard_sub_scene::spline_movement_lizard_sub_scene(
   // Set up shaders
   m_shaders[spline_shader_type::k_attachment] =
       new shader("shaders/spline_movement_test/lizard/leg_vertex.shader",
-                 "shaders/spline_movement_test/lizard/leg_fragment.shader");
+                 "shaders/spline_movement_test/lizard/leg_fragment.shader",
+                 "shaders/spline_movement_test/lizard/leg_geometry.shader");
 }
 
 spline_movement_lizard_sub_scene::~spline_movement_lizard_sub_scene() {}
 
 void spline_movement_lizard_sub_scene::render() {
   spline_movement_snake_sub_scene::render();
+}
 
+void spline_movement_lizard_sub_scene::draw_attachments() {
   for (int i = 0; i < 4; i++) {
     auto attached_leg = m_snake_spline.get_attachment(i);
     // Draw Control Points
@@ -243,7 +246,7 @@ void spline_movement_lizard_sub_scene::render() {
     m_shaders[spline_shader_type::k_control_points]->set_uniform(
         "uTotalPoints", static_cast<int>(attached_leg->get_points().size()));
     m_shaders[spline_shader_type::k_control_points]->set_uniform(
-        "uShapeFactor", m_snake_spline.m_shape_factor);
+        "uShapeFactor", glm::vec3(0.0f, 0.0f, 0.6f));
     m_shaders[spline_shader_type::k_control_points]->set_uniform(
         "uBaseRadius", m_snake_spline.m_segment_length * 0.3f);
     m_legs_control_points_manager[i].bind();
@@ -254,6 +257,8 @@ void spline_movement_lizard_sub_scene::render() {
     }
 
     m_shaders[spline_shader_type::k_attachment]->use();
+    m_shaders[spline_shader_type::k_attachment]->set_uniform("uLegSize",
+                                                             m_leg_size);
     m_legs_line_strip_manager[i].bind();
     glDrawElements(GL_LINES, m_legs_line_strip_manager[i].get_index_count(),
                    GL_UNSIGNED_INT, 0);
@@ -274,6 +279,8 @@ void spline_movement_lizard_sub_scene::render_ui() {
   //               m_snake_spline.get_attachment(0)->get_points()[2].y,
   //               m_snake_spline.get_attachment(0)->get_points()[2].z);
   // }
+
+  ImGui::SliderFloat("Leg Size", &m_leg_size, 0.001f, 0.01f);
 }
 
 void spline_movement_lizard_sub_scene::update_mesh_data() {
