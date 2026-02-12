@@ -17,6 +17,7 @@
 #include "tests/scenes/light_type_scene.h"
 #include "tests/scenes/multiple_light_scene.h"
 #include "tests/scenes/scene_factory.h"
+#include "tests/scenes/shader_editor_scene.h"
 #include "tests/scenes/spline_movement_scene.h"
 #include "tests/scenes/stencil_test_scene.h"
 #include "tests/scenes/texture_cube_scene.h"
@@ -60,6 +61,7 @@ void test_suit::init(GLFWwindow *_window) {
                    geometry_shader_scene);
     REGISTER_SCENE(test_scene::k_instance_test, instance_scene);
     REGISTER_SCENE(test_scene::k_spline_movement_test, spline_movement_scene);
+    REGISTER_SCENE(test_scene::k_shader_editor_test, shader_editor_scene);
   } catch (const std::exception &e) {
     std::cerr << "Error initializing test scenes: " << e.what() << std::endl;
     throw; // Re-throw to be caught by main

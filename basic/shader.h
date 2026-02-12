@@ -17,6 +17,10 @@ public:
          const char *_geometry_path = nullptr);
   virtual ~shader();
 
+  static shader *shader_from_source(const std::string &_vertex_source,
+                                    const std::string &_fragment_source,
+                                    const std::string &_geometry_source = "");
+
   shader(const shader &) = delete;
   shader &operator=(const shader &) = delete;
   shader(shader &&) = delete;
@@ -27,6 +31,9 @@ public:
    * @brief Activate the shader program
    */
   void use();
+
+private:
+  shader(int _shader_program) : m_ID(_shader_program) {}
 
 public:
   // Uniform function template specializations

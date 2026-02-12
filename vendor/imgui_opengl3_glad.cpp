@@ -13,3 +13,6 @@
 
 // Now include the ImGui OpenGL3 implementation
 #include "imgui_impl_opengl3.cpp"
+
+// Now include the ImGui stdlib
+#include "misc/cpp/imgui_stdlib.cpp"
