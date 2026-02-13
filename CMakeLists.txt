@@ -143,23 +143,8 @@ FetchContent_MakeAvailable(periscope)
 # ---------------------------------------------------------------
 
 # ------------------------ Vendor: ImGuiColorTextEdit ------------------------
-FetchContent_Declare(
-  ImGuiColorTextEdit
-  GIT_REPOSITORY https://bgithub.xyz/BalazsJako/ImGuiColorTextEdit.git
-  GIT_TAG        ca2f9f1
-)
-FetchContent_MakeAvailable(ImGuiColorTextEdit)
-
-# Set the source directory if not already set (FetchContent uses lowercase)
-if(NOT DEFINED ImGuiColorTextEdit_SOURCE_DIR AND DEFINED imguicolortextedit_SOURCE_DIR)
-    set(ImGuiColorTextEdit_SOURCE_DIR ${imguicolortextedit_SOURCE_DIR})
-endif()
-
-# Fallback to build directory if still not set
-if(NOT DEFINED ImGuiColorTextEdit_SOURCE_DIR)
-    set(ImGuiColorTextEdit_SOURCE_DIR "${CMAKE_BINARY_DIR}/_deps/imguicolortextedit-src")
-endif()
-
+# Using git submodule instead of FetchContent because it's modified by current project
+set(ImGuiColorTextEdit_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/vendor/ImGuiColorTextEdit")
 message(STATUS "ImGuiColorTextEdit_SOURCE_DIR: ${ImGuiColorTextEdit_SOURCE_DIR}")
 # ---------------------------------------------------------------
 
@@ -240,6 +225,12 @@ target_include_directories(LearnOpenGL PUBLIC
     "${periscope_SOURCE_DIR}/include"
     "${ImGuiColorTextEdit_SOURCE_DIR}"
 )
+
+# Check if ImGuiColorTextEdit submodule exists
+if(NOT EXISTS "${ImGuiColorTextEdit_SOURCE_DIR}/TextEditor.h")
+    message(WARNING "ImGuiColorTextEdit submodule not found at ${ImGuiColorTextEdit_SOURCE_DIR}")
+    message(WARNING "Please run: git submodule update --init --recursive")
+endif()
 
 # Use GLAD as OpenGL loader for ImGui (instead of imgui's built-in loader)
 target_compile_definitions(LearnOpenGL PRIVATE IMGUI_IMPL_OPENGL_LOADER_CUSTOM)

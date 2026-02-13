@@ -18,6 +18,12 @@ public:
   bool compile_and_replace_shader(std::string *_error_message = nullptr);
 
 private:
+  void update_autocomplete(const std::string &prefix);
+  void show_autocomplete_popup();
+  void insert_completion(const std::string &completion);
+  std::string get_current_word();
+  bool on_key_pressed_with_popup();
+
   TextEditor m_editor;
   mesh_manager m_mesh_manager;
   shader *m_shader = nullptr;
@@ -42,4 +48,10 @@ private:
 
   bool m_is_editing_fragment_shader = false;
   std::string m_edit_hint = "Ctrl+S to save";
+
+  // Autocomplete
+  bool m_show_autocomplete = false;
+  std::vector<std::string> m_completions;
+  int m_selected_completion = 0;
+  std::string m_current_word;
 };
