@@ -142,6 +142,27 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(periscope)
 # ---------------------------------------------------------------
 
+# ------------------------ Vendor: ImGuiColorTextEdit ------------------------
+FetchContent_Declare(
+  ImGuiColorTextEdit
+  GIT_REPOSITORY https://bgithub.xyz/BalazsJako/ImGuiColorTextEdit.git
+  GIT_TAG        ca2f9f1
+)
+FetchContent_MakeAvailable(ImGuiColorTextEdit)
+
+# Set the source directory if not already set (FetchContent uses lowercase)
+if(NOT DEFINED ImGuiColorTextEdit_SOURCE_DIR AND DEFINED imguicolortextedit_SOURCE_DIR)
+    set(ImGuiColorTextEdit_SOURCE_DIR ${imguicolortextedit_SOURCE_DIR})
+endif()
+
+# Fallback to build directory if still not set
+if(NOT DEFINED ImGuiColorTextEdit_SOURCE_DIR)
+    set(ImGuiColorTextEdit_SOURCE_DIR "${CMAKE_BINARY_DIR}/_deps/imguicolortextedit-src")
+endif()
+
+message(STATUS "ImGuiColorTextEdit_SOURCE_DIR: ${ImGuiColorTextEdit_SOURCE_DIR}")
+# ---------------------------------------------------------------
+
 # ImGui sources
 # Note: We use imgui_opengl3_glad.cpp to ensure GLAD is included before
 # imgui_impl_opengl3.cpp (required when using IMGUI_IMPL_OPENGL_LOADER_CUSTOM)
@@ -217,6 +238,7 @@ target_include_directories(LearnOpenGL PUBLIC
     "${imgui_SOURCE_DIR}/backends"
     "${assimp_SOURCE_DIR}/include"
     "${periscope_SOURCE_DIR}/include"
+    "${ImGuiColorTextEdit_SOURCE_DIR}"
 )
 
 # Use GLAD as OpenGL loader for ImGui (instead of imgui's built-in loader)

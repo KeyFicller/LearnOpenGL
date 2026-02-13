@@ -32,7 +32,7 @@ int create_shader_from_source(const std::string &_source, GLenum _shader_type) {
   if (!success) {
     glGetShaderInfoLog(shader, 1024, NULL, info_log);
     std::stringstream ss;
-    // ss << "Shader compilation failed for " << _path << ":\n" << info_log;
+    ss << "Shader compilation failed for " << ":\n" << info_log;
     glDeleteShader(shader);
     throw std::runtime_error(ss.str());
   }
@@ -102,16 +102,24 @@ int create_shader_program_from_shaders(GLuint _vertex_shader,
 
 shader::shader(const char *_vertex_path, const char *_fragment_path,
                const char *_geometry_path) {
-  GLuint vertex_shader =
-      create_shader_from_file(_vertex_path, GL_VERTEX_SHADER);
-  GLuint fragment_shader =
-      create_shader_from_file(_fragment_path, GL_FRAGMENT_SHADER);
-  GLuint geometry_shader =
-      _geometry_path
-          ? create_shader_from_file(_geometry_path, GL_GEOMETRY_SHADER)
-          : 0;
-  m_ID = create_shader_program_from_shaders(vertex_shader, fragment_shader,
-                                            geometry_shader);
+  try {
+
+    GLuint vertex_shader =
+        create_shader_from_file(_vertex_path, GL_VERTEX_SHADER);
+    GLuint fragment_shader =
+        create_shader_from_file(_fragment_path, GL_FRAGMENT_SHADER);
+    GLuint geometry_shader =
+        _geometry_path
+            ? create_shader_from_file(_geometry_path, GL_GEOMETRY_SHADER)
+            : 0;
+    m_ID = create_shader_program_from_shaders(vertex_shader, fragment_shader,
+                                              geometry_shader);
+  } catch (std::exception &e) {
+    std::stringstream ss;
+    ss << "Failed to create shader program from file: " << _vertex_path << ", "
+       << _fragment_path << ", " << _geometry_path << ": " << e.what();
+    throw std::runtime_error(ss.str());
+  }
 }
 
 shader::~shader() { glDeleteProgram(m_ID); }

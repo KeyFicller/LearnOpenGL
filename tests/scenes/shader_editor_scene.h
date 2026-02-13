@@ -1,5 +1,6 @@
 #pragma once
 
+#include "TextEditor.h"
 #include "basic/shader.h"
 #include "scene_base.h"
 #include "tests/component/mesh_manager.h"
@@ -14,9 +15,10 @@ public:
   void render() override;
   void render_ui() override;
 
-  bool compile_and_replace_shader();
+  bool compile_and_replace_shader(std::string *_error_message = nullptr);
 
 private:
+  TextEditor m_editor;
   mesh_manager m_mesh_manager;
   shader *m_shader = nullptr;
 
@@ -37,4 +39,7 @@ private:
       FragColor = vec4(1.0, 0.0, 0.0, 1.0);
     }
   )";
+
+  bool m_is_editing_fragment_shader = false;
+  std::string m_edit_hint = "Ctrl+S to save";
 };
