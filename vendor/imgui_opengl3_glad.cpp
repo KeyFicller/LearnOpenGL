@@ -18,6 +18,4 @@
 #include "misc/cpp/imgui_stdlib.cpp"
 
 // Now include the ImGuiColorTextEdit implementation
-// Note: ImGuiColorTextEdit_SOURCE_DIR is added to include directories in
-// CMakeLists.txt
 #include "TextEditor.cpp"

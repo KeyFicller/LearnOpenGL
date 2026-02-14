@@ -177,6 +177,7 @@ add_executable(LearnOpenGL
     tests/component/mesh_manager.cpp
     tests/component/shader_loader.cpp
     tests/component/prefab_quad.cpp
+    tests/component/shader_editor.cpp
     tests/scenes/renderable_scene_base.cpp
     tests/scenes/texture_test_scene.cpp
     tests/scenes/triangle_test_scene.cpp
