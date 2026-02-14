@@ -47,10 +47,6 @@ void shader_editor_scene::render_ui() {
     auto cpos = m_editor.GetCursorPosition();
     ImGui::Begin("Fragment Shader Editor");
     ImGui::TextDisabled("%s", m_edit_hint.c_str());
-    // ImVec2 content_region_avail = ImGui::GetContentRegionAvail();
-    // ImGui::InputTextMultiline("##Fragment Shader", &m_fragment_shader_source,
-    //                           content_region_avail,
-    //                           ImGuiInputTextFlags_AllowTabInput);
 
     ImGui::Text(
         "%6d/%-6d %6d lines  | %s | %s | %s | %s", cpos.mLine + 1,
@@ -62,7 +58,7 @@ void shader_editor_scene::render_ui() {
 
     // Update autocomplete only when current word changes
     std::string new_current_word = get_current_word();
-    if (new_current_word != m_current_word) {
+    if (m_editor.IsTextChanged() && new_current_word != m_current_word) {
       m_current_word = new_current_word;
       if (m_current_word.length() > 0) {
         update_autocomplete(m_current_word);
