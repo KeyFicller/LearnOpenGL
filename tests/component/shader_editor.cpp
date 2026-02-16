@@ -1,4 +1,5 @@
 #include "shader_editor.h"
+#include "TextEditor.h"
 #include "imgui.h"
 
 namespace {
@@ -21,6 +22,23 @@ std::string seek_for_seed(const std::string &_current_line, int _index) {
   }
 
   return "";
+}
+
+// https://en.wikipedia.org/wiki/UTF-8
+// We assume that the char is a standalone character (<128) or a leading byte of
+// an UTF-8 code sequence (non-10xxxxxx code)
+static int UTF8CharLength(TextEditor::Char c) {
+  if ((c & 0xFE) == 0xFC)
+    return 6;
+  if ((c & 0xFC) == 0xF8)
+    return 5;
+  if ((c & 0xF8) == 0xF0)
+    return 4;
+  else if ((c & 0xF0) == 0xE0)
+    return 3;
+  else if ((c & 0xE0) == 0xC0)
+    return 2;
+  return 1;
 }
 }; // namespace
 
@@ -69,8 +87,10 @@ void basic_code_editor::render() {
 
   m_editor.Render((m_name + "Impl").c_str());
 
-  if (m_editor.IsTextChanged())
+  if (m_editor.IsTextChanged()) {
+    scan_for_context();
     update_candidates();
+  }
 
   if (m_show_autocomplete_pooup && !m_autocomplete_candidates.empty())
     show_autocomplete_popup();
@@ -216,27 +236,60 @@ void basic_code_editor::show_autocomplete_popup() {
   }
 }
 
+void basic_code_editor::scan_for_context() {
+  // TODO:@KeyFicller Scan for context.
+}
+
 void basic_code_editor::insert_completion(const std::string &_candidate) {
   // TODO:@KeyFicller Combine into one Undo/Redo operation.
   auto cursor_pos = m_editor.GetCursorPosition();
   auto line = m_editor.GetCurrentLineText();
+
+  TextEditor::UndoRecord u;
+
+  u.mBefore = m_editor.mState;
+  u.mRemovedEnd = m_editor.GetCursorPosition();
 
   // Move cursor to word start
   TextEditor::Coordinates word_start_pos(
       cursor_pos.mLine, cursor_pos.mColumn - m_cached_word.length());
   m_editor.SetCursorPosition(word_start_pos);
 
+  u.mRemoved = m_cached_word;
+  u.mRemovedStart = word_start_pos;
+
+  m_editor.SetUndoRecordOn(false);
   for (int i = 0; i < m_cached_word.length(); i++) {
     m_editor.Delete();
   }
+  m_editor.SetUndoRecordOn(true);
 
+  u.mAddedStart = m_editor.GetActualCursorCoordinates();
   m_editor.InsertText(_candidate);
+
+  u.mAdded = _candidate;
+  u.mAddedEnd = m_editor.GetActualCursorCoordinates();
+  u.mAfter = m_editor.mState;
+  m_editor.AddUndo(u);
 }
 
 bool basic_code_editor::key_pressed_events_entry() {
 
   if (ImGui::IsKeyPressed(ImGuiKey_Tab)) {
     if (m_tab_to_indent) {
+      TextEditor::UndoRecord u;
+      u.mBefore = m_editor.mState;
+
+      if (m_editor.HasSelection()) {
+        u.mRemoved = m_editor.GetSelectedText();
+        u.mRemovedStart = m_editor.mState.mSelectionStart;
+        u.mRemovedEnd = m_editor.mState.mSelectionEnd;
+        m_editor.DeleteSelection();
+      }
+
+      auto coord = m_editor.GetActualCursorCoordinates();
+      u.mAddedStart = coord;
+
       auto line = m_editor.GetCurrentLineText();
       auto index = m_editor.GetCursorPosition().mColumn;
       auto left_index = index;
@@ -246,7 +299,29 @@ bool basic_code_editor::key_pressed_events_entry() {
       int space_count = index - left_index;
       space_count = 4 - (space_count % 4);
       std::string spaces(space_count, ' ');
+
+      // TODO:@KeyFicller Handle overwrite case.
+      // auto cindex = m_editor.GetCharacterIndex(coord);
+      // if (m_editor.mOverwrite && cindex <
+      // m_editor.mLines[coord.mLine].size()) {
+      //   auto d = UTF8CharLength(m_editor.mLines[coord.mLine][cindex].mChar);
+      //   u.mRemovedStart = m_editor.mState.mCursorPosition;
+      //   u.mRemovedEnd = TextEditor::Coordinates(
+      //       coord.mLine, m_editor.GetCharacterColumn(coord.mLine, cindex +
+      //       d));
+      //   while (d-- > 0 && cindex < m_editor.mLines[coord.mLine].size()) {
+      //     u.mRemoved += m_editor.mLines[coord.mLine][cindex].mChar;
+      //     m_editor.mLines[coord.mLine].erase(
+      //         m_editor.mLines[coord.mLine].begin() + cindex);
+      //   }
+      // }
+
       m_editor.InsertText(spaces);
+
+      u.mAdded = spaces;
+      u.mAddedEnd = m_editor.GetActualCursorCoordinates();
+      u.mAfter = m_editor.mState;
+      m_editor.AddUndo(u);
       return true;
     }
   }
@@ -370,4 +445,247 @@ shader_editor::get_defined_keywords() const {
 
 void shader_editor::format_text() {
   // TODO:@KeyFicller Format text
+}
+
+void shader_editor::scan_for_context() {
+  m_defined_keywords.clear();
+  if (m_cached_word.empty()) {
+    return;
+  }
+
+  scan_for_variables();
+}
+
+void shader_editor::scan_for_variables() {
+
+  std::string text = m_editor.GetText();
+  if (text.empty()) {
+    return;
+  }
+
+  // GLSL built-in types
+  static const std::vector<std::string> glsl_types = {"float",
+                                                      "int",
+                                                      "bool",
+                                                      "vec2",
+                                                      "vec3",
+                                                      "vec4",
+                                                      "mat2",
+                                                      "mat3",
+                                                      "mat4",
+                                                      "sampler2D",
+                                                      "samplerCube",
+                                                      "sampler2DShadow",
+                                                      "samplerCubeShadow",
+                                                      "ivec2",
+                                                      "ivec3",
+                                                      "ivec4",
+                                                      "bvec2",
+                                                      "bvec3",
+                                                      "bvec4",
+                                                      "mat2x2",
+                                                      "mat2x3",
+                                                      "mat2x4",
+                                                      "mat3x2",
+                                                      "mat3x3",
+                                                      "mat3x4",
+                                                      "mat4x2",
+                                                      "mat4x3",
+                                                      "mat4x4"};
+
+  // Keywords that can appear before type
+  static const std::vector<std::string> qualifiers = {
+      "uniform", "in", "out", "inout", "const", "attribute", "varying"};
+
+  std::vector<std::string> &keywords =
+      m_defined_keywords[autocomplete_type::k_keyword];
+
+  // Split text into lines
+  std::vector<std::string> lines;
+  std::string current_line;
+  bool in_block_comment = false;
+
+  for (size_t i = 0; i < text.length(); ++i) {
+    char c = text[i];
+    char next_c = (i + 1 < text.length()) ? text[i + 1] : '\0';
+
+    // Handle block comments
+    if (!in_block_comment && c == '/' && next_c == '*') {
+      in_block_comment = true;
+      ++i; // Skip next character
+      continue;
+    }
+    if (in_block_comment && c == '*' && next_c == '/') {
+      in_block_comment = false;
+      ++i; // Skip next character
+      continue;
+    }
+    if (in_block_comment) {
+      continue;
+    }
+
+    // Handle line comments
+    if (c == '/' && next_c == '/') {
+      // Save current line (before comment) and skip rest of line
+      if (!current_line.empty()) {
+        lines.push_back(current_line);
+        current_line.clear();
+      }
+      // Skip rest of line
+      while (i < text.length() && text[i] != '\n' && text[i] != '\r') {
+        ++i;
+      }
+      continue;
+    }
+
+    if (c == '\n' || (c == '\r' && next_c != '\n')) {
+      if (!current_line.empty()) {
+        lines.push_back(current_line);
+        current_line.clear();
+      }
+    } else if (c != '\r') {
+      // Skip \r if followed by \n (Windows line ending)
+      current_line += c;
+    }
+  }
+  if (!current_line.empty()) {
+    lines.push_back(current_line);
+  }
+
+  // Parse each line for variable declarations
+  for (const auto &line : lines) {
+    if (line.empty() || line.find_first_not_of(" \t") == std::string::npos) {
+      continue;
+    }
+
+    // Remove leading/trailing whitespace
+    std::string trimmed = line;
+    size_t start = trimmed.find_first_not_of(" \t");
+    if (start == std::string::npos) {
+      continue;
+    }
+    trimmed = trimmed.substr(start);
+    size_t end = trimmed.find_last_not_of(" \t");
+    if (end != std::string::npos) {
+      trimmed = trimmed.substr(0, end + 1);
+    }
+
+    // Skip preprocessor directives
+    if (trimmed[0] == '#') {
+      continue;
+    }
+
+    // Check for qualifiers
+    std::string remaining = trimmed;
+    bool found_qualifier = false;
+    for (const auto &qualifier : qualifiers) {
+      if (remaining.length() >= qualifier.length() + 1 &&
+          remaining.substr(0, qualifier.length()) == qualifier &&
+          (remaining[qualifier.length()] == ' ' ||
+           remaining[qualifier.length()] == '\t')) {
+        remaining = remaining.substr(qualifier.length());
+        // Skip whitespace
+        size_t ws_start = remaining.find_first_not_of(" \t");
+        if (ws_start != std::string::npos) {
+          remaining = remaining.substr(ws_start);
+        }
+        found_qualifier = true;
+        break;
+      }
+    }
+
+    // Check for layout qualifier
+    if (remaining.length() >= 6 && remaining.substr(0, 6) == "layout") {
+      size_t paren_start = remaining.find('(');
+      if (paren_start != std::string::npos) {
+        size_t paren_end = remaining.find(')', paren_start);
+        if (paren_end != std::string::npos) {
+          remaining = remaining.substr(paren_end + 1);
+          // Skip whitespace
+          size_t ws_start = remaining.find_first_not_of(" \t");
+          if (ws_start != std::string::npos) {
+            remaining = remaining.substr(ws_start);
+          }
+          // Check for in/out after layout
+          if (remaining.length() >= 2 && remaining.substr(0, 2) == "in") {
+            if (remaining.length() == 2 || remaining[2] == ' ' ||
+                remaining[2] == '\t') {
+              remaining = remaining.substr(2);
+              size_t ws_start2 = remaining.find_first_not_of(" \t");
+              if (ws_start2 != std::string::npos) {
+                remaining = remaining.substr(ws_start2);
+              }
+            }
+          } else if (remaining.length() >= 3 &&
+                     remaining.substr(0, 3) == "out") {
+            if (remaining.length() == 3 || remaining[3] == ' ' ||
+                remaining[3] == '\t') {
+              remaining = remaining.substr(3);
+              size_t ws_start2 = remaining.find_first_not_of(" \t");
+              if (ws_start2 != std::string::npos) {
+                remaining = remaining.substr(ws_start2);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Find type
+    std::string type;
+    size_t type_end = 0;
+    for (const auto &glsl_type : glsl_types) {
+      if (remaining.length() >= glsl_type.length() &&
+          remaining.substr(0, glsl_type.length()) == glsl_type) {
+        if (remaining.length() == glsl_type.length() ||
+            remaining[glsl_type.length()] == ' ' ||
+            remaining[glsl_type.length()] == '\t') {
+          type = glsl_type;
+          type_end = glsl_type.length();
+          break;
+        }
+      }
+    }
+
+    if (type.empty()) {
+      continue;
+    }
+
+    // Skip whitespace after type
+    remaining = remaining.substr(type_end);
+    size_t ws_start = remaining.find_first_not_of(" \t");
+    if (ws_start == std::string::npos) {
+      continue;
+    }
+    remaining = remaining.substr(ws_start);
+
+    // Extract variable name (may have array brackets)
+    std::string var_name;
+    for (size_t i = 0; i < remaining.length(); ++i) {
+      char c = remaining[i];
+      if (std::isalnum(static_cast<unsigned char>(c)) || c == '_') {
+        var_name += c;
+      } else if (c == '[' || c == ';' || c == '=' || c == ' ' || c == '\t') {
+        break;
+      } else {
+        // Invalid character, skip this line
+        var_name.clear();
+        break;
+      }
+    }
+
+    if (!var_name.empty()) {
+      // Add to keywords if not already present
+      bool exists = false;
+      for (const auto &kw : keywords) {
+        if (kw == var_name) {
+          exists = true;
+          break;
+        }
+      }
+      if (!exists) {
+        keywords.push_back(var_name);
+      }
+    }
+  }
 }

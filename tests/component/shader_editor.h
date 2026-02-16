@@ -29,6 +29,7 @@ protected:
   bool key_pressed_events_for_save();
   bool key_pressed_events_for_autocomplete();
   void draw_help_info();
+  virtual void scan_for_context();
 
   // virtual methods for candidates searching
   virtual std::pair<autocomplete_type, std::string>
@@ -64,6 +65,10 @@ protected:
   const std::map<autocomplete_type, std::vector<std::string>> &
   get_defined_keywords() const override;
   void format_text() override;
+
+private:
+  void scan_for_context() override;
+  void scan_for_variables();
 
 protected:
   std::map<autocomplete_type, std::vector<std::string>> m_defined_keywords;
