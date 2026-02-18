@@ -96,7 +96,7 @@ void basic_code_editor::render() {
   ImGui::PushFont(NULL, m_font_scale * ImGui::GetFontSize());
   m_editor.Render((m_name + "Impl").c_str());
 
-  if (m_editor.IsTextChanged()) {
+  if (m_editor.IsTextChanged() && !m_editor.LastOperationIsDelete()) {
     if (m_just_inserted_completion) {
       m_just_inserted_completion = false;
       ImGui::PopFont();
@@ -487,7 +487,11 @@ const std::vector<std::string> &shader_editor::get_builtin_keywords() const {
       "log2", "sqrt", "inversesqrt", "abs", "floor", "ceil", "fract", "mod",
       "min", "max", "step", "smoothstep", "smoothstep", "radians", "degrees",
       // Matrix functions
-      "transpose", "determinant", "inverse"};
+      "transpose", "determinant", "inverse",
+      // Adavanced OpenGL internal variables
+      "gl_Position",
+      // TODO:@KeyFicller Add more advanced OpenGL internal variables.
+  };
   return glsl_keywords;
 }
 
