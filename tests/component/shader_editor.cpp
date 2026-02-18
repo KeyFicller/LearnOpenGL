@@ -1,9 +1,12 @@
 #include "shader_editor.h"
 #include "TextEditor.h"
 #include "imgui.h"
+#include "imgui_internal.h"
+#include <cstddef>
 
 namespace {
-std::string seek_for_seed(const std::string &_current_line, int _index) {
+std::string seek_for_seed(const std::string &_current_line, int _index,
+                          int *_stop_index = nullptr) {
   if (_current_line.empty() || _index == 0) {
     return "";
   }
@@ -18,6 +21,9 @@ std::string seek_for_seed(const std::string &_current_line, int _index) {
   }
 
   if (seed_start < _index) {
+    if (_stop_index) {
+      *_stop_index = seed_start;
+    }
     return _current_line.substr(seed_start, _index - seed_start);
   }
 
@@ -53,8 +59,12 @@ basic_code_editor::basic_code_editor(const std::string &_name,
     break;
   }
 
+  // Bind some user defined callbacks.
   m_editor.SetKeyPressedCallback(
       std::bind(&basic_code_editor::key_pressed_events_entry, this));
+
+  m_editor.SetMouseScrolledCallback(
+      std::bind(&basic_code_editor::mouse_scrolled_events_entry, this));
 }
 
 void basic_code_editor::set_text(const std::string &_text) {
@@ -67,11 +77,10 @@ void basic_code_editor::set_help_info(const std::string &_hint) {
   m_help_info = _hint;
 }
 
-std::pair<autocomplete_type, std::string>
-basic_code_editor::seed_for_autocomplete() const {
-  return {autocomplete_type::k_keyword,
-          seek_for_seed(m_editor.GetCurrentLineText(),
-                        m_editor.GetCursorPosition().mColumn)};
+autocomplete_seed basic_code_editor::seed_for_autocomplete() const {
+  return autocomplete_seed{autocomplete_type::k_keyword, "",
+                           seek_for_seed(m_editor.GetCurrentLineText(),
+                                         m_editor.GetCursorPosition().mColumn)};
 }
 
 void basic_code_editor::render() {
@@ -84,11 +93,16 @@ void basic_code_editor::render() {
               m_editor.IsOverwrite() ? "Ovr" : "Ins",
               m_editor.CanUndo() ? "*" : " ",
               m_editor.GetLanguageDefinition().mName.c_str());
-
+  ImGui::PushFont(NULL, m_font_scale * ImGui::GetFontSize());
   m_editor.Render((m_name + "Impl").c_str());
 
   if (m_editor.IsTextChanged()) {
-    scan_for_context();
+    if (m_just_inserted_completion) {
+      m_just_inserted_completion = false;
+      ImGui::PopFont();
+      ImGui::End();
+      return;
+    }
     update_candidates();
   }
 
@@ -97,6 +111,7 @@ void basic_code_editor::render() {
 
   if (m_editor.IsTextChanged())
     restore_default_help_info();
+  ImGui::PopFont();
 
   ImGui::End();
 }
@@ -116,9 +131,9 @@ void basic_code_editor::restore_default_help_info() {
 
 void basic_code_editor::update_candidates() {
   auto seed = seed_for_autocomplete();
-  if (seed.second != m_cached_word) {
-    m_cached_word = seed.second;
-    if (m_cached_word.empty()) {
+  if (seed != m_cached_seed) {
+    m_cached_seed = seed;
+    if (!need_search_for_candidates()) {
       m_show_autocomplete_pooup = false;
       m_autocomplete_candidates.clear();
       return;
@@ -127,22 +142,25 @@ void basic_code_editor::update_candidates() {
     return;
   }
 
+  scan_for_context();
   m_autocomplete_candidates.clear();
 
-  if (seed.first == autocomplete_type::k_keyword) {
+  if (seed.type == autocomplete_type::k_keyword) {
     auto &builtin_keywords = get_builtin_keywords();
     for (const auto &keyword : builtin_keywords) {
-      if (keyword.length() >= seed.second.length() &&
-          keyword.substr(0, seed.second.length()) == seed.second) {
+      if (keyword.length() >= seed.prefix.length() &&
+          keyword.substr(0, seed.prefix.length()) == seed.prefix) {
         m_autocomplete_candidates.push_back(keyword);
       }
     }
   }
-  auto &defined_keywords = get_defined_keywords();
-  if (defined_keywords.find(seed.first) != defined_keywords.end()) {
-    for (const auto &keyword : defined_keywords.at(seed.first)) {
-      if (keyword.length() >= seed.second.length() &&
-          keyword.substr(0, seed.second.length()) == seed.second) {
+  auto &defined_keywords = get_defined_keywords(m_cached_seed);
+  if (defined_keywords.find(seed.type) != defined_keywords.end()) {
+    for (const auto &keyword : defined_keywords.at(seed.type)) {
+      if (seed.prefix.empty())
+        m_autocomplete_candidates.push_back(keyword);
+      else if (keyword.length() >= seed.prefix.length() &&
+               keyword.substr(0, seed.prefix.length()) == seed.prefix) {
         m_autocomplete_candidates.push_back(keyword);
       }
     }
@@ -151,12 +169,17 @@ void basic_code_editor::update_candidates() {
   std::sort(m_autocomplete_candidates.begin(), m_autocomplete_candidates.end());
   m_selected_candidate = 0;
 
-  m_show_autocomplete_pooup =
-      !m_autocomplete_candidates.empty() && seed.second.length() > 0;
+  m_show_autocomplete_pooup = !m_autocomplete_candidates.empty();
   if (m_autocomplete_candidates.size() == 1 &&
-      m_autocomplete_candidates[0] == seed.second) {
+      m_autocomplete_candidates[0] == seed.prefix) {
     m_show_autocomplete_pooup = false;
   }
+}
+
+bool basic_code_editor::need_search_for_candidates() const {
+  return m_cached_seed.type != autocomplete_type::k_none &&
+         !(m_cached_seed.type == autocomplete_type::k_keyword &&
+           m_cached_seed.prefix.empty());
 }
 
 void basic_code_editor::show_autocomplete_popup() {
@@ -236,12 +259,32 @@ void basic_code_editor::show_autocomplete_popup() {
   }
 }
 
+bool basic_code_editor::mouse_scrolled_events_entry() {
+  ImGuiIO &io = ImGui::GetIO();
+  auto shift = io.KeyShift;
+  auto ctrl = io.ConfigMacOSXBehaviors ? io.KeySuper : io.KeyCtrl;
+
+  if (ctrl) {
+    if (ImGui::IsKeyPressed(ImGuiKey_MouseWheelY)) {
+      float delta = ImGui::GetIO().MouseWheel;
+      if (delta > 0) {
+        m_font_scale += 0.1f;
+      } else {
+        m_font_scale -= 0.1;
+      }
+
+      return true;
+    }
+  }
+
+  return false;
+}
+
 void basic_code_editor::scan_for_context() {
   // TODO:@KeyFicller Scan for context.
 }
 
 void basic_code_editor::insert_completion(const std::string &_candidate) {
-  // TODO:@KeyFicller Combine into one Undo/Redo operation.
   auto cursor_pos = m_editor.GetCursorPosition();
   auto line = m_editor.GetCurrentLineText();
 
@@ -250,16 +293,18 @@ void basic_code_editor::insert_completion(const std::string &_candidate) {
   u.mBefore = m_editor.mState;
   u.mRemovedEnd = m_editor.GetCursorPosition();
 
+  auto cached_word = m_cached_seed.prefix;
+
   // Move cursor to word start
   TextEditor::Coordinates word_start_pos(
-      cursor_pos.mLine, cursor_pos.mColumn - m_cached_word.length());
+      cursor_pos.mLine, cursor_pos.mColumn - cached_word.length());
   m_editor.SetCursorPosition(word_start_pos);
 
-  u.mRemoved = m_cached_word;
+  u.mRemoved = cached_word;
   u.mRemovedStart = word_start_pos;
 
   m_editor.SetUndoRecordOn(false);
-  for (int i = 0; i < m_cached_word.length(); i++) {
+  for (int i = 0; i < cached_word.length(); i++) {
     m_editor.Delete();
   }
   m_editor.SetUndoRecordOn(true);
@@ -271,6 +316,10 @@ void basic_code_editor::insert_completion(const std::string &_candidate) {
   u.mAddedEnd = m_editor.GetActualCursorCoordinates();
   u.mAfter = m_editor.mState;
   m_editor.AddUndo(u);
+
+  //  After insert completion, reset seed
+  m_just_inserted_completion = true;
+  m_cached_seed = {autocomplete_type::k_none, "", ""};
 }
 
 bool basic_code_editor::key_pressed_events_entry() {
@@ -394,30 +443,34 @@ basic_code_editor::get_builtin_keywords() const {
 }
 
 const std::map<autocomplete_type, std::vector<std::string>> &
-basic_code_editor::get_defined_keywords() const {
+basic_code_editor::get_defined_keywords(const autocomplete_seed &_seed) const {
   static std::map<autocomplete_type, std::vector<std::string>> keywords;
   return keywords;
 }
 
-std::pair<autocomplete_type, std::string>
-shader_editor::seed_for_autocomplete() const {
-  auto seed = basic_code_editor::seed_for_autocomplete();
-  if (!seed.second.empty()) {
-    return seed;
+autocomplete_seed shader_editor::seed_for_autocomplete() const {
+  int stop_index = m_editor.GetCursorPosition().mColumn;
+  auto seed1 = seek_for_seed(m_editor.GetCurrentLineText(),
+                             m_editor.GetCursorPosition().mColumn, &stop_index);
+  auto line = m_editor.GetCurrentLineText();
+  if (stop_index <= 0 || line[stop_index - 1] == ' ') {
+    // Seed has no scope, it's a keyword.
+    return autocomplete_seed{autocomplete_type::k_keyword, "", seed1};
   }
 
-  auto line = m_editor.GetCurrentLineText();
-  auto index = m_editor.GetCursorPosition().mColumn;
-  if (index - 1 > 0 && line[index - 1] == '.') {
-    return {autocomplete_type::k_class_member, seek_for_seed(line, index - 1)};
+  if (stop_index > 0 && line[stop_index - 1] == '.') {
+    auto scope = seek_for_seed(line, stop_index - 1);
+    return {autocomplete_type::k_class_member, scope, seed1};
   }
-  if (index - 2 > 0 && line.substr(index - 2, 2) == "->") {
-    return {autocomplete_type::k_class_member, seek_for_seed(line, index - 2)};
+  if (stop_index > 1 && line.substr(stop_index - 2, 2) == "->") {
+    auto scope = seek_for_seed(line, stop_index - 2);
+    return {autocomplete_type::k_class_member, scope, seed1};
   }
-  if (index - 2 > 0 && line.substr(index - 2, 2) == "::") {
-    return {autocomplete_type::k_class_member, seek_for_seed(line, index - 2)};
+  if (stop_index > 1 && line.substr(stop_index - 2, 2) == "::") {
+    auto scope = seek_for_seed(line, stop_index - 2);
+    return {autocomplete_type::k_class_member, scope, seed1};
   }
-  return {autocomplete_type::k_none, ""};
+  return {autocomplete_type::k_none, "", ""};
 }
 
 const std::vector<std::string> &shader_editor::get_builtin_keywords() const {
@@ -439,7 +492,7 @@ const std::vector<std::string> &shader_editor::get_builtin_keywords() const {
 }
 
 const std::map<autocomplete_type, std::vector<std::string>> &
-shader_editor::get_defined_keywords() const {
+shader_editor::get_defined_keywords(const autocomplete_seed &_seed) const {
   return m_defined_keywords;
 }
 
@@ -449,7 +502,7 @@ void shader_editor::format_text() {
 
 void shader_editor::scan_for_context() {
   m_defined_keywords.clear();
-  if (m_cached_word.empty()) {
+  if (!need_search_for_candidates()) {
     return;
   }
 
@@ -492,6 +545,13 @@ void shader_editor::scan_for_variables() {
                                                       "mat4x2",
                                                       "mat4x3",
                                                       "mat4x4"};
+
+  static const std::map<std::string, std::vector<std::string>>
+      glsl_type_members = {
+          {"vec2", {"x", "y"}},
+          {"vec3", {"x", "y", "z", "xy"}},
+          {"vec4", {"x", "y", "z", "w", "xy", "xyz"}},
+      };
 
   // Keywords that can appear before type
   static const std::vector<std::string> qualifiers = {
@@ -675,16 +735,32 @@ void shader_editor::scan_for_variables() {
     }
 
     if (!var_name.empty()) {
-      // Add to keywords if not already present
-      bool exists = false;
-      for (const auto &kw : keywords) {
-        if (kw == var_name) {
-          exists = true;
-          break;
+      if (m_cached_seed.type == autocomplete_type::k_keyword) {
+        // Add to keywords if not already present
+        bool exists = false;
+        for (const auto &kw : keywords) {
+          if (kw == var_name) {
+            exists = true;
+            break;
+          }
         }
-      }
-      if (!exists) {
-        keywords.push_back(var_name);
+        if (!exists) {
+          keywords.push_back(var_name);
+        }
+      } else if (m_cached_seed.type == autocomplete_type::k_class_member) {
+        // Case1: if var_name is the same as scope, add members to key words.
+        auto &members = m_defined_keywords[autocomplete_type::k_class_member];
+        if (var_name == m_cached_seed.scope) {
+          if (glsl_type_members.find(type) != glsl_type_members.end()) {
+            for (const auto &member : glsl_type_members.at(type)) {
+              if (member.length() > m_cached_seed.prefix.length() &&
+                  member.substr(0, m_cached_seed.prefix.length()) ==
+                      m_cached_seed.prefix) {
+                members.push_back(member);
+              }
+            }
+          }
+        }
       }
     }
   }

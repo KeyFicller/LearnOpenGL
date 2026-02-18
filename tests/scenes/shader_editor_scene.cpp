@@ -16,6 +16,9 @@ shader_editor_scene::shader_editor_scene() : test_scene_base("Shader Editor") {
       [this]() { return on_save_shader(); });
   m_fragment_shader_editor->set_save_callback(
       [this]() { return on_save_shader(); });
+
+  m_vertex_shader_editor->restore_default_help_info();
+  m_fragment_shader_editor->restore_default_help_info();
 }
 
 shader_editor_scene::~shader_editor_scene() {}

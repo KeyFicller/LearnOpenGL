@@ -6,7 +6,31 @@
 enum class code_editor_type { k_shader };
 enum class autocomplete_type { k_none, k_keyword, k_class_member };
 
+struct autocomplete_seed {
+  autocomplete_type type;
+  std::string scope;
+  std::string prefix;
+
+  autocomplete_seed()
+      : type(autocomplete_type::k_none), scope(""), prefix("") {}
+
+  autocomplete_seed(autocomplete_type _type, const std::string &_scope,
+                    const std::string &_prefix)
+      : type(_type), scope(_scope), prefix(_prefix) {}
+
+  bool operator==(const autocomplete_seed &_other) const {
+    return type == _other.type && scope == _other.scope &&
+           prefix == _other.prefix;
+  }
+
+  bool operator!=(const autocomplete_seed &_other) const {
+    return !(*this == _other);
+  }
+};
+
 class basic_code_editor {
+  // friend class shader_editor_scene;
+
 public:
   basic_code_editor(const std::string &_name, code_editor_type _type);
   virtual ~basic_code_editor() = default;
@@ -28,15 +52,16 @@ protected:
   bool key_pressed_events_entry();
   bool key_pressed_events_for_save();
   bool key_pressed_events_for_autocomplete();
+  bool mouse_scrolled_events_entry();
   void draw_help_info();
   virtual void scan_for_context();
+  bool need_search_for_candidates() const;
 
   // virtual methods for candidates searching
-  virtual std::pair<autocomplete_type, std::string>
-  seed_for_autocomplete() const;
+  virtual autocomplete_seed seed_for_autocomplete() const;
   virtual const std::vector<std::string> &get_builtin_keywords() const;
   virtual const std::map<autocomplete_type, std::vector<std::string>> &
-  get_defined_keywords() const;
+  get_defined_keywords(const autocomplete_seed &_seed) const;
 
 protected:
   std::string m_name;
@@ -46,10 +71,13 @@ protected:
   std::vector<std::string> m_autocomplete_candidates;
   int m_selected_candidate;
   bool m_show_autocomplete_pooup = false;
-  std::string m_cached_word;
+  autocomplete_seed m_cached_seed;
 
   std::function<bool()> m_save_callback = nullptr;
   bool m_tab_to_indent = true;
+  float m_font_scale = 2.0f;
+
+  bool m_just_inserted_completion = false;
 };
 
 class shader_editor : public basic_code_editor {
@@ -59,11 +87,10 @@ public:
   virtual ~shader_editor() = default;
 
 protected:
-  std::pair<autocomplete_type, std::string>
-  seed_for_autocomplete() const override;
+  autocomplete_seed seed_for_autocomplete() const override;
   const std::vector<std::string> &get_builtin_keywords() const override;
   const std::map<autocomplete_type, std::vector<std::string>> &
-  get_defined_keywords() const override;
+  get_defined_keywords(const autocomplete_seed &_seed) const override;
   void format_text() override;
 
 private:
