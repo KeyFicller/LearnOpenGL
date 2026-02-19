@@ -1,5 +1,7 @@
 #include <exception>
+#include <fstream>
 #include <iostream>
+#include <string>
 
 // GLAD
 #include <glad/gl.h>
@@ -106,10 +108,21 @@ int main() {
 #ifdef LEARNOPENGL_USE_MONO
     // Initialize C# Mono scripting (optional - continues if scripts not found)
     mono_invoker::invoker invoker;
-    invoker.load("runtime/Scripts.dll");
+    const char *dll_candidates[] = {"runtime/Scripts.dll",
+                                  "scripts/csharp/bin/Scripts.dll"};
+    std::string dll_path;
+    for (const char *p : dll_candidates) {
+      if (std::ifstream(p).good()) {
+        dll_path = p;
+        break;
+      }
+    }
+    if (!dll_path.empty()) {
+      invoker.load(dll_path);
+    }
     if (!invoker.is_ready()) {
-      std::cout << "[Mono] Failed to load assembly: "
-                << "scripts/csharp/bin/Scripts.dll" << std::endl;
+      std::cout << "[Mono] Failed to load assembly (tried runtime/Scripts.dll "
+                   "and scripts/csharp/bin/Scripts.dll)" << std::endl;
     }
     std::string msg;
     if (!invoker.invoke_r(mono_invoker::script_ncm(

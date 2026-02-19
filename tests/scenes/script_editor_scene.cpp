@@ -9,7 +9,17 @@
 #include <sstream>
 
 static const std::string gs_script_path = "scripts/csharp/ExampleScript.cs";
-static const std::string gs_dll_path = "runtime/Scripts.dll";
+
+static std::string script_dll_path() {
+  const char *candidates[] = {"runtime/Scripts.dll",
+                              "scripts/csharp/bin/Scripts.dll"};
+  for (const char *p : candidates) {
+    std::ifstream f(p);
+    if (f.good())
+      return p;
+  }
+  return "runtime/Scripts.dll";
+}
 
 static float quad_vertices[] = {-0.5f, -0.5f, 0.0f, 0.5f,  -0.5f, 0.0f,
                                 0.5f,  0.5f,  0.0f, -0.5f, 0.5f,  0.0f};
@@ -40,7 +50,7 @@ void script_editor_scene::init(GLFWwindow *_window) {
   std::string script_content = ss.str();
   m_script_editor->set_text(script_content);
 
-  m_invoker.load(gs_dll_path);
+  m_invoker.load(script_dll_path());
 }
 
 void script_editor_scene::render() {
@@ -94,7 +104,7 @@ bool script_editor_scene::on_save_script() {
 #endif
 
   m_invoker.unload();
-  m_invoker.load(gs_dll_path);
+  m_invoker.load(script_dll_path());
 
   if (!m_invoker.is_ready()) {
     m_script_editor->set_help_info("Failed to load script");

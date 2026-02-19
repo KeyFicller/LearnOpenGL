@@ -149,37 +149,15 @@ message(STATUS "ImGuiColorTextEdit_SOURCE_DIR: ${ImGuiColorTextEdit_SOURCE_DIR}"
 # ---------------------------------------------------------------
 
 # ------------------------ Vendor: Mono -------------------------
-# Optional C# scripting via Mono
-if(APPLE)
-  set(ENV{PKG_CONFIG_PATH} "/opt/homebrew/lib/pkgconfig:/usr/local/lib/pkgconfig:$ENV{PKG_CONFIG_PATH}")
-endif()
-set(MONO_FOUND FALSE)
 find_package(PkgConfig QUIET)
 if(PkgConfig_FOUND)
-  set(MONO_PKG_NAMES "mono-2" "mono-2.0")
-  foreach(MONO_PKG ${MONO_PKG_NAMES})
-    pkg_check_modules(MONO ${MONO_PKG})
-    if(MONO_FOUND)
-      break()
-    endif()
-  endforeach()
-endif()
-if(NOT MONO_FOUND AND APPLE)
-  # Fallback: try Homebrew paths directly
-  find_path(MONO_INCLUDE_DIR mono/jit/jit.h
-    PATHS /opt/homebrew/include/mono-2.0 /usr/local/include/mono-2.0)
-  find_library(MONO_LIBRARY mono-2.0
-    PATHS /opt/homebrew/lib /usr/local/lib)
-  if(MONO_INCLUDE_DIR AND MONO_LIBRARY)
-    set(MONO_FOUND TRUE)
-    set(MONO_INCLUDE_DIRS ${MONO_INCLUDE_DIR})
-    set(MONO_LIBRARIES ${MONO_LIBRARY})
-    get_filename_component(MONO_LIBRARY_DIRS "${MONO_LIBRARY}" DIRECTORY)
-    set(MONO_LIBRARY_DIRS "${MONO_LIBRARY_DIRS}")
+  pkg_check_modules(MONO QUIET mono-2)
+  if(NOT MONO_FOUND)
+    pkg_check_modules(MONO QUIET mono-2.0)
   endif()
 endif()
 if(NOT MONO_FOUND)
-  message(STATUS "Mono not found - C# scripting disabled (install: brew install mono pkg-config)")
+  message(FATAL_ERROR "Mono not found")
 endif()
 # ---------------------------------------------------------------
 
@@ -286,24 +264,3 @@ endif()
 
 # Use GLAD as OpenGL loader for ImGui (instead of imgui's built-in loader)
 target_compile_definitions(LearnOpenGL PRIVATE IMGUI_IMPL_OPENGL_LOADER_CUSTOM)
-
-# Build C# scripts and copy to output (Unix only, when Mono is enabled)
-if(MONO_FOUND AND UNIX AND NOT WIN32)
-  set(SCRIPT_OUTPUT_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
-  if(NOT SCRIPT_OUTPUT_DIR)
-    set(SCRIPT_OUTPUT_DIR "${CMAKE_BINARY_DIR}")
-  endif()
-  # build_csharp.sh outputs to ${CMAKE_SOURCE_DIR}/runtime/Scripts.dll
-  set(SCRIPT_DLL_SOURCE "${CMAKE_SOURCE_DIR}/runtime/Scripts.dll")
-  add_custom_target(build_csharp_scripts
-    COMMAND ${CMAKE_COMMAND} -E echo "Building C# scripts..."
-    COMMAND "${CMAKE_SOURCE_DIR}/scripts/build_csharp.sh"
-    COMMAND ${CMAKE_COMMAND} -E make_directory "${SCRIPT_OUTPUT_DIR}/scripts/csharp/bin"
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-      "${SCRIPT_DLL_SOURCE}"
-      "${SCRIPT_OUTPUT_DIR}/scripts/csharp/bin/Scripts.dll"
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    COMMENT "Building C# scripts for Mono"
-  )
-  add_dependencies(LearnOpenGL build_csharp_scripts)
-endif()

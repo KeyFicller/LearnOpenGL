@@ -5,6 +5,7 @@
 #include <cstddef>
 
 namespace {
+
 std::string seek_for_seed(const std::string &_current_line, int _index,
                           int *_stop_index = nullptr) {
   if (_current_line.empty() || _index == 0) {
@@ -46,7 +47,198 @@ static int UTF8CharLength(TextEditor::Char c) {
     return 2;
   return 1;
 }
-}; // namespace
+
+// Split GLSL source into logical code lines with comments stripped.
+std::vector<std::string>
+split_glsl_lines_without_comments(const std::string &_text) {
+  std::vector<std::string> lines;
+  if (_text.empty()) {
+    return lines;
+  }
+
+  std::string current_line;
+  bool in_block_comment = false;
+
+  for (size_t i = 0; i < _text.length(); ++i) {
+    char c = _text[i];
+    char next_c = (i + 1 < _text.length()) ? _text[i + 1] : '\0';
+
+    // Block comments: /* ... */
+    if (!in_block_comment && c == '/' && next_c == '*') {
+      in_block_comment = true;
+      ++i;
+      continue;
+    }
+    if (in_block_comment && c == '*' && next_c == '/') {
+      in_block_comment = false;
+      ++i;
+      continue;
+    }
+    if (in_block_comment) {
+      continue;
+    }
+
+    // Line comments: // ...
+    if (c == '/' && next_c == '/') {
+      if (!current_line.empty()) {
+        lines.push_back(current_line);
+        current_line.clear();
+      }
+      while (i < _text.length() && _text[i] != '\n' && _text[i] != '\r') {
+        ++i;
+      }
+      continue;
+    }
+
+    // New line handling (support CR/LF and CRLF)
+    if (c == '\n' || (c == '\r' && next_c != '\n')) {
+      if (!current_line.empty()) {
+        lines.push_back(current_line);
+        current_line.clear();
+      }
+    } else if (c != '\r') {
+      current_line += c;
+    }
+  }
+
+  if (!current_line.empty()) {
+    lines.push_back(current_line);
+  }
+
+  return lines;
+}
+
+// Try to parse a single GLSL declaration line into (type, variable name).
+bool parse_glsl_variable_declaration(
+    const std::string &_line, const std::vector<std::string> &_qualifiers,
+    const std::vector<std::string> &_glsl_types, std::string &_out_type,
+    std::string &_out_var_name) {
+  _out_type.clear();
+  _out_var_name.clear();
+
+  if (_line.empty() || _line.find_first_not_of(" \t") == std::string::npos) {
+    return false;
+  }
+
+  // Trim leading/trailing whitespace.
+  std::string trimmed = _line;
+  size_t start = trimmed.find_first_not_of(" \t");
+  if (start == std::string::npos) {
+    return false;
+  }
+  trimmed = trimmed.substr(start);
+  size_t end = trimmed.find_last_not_of(" \t");
+  if (end != std::string::npos) {
+    trimmed = trimmed.substr(0, end + 1);
+  }
+
+  // Skip preprocessor directives.
+  if (trimmed[0] == '#') {
+    return false;
+  }
+
+  // Strip qualifiers like `uniform`, `in`, `out`, etc.
+  std::string remaining = trimmed;
+  for (const auto &qualifier : _qualifiers) {
+    if (remaining.length() >= qualifier.length() + 1 &&
+        remaining.substr(0, qualifier.length()) == qualifier &&
+        (remaining[qualifier.length()] == ' ' ||
+         remaining[qualifier.length()] == '\t')) {
+      remaining = remaining.substr(qualifier.length());
+      size_t ws_start = remaining.find_first_not_of(" \t");
+      if (ws_start != std::string::npos) {
+        remaining = remaining.substr(ws_start);
+      }
+      break;
+    }
+  }
+
+  // Handle layout (...) qualifiers which can precede in/out.
+  if (remaining.length() >= 6 && remaining.substr(0, 6) == "layout") {
+    size_t paren_start = remaining.find('(');
+    if (paren_start != std::string::npos) {
+      size_t paren_end = remaining.find(')', paren_start);
+      if (paren_end != std::string::npos) {
+        remaining = remaining.substr(paren_end + 1);
+        size_t ws_start = remaining.find_first_not_of(" \t");
+        if (ws_start != std::string::npos) {
+          remaining = remaining.substr(ws_start);
+        }
+
+        if (remaining.length() >= 2 && remaining.substr(0, 2) == "in" &&
+            (remaining.length() == 2 || remaining[2] == ' ' ||
+             remaining[2] == '\t')) {
+          remaining = remaining.substr(2);
+          size_t ws_start2 = remaining.find_first_not_of(" \t");
+          if (ws_start2 != std::string::npos) {
+            remaining = remaining.substr(ws_start2);
+          }
+        } else if (remaining.length() >= 3 && remaining.substr(0, 3) == "out" &&
+                   (remaining.length() == 3 || remaining[3] == ' ' ||
+                    remaining[3] == '\t')) {
+          remaining = remaining.substr(3);
+          size_t ws_start2 = remaining.find_first_not_of(" \t");
+          if (ws_start2 != std::string::npos) {
+            remaining = remaining.substr(ws_start2);
+          }
+        }
+      }
+    }
+  }
+
+  // Find GLSL type.
+  std::string type;
+  size_t type_end = 0;
+  for (const auto &glsl_type : _glsl_types) {
+    if (remaining.length() >= glsl_type.length() &&
+        remaining.substr(0, glsl_type.length()) == glsl_type) {
+      if (remaining.length() == glsl_type.length() ||
+          remaining[glsl_type.length()] == ' ' ||
+          remaining[glsl_type.length()] == '\t') {
+        type = glsl_type;
+        type_end = glsl_type.length();
+        break;
+      }
+    }
+  }
+
+  if (type.empty()) {
+    return false;
+  }
+
+  // Skip whitespace after type.
+  remaining = remaining.substr(type_end);
+  size_t ws_start = remaining.find_first_not_of(" \t");
+  if (ws_start == std::string::npos) {
+    return false;
+  }
+  remaining = remaining.substr(ws_start);
+
+  // Extract variable name (may have array brackets).
+  std::string var_name;
+  for (size_t i = 0; i < remaining.length(); ++i) {
+    char c = remaining[i];
+    if (std::isalnum(static_cast<unsigned char>(c)) || c == '_') {
+      var_name += c;
+    } else if (c == '[' || c == ';' || c == '=' || c == ' ' || c == '\t') {
+      break;
+    } else {
+      // Invalid character, abort this line.
+      var_name.clear();
+      break;
+    }
+  }
+
+  if (var_name.empty()) {
+    return false;
+  }
+
+  _out_type = type;
+  _out_var_name = var_name;
+  return true;
+}
+
+} // namespace
 
 basic_code_editor::basic_code_editor(const std::string &_name,
                                      code_editor_type _type)
@@ -517,7 +709,6 @@ void shader_editor::scan_for_context() {
 }
 
 void shader_editor::scan_for_variables() {
-
   std::string text = m_editor.GetText();
   if (text.empty()) {
     return;
@@ -567,204 +758,40 @@ void shader_editor::scan_for_variables() {
   std::vector<std::string> &keywords =
       m_defined_keywords[autocomplete_type::k_keyword];
 
-  // Split text into lines
-  std::vector<std::string> lines;
-  std::string current_line;
-  bool in_block_comment = false;
-
-  for (size_t i = 0; i < text.length(); ++i) {
-    char c = text[i];
-    char next_c = (i + 1 < text.length()) ? text[i + 1] : '\0';
-
-    // Handle block comments
-    if (!in_block_comment && c == '/' && next_c == '*') {
-      in_block_comment = true;
-      ++i; // Skip next character
-      continue;
-    }
-    if (in_block_comment && c == '*' && next_c == '/') {
-      in_block_comment = false;
-      ++i; // Skip next character
-      continue;
-    }
-    if (in_block_comment) {
-      continue;
-    }
-
-    // Handle line comments
-    if (c == '/' && next_c == '/') {
-      // Save current line (before comment) and skip rest of line
-      if (!current_line.empty()) {
-        lines.push_back(current_line);
-        current_line.clear();
-      }
-      // Skip rest of line
-      while (i < text.length() && text[i] != '\n' && text[i] != '\r') {
-        ++i;
-      }
-      continue;
-    }
-
-    if (c == '\n' || (c == '\r' && next_c != '\n')) {
-      if (!current_line.empty()) {
-        lines.push_back(current_line);
-        current_line.clear();
-      }
-    } else if (c != '\r') {
-      // Skip \r if followed by \n (Windows line ending)
-      current_line += c;
-    }
-  }
-  if (!current_line.empty()) {
-    lines.push_back(current_line);
-  }
+  // Split text into logical lines without comments.
+  std::vector<std::string> lines = split_glsl_lines_without_comments(text);
 
   // Parse each line for variable declarations
   for (const auto &line : lines) {
-    if (line.empty() || line.find_first_not_of(" \t") == std::string::npos) {
-      continue;
-    }
-
-    // Remove leading/trailing whitespace
-    std::string trimmed = line;
-    size_t start = trimmed.find_first_not_of(" \t");
-    if (start == std::string::npos) {
-      continue;
-    }
-    trimmed = trimmed.substr(start);
-    size_t end = trimmed.find_last_not_of(" \t");
-    if (end != std::string::npos) {
-      trimmed = trimmed.substr(0, end + 1);
-    }
-
-    // Skip preprocessor directives
-    if (trimmed[0] == '#') {
-      continue;
-    }
-
-    // Check for qualifiers
-    std::string remaining = trimmed;
-    bool found_qualifier = false;
-    for (const auto &qualifier : qualifiers) {
-      if (remaining.length() >= qualifier.length() + 1 &&
-          remaining.substr(0, qualifier.length()) == qualifier &&
-          (remaining[qualifier.length()] == ' ' ||
-           remaining[qualifier.length()] == '\t')) {
-        remaining = remaining.substr(qualifier.length());
-        // Skip whitespace
-        size_t ws_start = remaining.find_first_not_of(" \t");
-        if (ws_start != std::string::npos) {
-          remaining = remaining.substr(ws_start);
-        }
-        found_qualifier = true;
-        break;
-      }
-    }
-
-    // Check for layout qualifier
-    if (remaining.length() >= 6 && remaining.substr(0, 6) == "layout") {
-      size_t paren_start = remaining.find('(');
-      if (paren_start != std::string::npos) {
-        size_t paren_end = remaining.find(')', paren_start);
-        if (paren_end != std::string::npos) {
-          remaining = remaining.substr(paren_end + 1);
-          // Skip whitespace
-          size_t ws_start = remaining.find_first_not_of(" \t");
-          if (ws_start != std::string::npos) {
-            remaining = remaining.substr(ws_start);
-          }
-          // Check for in/out after layout
-          if (remaining.length() >= 2 && remaining.substr(0, 2) == "in") {
-            if (remaining.length() == 2 || remaining[2] == ' ' ||
-                remaining[2] == '\t') {
-              remaining = remaining.substr(2);
-              size_t ws_start2 = remaining.find_first_not_of(" \t");
-              if (ws_start2 != std::string::npos) {
-                remaining = remaining.substr(ws_start2);
-              }
-            }
-          } else if (remaining.length() >= 3 &&
-                     remaining.substr(0, 3) == "out") {
-            if (remaining.length() == 3 || remaining[3] == ' ' ||
-                remaining[3] == '\t') {
-              remaining = remaining.substr(3);
-              size_t ws_start2 = remaining.find_first_not_of(" \t");
-              if (ws_start2 != std::string::npos) {
-                remaining = remaining.substr(ws_start2);
-              }
-            }
-          }
-        }
-      }
-    }
-
-    // Find type
     std::string type;
-    size_t type_end = 0;
-    for (const auto &glsl_type : glsl_types) {
-      if (remaining.length() >= glsl_type.length() &&
-          remaining.substr(0, glsl_type.length()) == glsl_type) {
-        if (remaining.length() == glsl_type.length() ||
-            remaining[glsl_type.length()] == ' ' ||
-            remaining[glsl_type.length()] == '\t') {
-          type = glsl_type;
-          type_end = glsl_type.length();
+    std::string var_name;
+    if (!parse_glsl_variable_declaration(line, qualifiers, glsl_types, type,
+                                         var_name)) {
+      continue;
+    }
+
+    if (m_cached_seed.type == autocomplete_type::k_keyword) {
+      // Add to keywords if not already present
+      bool exists = false;
+      for (const auto &kw : keywords) {
+        if (kw == var_name) {
+          exists = true;
           break;
         }
       }
-    }
-
-    if (type.empty()) {
-      continue;
-    }
-
-    // Skip whitespace after type
-    remaining = remaining.substr(type_end);
-    size_t ws_start = remaining.find_first_not_of(" \t");
-    if (ws_start == std::string::npos) {
-      continue;
-    }
-    remaining = remaining.substr(ws_start);
-
-    // Extract variable name (may have array brackets)
-    std::string var_name;
-    for (size_t i = 0; i < remaining.length(); ++i) {
-      char c = remaining[i];
-      if (std::isalnum(static_cast<unsigned char>(c)) || c == '_') {
-        var_name += c;
-      } else if (c == '[' || c == ';' || c == '=' || c == ' ' || c == '\t') {
-        break;
-      } else {
-        // Invalid character, skip this line
-        var_name.clear();
-        break;
+      if (!exists) {
+        keywords.push_back(var_name);
       }
-    }
-
-    if (!var_name.empty()) {
-      if (m_cached_seed.type == autocomplete_type::k_keyword) {
-        // Add to keywords if not already present
-        bool exists = false;
-        for (const auto &kw : keywords) {
-          if (kw == var_name) {
-            exists = true;
-            break;
-          }
-        }
-        if (!exists) {
-          keywords.push_back(var_name);
-        }
-      } else if (m_cached_seed.type == autocomplete_type::k_class_member) {
-        // Case1: if var_name is the same as scope, add members to key words.
-        auto &members = m_defined_keywords[autocomplete_type::k_class_member];
-        if (var_name == m_cached_seed.scope) {
-          if (glsl_type_members.find(type) != glsl_type_members.end()) {
-            for (const auto &member : glsl_type_members.at(type)) {
-              if (member.length() > m_cached_seed.prefix.length() &&
-                  member.substr(0, m_cached_seed.prefix.length()) ==
-                      m_cached_seed.prefix) {
-                members.push_back(member);
-              }
+    } else if (m_cached_seed.type == autocomplete_type::k_class_member) {
+      // If var_name is the same as scope, add members to keywords.
+      auto &members = m_defined_keywords[autocomplete_type::k_class_member];
+      if (var_name == m_cached_seed.scope) {
+        if (glsl_type_members.find(type) != glsl_type_members.end()) {
+          for (const auto &member : glsl_type_members.at(type)) {
+            if (member.length() > m_cached_seed.prefix.length() &&
+                member.substr(0, m_cached_seed.prefix.length()) ==
+                    m_cached_seed.prefix) {
+              members.push_back(member);
             }
           }
         }
