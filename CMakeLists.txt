@@ -148,6 +148,41 @@ set(ImGuiColorTextEdit_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/vendor/ImGuiColor
 message(STATUS "ImGuiColorTextEdit_SOURCE_DIR: ${ImGuiColorTextEdit_SOURCE_DIR}")
 # ---------------------------------------------------------------
 
+# ------------------------ Vendor: Mono -------------------------
+# Optional C# scripting via Mono
+if(APPLE)
+  set(ENV{PKG_CONFIG_PATH} "/opt/homebrew/lib/pkgconfig:/usr/local/lib/pkgconfig:$ENV{PKG_CONFIG_PATH}")
+endif()
+set(MONO_FOUND FALSE)
+find_package(PkgConfig QUIET)
+if(PkgConfig_FOUND)
+  set(MONO_PKG_NAMES "mono-2" "mono-2.0")
+  foreach(MONO_PKG ${MONO_PKG_NAMES})
+    pkg_check_modules(MONO ${MONO_PKG})
+    if(MONO_FOUND)
+      break()
+    endif()
+  endforeach()
+endif()
+if(NOT MONO_FOUND AND APPLE)
+  # Fallback: try Homebrew paths directly
+  find_path(MONO_INCLUDE_DIR mono/jit/jit.h
+    PATHS /opt/homebrew/include/mono-2.0 /usr/local/include/mono-2.0)
+  find_library(MONO_LIBRARY mono-2.0
+    PATHS /opt/homebrew/lib /usr/local/lib)
+  if(MONO_INCLUDE_DIR AND MONO_LIBRARY)
+    set(MONO_FOUND TRUE)
+    set(MONO_INCLUDE_DIRS ${MONO_INCLUDE_DIR})
+    set(MONO_LIBRARIES ${MONO_LIBRARY})
+    get_filename_component(MONO_LIBRARY_DIRS "${MONO_LIBRARY}" DIRECTORY)
+    set(MONO_LIBRARY_DIRS "${MONO_LIBRARY_DIRS}")
+  endif()
+endif()
+if(NOT MONO_FOUND)
+  message(STATUS "Mono not found - C# scripting disabled (install: brew install mono pkg-config)")
+endif()
+# ---------------------------------------------------------------
+
 # ImGui sources
 # Note: We use imgui_opengl3_glad.cpp to ensure GLAD is included before
 # imgui_impl_opengl3.cpp (required when using IMGUI_IMPL_OPENGL_LOADER_CUSTOM)
@@ -161,9 +196,12 @@ set(IMGUI_SOURCES
     "vendor/imgui_opengl3_glad.cpp"
 )
 
+set(LEARNOPENGL_SOURCES main.cpp callbacks.cpp)
+if(MONO_FOUND)
+  list(APPEND LEARNOPENGL_SOURCES scripts/mono_invoker.cpp)
+endif()
 add_executable(LearnOpenGL 
-    main.cpp 
-    callbacks.cpp
+    ${LEARNOPENGL_SOURCES}
     basic/shader.cpp 
     basic/texture.cpp
     basic/framebuffer.cpp
@@ -212,10 +250,23 @@ add_executable(LearnOpenGL
     tests/scenes/spline_movement_sub_scenes.cpp
     tests/scenes/spline_movement_driver.cpp
     tests/scenes/shader_editor_scene.cpp
+    tests/scenes/script_editor_scene.cpp
     ${IMGUI_SOURCES}
 )
 
 target_link_libraries(LearnOpenGL PRIVATE glfw glad_gl assimp)
+if(MONO_FOUND)
+  target_link_directories(LearnOpenGL PRIVATE ${MONO_LIBRARY_DIRS})
+  target_link_libraries(LearnOpenGL PRIVATE ${MONO_LIBRARIES})
+  target_include_directories(LearnOpenGL PRIVATE ${MONO_INCLUDE_DIRS})
+  target_compile_definitions(LearnOpenGL PRIVATE LEARNOPENGL_USE_MONO=1)
+  # Help Mono find System.Native and other runtime libs at load time
+  if(APPLE)
+    set_target_properties(LearnOpenGL PROPERTIES
+      INSTALL_RPATH "/opt/homebrew/lib;/usr/local/lib"
+      BUILD_WITH_INSTALL_RPATH TRUE)
+  endif()
+endif()
 target_include_directories(LearnOpenGL PUBLIC 
     "${CMAKE_CURRENT_SOURCE_DIR}"
     "${stb_image_SOURCE_DIR}" 
@@ -235,3 +286,24 @@ endif()
 
 # Use GLAD as OpenGL loader for ImGui (instead of imgui's built-in loader)
 target_compile_definitions(LearnOpenGL PRIVATE IMGUI_IMPL_OPENGL_LOADER_CUSTOM)
+
+# Build C# scripts and copy to output (Unix only, when Mono is enabled)
+if(MONO_FOUND AND UNIX AND NOT WIN32)
+  set(SCRIPT_OUTPUT_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+  if(NOT SCRIPT_OUTPUT_DIR)
+    set(SCRIPT_OUTPUT_DIR "${CMAKE_BINARY_DIR}")
+  endif()
+  # build_csharp.sh outputs to ${CMAKE_SOURCE_DIR}/runtime/Scripts.dll
+  set(SCRIPT_DLL_SOURCE "${CMAKE_SOURCE_DIR}/runtime/Scripts.dll")
+  add_custom_target(build_csharp_scripts
+    COMMAND ${CMAKE_COMMAND} -E echo "Building C# scripts..."
+    COMMAND "${CMAKE_SOURCE_DIR}/scripts/build_csharp.sh"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${SCRIPT_OUTPUT_DIR}/scripts/csharp/bin"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+      "${SCRIPT_DLL_SOURCE}"
+      "${SCRIPT_OUTPUT_DIR}/scripts/csharp/bin/Scripts.dll"
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    COMMENT "Building C# scripts for Mono"
+  )
+  add_dependencies(LearnOpenGL build_csharp_scripts)
+endif()

@@ -55,6 +55,9 @@ basic_code_editor::basic_code_editor(const std::string &_name,
   case code_editor_type::k_shader:
     m_editor.SetLanguageDefinition(TextEditor::LanguageDefinition::GLSL());
     break;
+  case code_editor_type::k_script:
+    m_editor.SetLanguageDefinition(TextEditor::LanguageDefinition::CPlusPlus());
+    break;
   default:
     break;
   }

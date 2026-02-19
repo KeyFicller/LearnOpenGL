@@ -3,7 +3,7 @@
 #include "TextEditor.h"
 #include <string>
 
-enum class code_editor_type { k_shader };
+enum class code_editor_type { k_shader, k_script };
 enum class autocomplete_type { k_none, k_keyword, k_class_member };
 
 struct autocomplete_seed {
@@ -99,4 +99,11 @@ private:
 
 protected:
   std::map<autocomplete_type, std::vector<std::string>> m_defined_keywords;
+};
+
+class script_editor : public basic_code_editor {
+public:
+  script_editor(const std::string &_name)
+      : basic_code_editor(_name, code_editor_type::k_script) {}
+  virtual ~script_editor() = default;
 };

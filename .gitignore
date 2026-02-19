@@ -4,3 +4,5 @@ build/*
 .DS_Store
 .output/*
 imgui.ini
+scripts/csharp/bin_staging/
+runtime/

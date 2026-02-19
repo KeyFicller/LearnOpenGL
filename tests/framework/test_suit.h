@@ -29,6 +29,7 @@ enum class test_scene {
   k_basic_test_count,
   k_spline_movement_test,
   k_shader_editor_test,
+  k_script_editor_test,
   k_advanced_test_count,
   k_count
 };
