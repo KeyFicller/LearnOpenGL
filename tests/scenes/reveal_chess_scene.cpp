@@ -379,6 +379,14 @@ void reveal_chess_scene::draw_pieces() {
   glDrawArrays(GL_POINTS, 0, m_piece_mesh_manager.get_index_count());
 }
 
+namespace {
+// Match board background in chess_board/fragment.shader for invisible hit area
+const glm::vec4 k_board_bg = glm::vec4(0.82f, 0.71f, 0.55f, 1.0f);
+const glm::vec4 k_hint_color = glm::vec4(0.35f, 0.65f, 0.45f, 0.65f);
+const float k_display_radius = 0.03f;
+const float k_hit_radius = 0.08f;
+} // namespace
+
 void reveal_chess_scene::draw_valid_moves() {
   if (m_selected_piece.first == -1 || m_selected_piece.second == -1)
     return;
@@ -396,7 +404,23 @@ void reveal_chess_scene::draw_valid_moves() {
 
   m_valid_move_shader->use();
   m_valid_move_mesh_manager.bind();
+
+  // Pass 1: large circle — write only to object_id; no color, no depth
+  glColorMaski(0, GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+  glDepthMask(GL_FALSE);
+  m_valid_move_shader->set_uniform("u_radius", k_hit_radius);
+  m_valid_move_shader->set_uniform("u_fill_color", k_board_bg);
   glDrawArrays(GL_POINTS, 0, m_valid_move_mesh_manager.get_index_count());
+  glDepthMask(GL_TRUE);
+  glColorMaski(0, GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+
+  // Pass 2: small green circle — write color and object_id
+  glEnable(GL_BLEND);
+  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+  m_valid_move_shader->set_uniform("u_radius", k_display_radius);
+  m_valid_move_shader->set_uniform("u_fill_color", k_hint_color);
+  glDrawArrays(GL_POINTS, 0, m_valid_move_mesh_manager.get_index_count());
+  glDisable(GL_BLEND);
 }
 
 void reveal_chess_scene::render() {
@@ -497,22 +521,27 @@ void reveal_chess_scene::draw_text() {
         }
 
         std::string piece_text;
-        glm::vec3 text_color = glm::vec3(0.0f, 0.0f, 0.0f);
+        glm::vec3 text_color;
         if (m_board[r][c] & piece_type::k_red_mask) {
           piece_text =
               piece_text_red.at(static_cast<piece_type>(m_board[r][c] & 0xFF));
-          text_color = glm::vec3(1.0f, 0.0f, 0.0f);
+          text_color = glm::vec3(0.98f, 0.94f, 0.72f); // warm cream/gold on red
         } else {
           piece_text = piece_text_black.at(
               static_cast<piece_type>(m_board[r][c] & 0xFF));
-          text_color = glm::vec3(1.0f, 1.0f, 1.0f);
+          text_color = glm::vec3(0.98f, 0.96f, 0.92f); // warm white on black
         }
 
         auto mix = [](float _a, float _b, float _t) {
           return _a + (_b - _a) * _t;
         };
 
-        float scale = 1.0f;
+        GLint viewport[4];
+        glGetIntegerv(GL_VIEWPORT, viewport);
+        const float ref_height = 800.0f;
+        float scale = (viewport[3] > 0)
+                          ? (static_cast<float>(viewport[3]) / ref_height)
+                          : 1.0f;
         float cx = mix(-0.9f, 0.9f, float(c) / 8.0f);
         float cy = mix(0.9f, -0.9f, float(r) / 9.0f);
 

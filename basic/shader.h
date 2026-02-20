@@ -117,6 +117,13 @@ public:
     }
   };
 
+  template <> struct uniform_function<glm::vec4, 1> {
+    static void call(GLuint _location, const glm::vec4 *_values) {
+      glUniform4f(_location, (*_values)[0], (*_values)[1], (*_values)[2],
+                  (*_values)[3]);
+    }
+  };
+
   template <> struct uniform_function<glm::vec3, 1> {
     static void call(GLuint _location, const glm::vec3 *_values) {
       glUniform3f(_location, (*_values)[0], (*_values)[1], (*_values)[2]);
