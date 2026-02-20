@@ -1,6 +1,7 @@
 #include "reveal_chess_scene.h"
 
 #include "glad/gl.h"
+#include "glm/fwd.hpp"
 #include "imgui.h"
 #include <GLFW/glfw3.h>
 #include <algorithm>
@@ -12,6 +13,7 @@
 
 #include "tests/component/mesh_manager.h"
 #include "tests/component/prefab_quad.h"
+#include "tests/component/text_renderer.h"
 
 namespace {
 
@@ -139,6 +141,8 @@ get_valid_moves_for_piece(const int board[10][9], piece_type _piece_type,
         if (!in_bounds(nr, nc))
           break;
         add_if_ok(nr, nc);
+        if (board[nr][nc] != 0)
+          break;
       }
     }
     break;
@@ -400,6 +404,7 @@ void reveal_chess_scene::render() {
     return;
   draw_board();
   draw_pieces();
+  draw_text();
   draw_valid_moves();
 }
 
@@ -466,4 +471,65 @@ std::vector<std::pair<int, int>> reveal_chess_scene::get_valid_moves() {
 
   return get_valid_moves_for_piece(m_board, static_cast<piece_type>(cell), r,
                                    c);
+}
+
+void reveal_chess_scene::draw_text() {
+  static const std::map<piece_type, std::string> piece_text_red = {
+      {piece_type::k_king, "将"},    {piece_type::k_guard, "仕"},
+      {piece_type::k_bishop, "相"},  {piece_type::k_rook, "车"},
+      {piece_type::k_horse, "马"},   {piece_type::k_cannon, "炮"},
+      {piece_type::k_soldier, "兵"},
+  };
+  static const std::map<piece_type, std::string> piece_text_black = {
+      {piece_type::k_king, "帅"},    {piece_type::k_guard, "士"},
+      {piece_type::k_bishop, "象"},  {piece_type::k_rook, "车"},
+      {piece_type::k_horse, "马"},   {piece_type::k_cannon, "炮"},
+      {piece_type::k_soldier, "卒"},
+  };
+  for (int r = 0; r < 10; r++) {
+    for (int c = 0; c < 9; c++) {
+
+      const bool is_hovered = m_hovered_piece == std::pair<int, int>(r, c);
+      const bool is_selected = m_selected_piece == std::pair<int, int>(r, c);
+      if (m_board[r][c]) {
+        if (m_board[r][c] & piece_type::k_cover_mask) {
+          continue;
+        }
+
+        std::string piece_text;
+        glm::vec3 text_color = glm::vec3(0.0f, 0.0f, 0.0f);
+        if (m_board[r][c] & piece_type::k_red_mask) {
+          piece_text =
+              piece_text_red.at(static_cast<piece_type>(m_board[r][c] & 0xFF));
+          text_color = glm::vec3(1.0f, 0.0f, 0.0f);
+        } else {
+          piece_text = piece_text_black.at(
+              static_cast<piece_type>(m_board[r][c] & 0xFF));
+          text_color = glm::vec3(1.0f, 1.0f, 1.0f);
+        }
+
+        auto mix = [](float _a, float _b, float _t) {
+          return _a + (_b - _a) * _t;
+        };
+
+        float scale = 1.0f;
+        float cx = mix(-0.9f, 0.9f, float(c) / 8.0f);
+        float cy = mix(0.9f, -0.9f, float(r) / 9.0f);
+
+        if (is_hovered) {
+          cy += 0.01f * 0.9f;
+        }
+
+        float w_ndc = 0, h_ndc = 0, bearing_y_ndc = 0;
+        text_renderer::instance().measure_text_ndc(piece_text, scale, &w_ndc,
+                                                   &h_ndc, &bearing_y_ndc);
+        float origin_x = cx - w_ndc * 0.5f;
+        // float baseline = cy - h_ndc * 0.5f + bearing_y_ndc;
+        float baseline = cy - h_ndc * 0.5f;
+
+        text_renderer::instance().render_text_by_uv(
+            piece_text, origin_x, baseline, scale, text_color, -0.25f);
+      }
+    }
+  }
 }

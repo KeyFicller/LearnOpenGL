@@ -13,9 +13,9 @@ void main() {
     FragColor = vec4(0.6, 0.6, 0.6, 1.0);
   }
   else if ((gs_piece_type & red_mask) != 0) {
-    FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+    FragColor = vec4(0.6, 0.2, 0.2, 1.0);
   } else if ((gs_piece_type & black_mask) != 0) {
-    FragColor = vec4(0.0, 0.0, 1.0, 1.0);
+    FragColor = vec4(0.2, 0.2, 0.6, 1.0);
   } else {
     FragColor = vec4(1.0, 1.0, 1.0, 1.0);
   }

@@ -40,6 +40,7 @@ private:
 
   void draw_board();
   void draw_pieces();
+  void draw_text();
   void draw_valid_moves();
 
 private:

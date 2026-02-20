@@ -161,6 +161,15 @@ if(NOT MONO_FOUND)
 endif()
 # ---------------------------------------------------------------
 
+# ------------------------ Vendor: FreeType -----------------------
+FetchContent_Declare(
+  freetype
+  GIT_REPOSITORY https://bgithub.xyz/freetype/freetype.git
+  GIT_TAG        VER-2-14-0
+)
+FetchContent_MakeAvailable(freetype)
+# ---------------------------------------------------------------
+
 # ImGui sources
 # Note: We use imgui_opengl3_glad.cpp to ensure GLAD is included before
 # imgui_impl_opengl3.cpp (required when using IMGUI_IMPL_OPENGL_LOADER_CUSTOM)
@@ -231,10 +240,11 @@ add_executable(LearnOpenGL
     tests/scenes/shader_editor_scene.cpp
     tests/scenes/script_editor_scene.cpp
     tests/component/script_editor.cpp
+    tests/component/text_renderer.cpp
     ${IMGUI_SOURCES}
 )
 
-target_link_libraries(LearnOpenGL PRIVATE glfw glad_gl assimp)
+target_link_libraries(LearnOpenGL PRIVATE glfw glad_gl assimp freetype)
 if(MONO_FOUND)
   target_link_directories(LearnOpenGL PRIVATE ${MONO_LIBRARY_DIRS})
   target_link_libraries(LearnOpenGL PRIVATE ${MONO_LIBRARIES})
@@ -256,6 +266,7 @@ target_include_directories(LearnOpenGL PUBLIC
     "${assimp_SOURCE_DIR}/include"
     "${periscope_SOURCE_DIR}/include"
     "${ImGuiColorTextEdit_SOURCE_DIR}"
+    "${freetype_SOURCE_DIR}/include"
 )
 
 # Check if ImGuiColorTextEdit submodule exists
