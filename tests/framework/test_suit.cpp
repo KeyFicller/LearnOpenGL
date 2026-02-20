@@ -16,6 +16,7 @@
 #include "tests/scenes/light_texture_scene.h"
 #include "tests/scenes/light_type_scene.h"
 #include "tests/scenes/multiple_light_scene.h"
+#include "tests/scenes/reveal_chess_scene.h"
 #include "tests/scenes/scene_factory.h"
 #include "tests/scenes/script_editor_scene.h"
 #include "tests/scenes/shader_editor_scene.h"
@@ -66,6 +67,7 @@ void test_suit::init(GLFWwindow *_window) {
 #ifdef LEARNOPENGL_USE_MONO
     REGISTER_SCENE(test_scene::k_script_editor_test, script_editor_scene);
 #endif
+    REGISTER_SCENE(test_scene::k_reveal_chess_test, reveal_chess_scene);
   } catch (const std::exception &e) {
     std::cerr << "Error initializing test scenes: " << e.what() << std::endl;
     throw; // Re-throw to be caught by main
@@ -158,10 +160,25 @@ bool test_suit::on_mouse_moved(double _xpos, double _ypos) {
   return false;
 }
 
+void test_suit::on_object_hovered(int _object_id) {
+  test_scene_base *scene = get_scene(m_current_scene);
+  if (scene) {
+    scene->on_object_hovered(_object_id);
+  }
+}
+
 bool test_suit::on_mouse_scroll(double _xoffset, double _yoffset) {
   test_scene_base *scene = get_scene(m_current_scene);
   if (scene) {
     return scene->on_mouse_scroll(_xoffset, _yoffset);
+  }
+  return false;
+}
+
+bool test_suit::on_mouse_button(int _button, int _action, int _mods) {
+  test_scene_base *scene = get_scene(m_current_scene);
+  if (scene) {
+    return scene->on_mouse_button(_button, _action, _mods);
   }
   return false;
 }

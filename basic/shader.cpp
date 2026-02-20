@@ -15,7 +15,8 @@ static void check_gl_error(const char *operation) {
   }
 }
 
-int create_shader_from_source(const std::string &_source, GLenum _shader_type) {
+int create_shader_from_source(const std::string &_source, GLenum _shader_type,
+                              const char *_path_for_error) {
   GLuint shader = glCreateShader(_shader_type);
   check_gl_error("glCreateShader");
 
@@ -32,7 +33,9 @@ int create_shader_from_source(const std::string &_source, GLenum _shader_type) {
   if (!success) {
     glGetShaderInfoLog(shader, 1024, NULL, info_log);
     std::stringstream ss;
-    ss << "Shader compilation failed for " << ":\n" << info_log;
+    ss << "Shader compilation failed for " << (_path_for_error ? _path_for_error : "")
+       << ":\n"
+       << info_log;
     glDeleteShader(shader);
     throw std::runtime_error(ss.str());
   }
@@ -53,7 +56,7 @@ int create_shader_from_file(const char *_path, GLenum _shader_type) {
                   std::istreambuf_iterator<char>());
   shader_file.close();
 
-  return create_shader_from_source(shader_source, _shader_type);
+  return create_shader_from_source(shader_source, _shader_type, _path);
 }
 
 int create_shader_program_from_shaders(GLuint _vertex_shader,
@@ -131,12 +134,13 @@ shader *shader::shader_from_source(const std::string &_vertex_source,
                                    const std::string &_geometry_source) {
 
   GLuint vertex_shader =
-      create_shader_from_source(_vertex_source, GL_VERTEX_SHADER);
+      create_shader_from_source(_vertex_source, GL_VERTEX_SHADER, nullptr);
   GLuint fragment_shader =
-      create_shader_from_source(_fragment_source, GL_FRAGMENT_SHADER);
+      create_shader_from_source(_fragment_source, GL_FRAGMENT_SHADER, nullptr);
   GLuint geometry_shader =
       !_geometry_source.empty()
-          ? create_shader_from_source(_geometry_source, GL_GEOMETRY_SHADER)
+          ? create_shader_from_source(_geometry_source, GL_GEOMETRY_SHADER,
+                                     nullptr)
           : 0;
   int shader_program = create_shader_program_from_shaders(
       vertex_shader, fragment_shader, geometry_shader);

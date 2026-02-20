@@ -32,6 +32,10 @@ public:
     return false;
   }
   virtual void on_framebuffer_resized(int _width, int _height) {}
+  virtual void on_object_hovered(int _object_id) {}
+  virtual bool on_mouse_button(int _button, int _action, int _mods) {
+    return false;
+  }
 
 protected:
   std::string m_name;

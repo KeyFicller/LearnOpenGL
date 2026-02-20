@@ -24,6 +24,16 @@ public:
   // Get color texture ID for use with ImGui::Image
   unsigned int get_color_texture() const { return m_color_texture; }
 
+  // Get object ID texture (GL_R32UI, one unsigned int per pixel)
+  unsigned int get_object_id_texture() const { return m_object_id_texture; }
+
+  // Reset object ID texture to -1 (0xFFFFFFFF, no object)
+  void reset_object_id_texture();
+
+  // Read object ID at pixel (x, y); (0,0) is bottom-left. Returns 0 if no
+  // object.
+  int read_object_id(int x, int y) const;
+
   // Get framebuffer dimensions
   int get_width() const { return m_width; }
   int get_height() const { return m_height; }
@@ -37,8 +47,8 @@ private:
 
   unsigned int m_FBO = 0;
   unsigned int m_color_texture = 0;
+  unsigned int m_object_id_texture = 0;
   unsigned int m_depth_stencil_RBO = 0;
   int m_width = 0;
   int m_height = 0;
 };
-

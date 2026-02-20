@@ -1,5 +1,6 @@
 #pragma once
 
+#include "basic/framebuffer.h"
 #include "periscope.h"
 #include "tests/scenes/scene_base.h"
 #include <map>
@@ -30,6 +31,7 @@ enum class test_scene {
   k_spline_movement_test,
   k_shader_editor_test,
   k_script_editor_test,
+  k_reveal_chess_test,
   k_advanced_test_count,
   k_count
 };
@@ -58,7 +60,9 @@ public:
   // Event handlers
   bool on_mouse_moved(double _xpos, double _ypos);
   bool on_mouse_scroll(double _xoffset, double _yoffset);
+  bool on_mouse_button(int _button, int _action, int _mods);
   void on_framebuffer_resized(int _width, int _height);
+  void on_object_hovered(int _object_id);
 
 public:
   // Cached viewport window information
@@ -66,6 +70,7 @@ public:
   float m_viewport_y = 0.0f;
   float m_viewport_width = 0.0f;
   float m_viewport_height = 0.0f;
+  framebuffer *m_scene_framebuffer = nullptr;
 
 private:
   // Current active test scene

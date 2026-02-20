@@ -109,6 +109,7 @@ int main() {
     int framebuffer_width = WIDTH;
     int framebuffer_height = HEIGHT;
     framebuffer scene_framebuffer(framebuffer_width, framebuffer_height);
+    test_suit.m_scene_framebuffer = &scene_framebuffer;
 
     // ImGui state
     bool show_demo_window = false;
@@ -202,6 +203,7 @@ int main() {
 
       // Render scene to framebuffer
       scene_framebuffer.bind();
+      scene_framebuffer.reset_object_id_texture();
       // Clear the colorbuffer
       glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
       glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT |

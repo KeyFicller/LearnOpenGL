@@ -36,8 +36,18 @@ void mouse_callback(GLFWwindow *window, double xpos, double ypos) {
   test_suit *test_suit_ptr =
       static_cast<test_suit *>(glfwGetWindowUserPointer(window));
   if (test_suit_ptr) {
-    test_suit_ptr->on_mouse_moved(xpos - test_suit_ptr->m_viewport_x,
-                                  ypos - test_suit_ptr->m_viewport_y);
+    auto real_xpos = xpos - test_suit_ptr->m_viewport_x;
+    auto real_ypos = ypos - test_suit_ptr->m_viewport_y;
+    test_suit_ptr->on_mouse_moved(real_xpos, real_ypos);
+
+    // Check if the mouse is hovering over an object.
+    // Viewport uses top-left origin (y down); framebuffer uses bottom-left (y
+    // up).
+    int fb_y = test_suit_ptr->m_scene_framebuffer->get_height() - 1 -
+               static_cast<int>(real_ypos);
+    auto object_id = test_suit_ptr->m_scene_framebuffer->read_object_id(
+        static_cast<int>(real_xpos), fb_y);
+    test_suit_ptr->on_object_hovered(object_id);
   }
 }
 
@@ -48,11 +58,11 @@ void mouse_button_callback(GLFWwindow *window, int button, int action,
   // ImGui_ImplGlfw_MouseButtonCallback(window, button, action, mods);
 
   // Process mouse button events here if needed
-  // test_suit *test_suit_ptr =
-  //     static_cast<test_suit *>(glfwGetWindowUserPointer(window));
-  // if (test_suit_ptr) {
-  //   test_suit_ptr->on_mouse_button(button, action, mods);
-  // }
+  test_suit *test_suit_ptr =
+      static_cast<test_suit *>(glfwGetWindowUserPointer(window));
+  if (test_suit_ptr) {
+    test_suit_ptr->on_mouse_button(button, action, mods);
+  }
 }
 
 // GLFW mouse scroll callback
