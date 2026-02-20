@@ -100,10 +100,3 @@ private:
 protected:
   std::map<autocomplete_type, std::vector<std::string>> m_defined_keywords;
 };
-
-class script_editor : public basic_code_editor {
-public:
-  script_editor(const std::string &_name)
-      : basic_code_editor(_name, code_editor_type::k_script) {}
-  virtual ~script_editor() = default;
-};

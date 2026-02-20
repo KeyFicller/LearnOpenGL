@@ -16,9 +16,6 @@
 
 #include "basic/framebuffer.h"
 #include "callbacks.h"
-#ifdef LEARNOPENGL_USE_MONO
-#include "scripts/mono_invoker.h"
-#endif
 #include "tests/framework/test_suit.h"
 
 // Window dimensions
@@ -104,54 +101,6 @@ int main() {
       glfwTerminate();
       return -1;
     }
-
-#ifdef LEARNOPENGL_USE_MONO
-    // Initialize C# Mono scripting (optional - continues if scripts not found)
-    mono_invoker::invoker invoker;
-    const char *dll_candidates[] = {"runtime/Scripts.dll",
-                                  "scripts/csharp/bin/Scripts.dll"};
-    std::string dll_path;
-    for (const char *p : dll_candidates) {
-      if (std::ifstream(p).good()) {
-        dll_path = p;
-        break;
-      }
-    }
-    if (!dll_path.empty()) {
-      invoker.load(dll_path);
-    }
-    if (!invoker.is_ready()) {
-      std::cout << "[Mono] Failed to load assembly (tried runtime/Scripts.dll "
-                   "and scripts/csharp/bin/Scripts.dll)" << std::endl;
-    }
-    std::string msg;
-    if (!invoker.invoke_r(mono_invoker::script_ncm(
-                              "Scripts"_ns, "ExampleScript"_cls, "SayHello"_md),
-                          msg)) {
-      std::cout
-          << "[Mono] Failed to invoke method: Scripts.ExampleScript.SayHello"
-          << std::endl;
-    }
-    std::cout << "[Mono] " << msg << std::endl;
-    int int_result;
-    if (!invoker.invoke_r(mono_invoker::script_ncm(
-                              "Scripts"_ns, "ExampleScript"_cls, "SayInt"_md),
-                          int_result)) {
-      std::cout
-          << "[Mono] Failed to invoke method: Scripts.ExampleScript.SayInt"
-          << std::endl;
-    }
-    std::cout << "[Mono] " << int_result << std::endl;
-    float float_result;
-    if (!invoker.invoke_r(mono_invoker::script_ncm(
-                              "Scripts"_ns, "ExampleScript"_cls, "SayFloat"_md),
-                          float_result)) {
-      std::cout
-          << "[Mono] Failed to invoke method: Scripts.ExampleScript.SayFloat"
-          << std::endl;
-    }
-    std::cout << "[Mono] " << float_result << std::endl;
-#endif
 
     // Set user pointer to access test_suit in callbacks
     glfwSetWindowUserPointer(window, &test_suit);

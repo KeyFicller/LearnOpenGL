@@ -229,6 +229,7 @@ add_executable(LearnOpenGL
     tests/scenes/spline_movement_driver.cpp
     tests/scenes/shader_editor_scene.cpp
     tests/scenes/script_editor_scene.cpp
+    tests/component/script_editor.cpp
     ${IMGUI_SOURCES}
 )
 

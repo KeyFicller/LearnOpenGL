@@ -6,7 +6,7 @@
 #include "scene_base.h"
 #include "scripts/mono_invoker.h"
 #include "tests/component/mesh_manager.h"
-#include "tests/component/shader_editor.h"
+#include "tests/component/script_editor.h"
 
 // Script editor scene
 class script_editor_scene : public test_scene_base {

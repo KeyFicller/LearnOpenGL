@@ -63,7 +63,9 @@ void test_suit::init(GLFWwindow *_window) {
     REGISTER_SCENE(test_scene::k_instance_test, instance_scene);
     REGISTER_SCENE(test_scene::k_spline_movement_test, spline_movement_scene);
     REGISTER_SCENE(test_scene::k_shader_editor_test, shader_editor_scene);
+#ifdef LEARNOPENGL_USE_MONO
     REGISTER_SCENE(test_scene::k_script_editor_test, script_editor_scene);
+#endif
   } catch (const std::exception &e) {
     std::cerr << "Error initializing test scenes: " << e.what() << std::endl;
     throw; // Re-throw to be caught by main
