@@ -21,6 +21,8 @@ enum piece_type : unsigned int {
   k_black_mask = 0x00400,
 };
 
+enum class game_result { ongoing, red_win, black_win };
+
 class reveal_chess_scene : public test_scene_base {
 public:
   reveal_chess_scene();
@@ -57,6 +59,8 @@ private:
   std::pair<int, int> m_selected_piece = {-1, -1};
   std::pair<int, int> m_last_move_from = {-1, -1};
   std::pair<int, int> m_last_move_to = {-1, -1};
-  // For debug
-  std::pair<int, int> m_hovered_piece = {-1, 1};
+  std::pair<int, int> m_hovered_piece = {-1, -1};
+
+  bool m_red_turn = true;
+  game_result m_game_result = game_result::ongoing;
 };

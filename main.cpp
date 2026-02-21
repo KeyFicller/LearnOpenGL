@@ -85,6 +85,14 @@ int main() {
     // Setup Dear ImGui style
     ImGui::StyleColorsDark();
 
+    // Keep default font for Latin etc.; merge Chinese only from assets/fonts
+    io.Fonts->AddFontDefault();
+    ImFontConfig font_cfg;
+    font_cfg.MergeMode = true;
+    io.Fonts->AddFontFromFileTTF("assets/fonts/Arial Unicode.ttf", 18.0f,
+                                &font_cfg,
+                                io.Fonts->GetGlyphRangesChineseFull());
+
     // Setup Platform/Renderer backends
     // Note: install_callbacks = false to prevent ImGui from intercepting our
     // callbacks We handle callbacks manually and forward to ImGui if needed

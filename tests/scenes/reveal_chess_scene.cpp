@@ -17,6 +17,19 @@
 
 namespace {
 
+static const std::map<piece_type, std::string> piece_text_red = {
+    {piece_type::k_king, "将"},    {piece_type::k_guard, "仕"},
+    {piece_type::k_bishop, "相"},  {piece_type::k_rook, "车"},
+    {piece_type::k_horse, "马"},   {piece_type::k_cannon, "炮"},
+    {piece_type::k_soldier, "兵"},
+};
+static const std::map<piece_type, std::string> piece_text_black = {
+    {piece_type::k_king, "帅"},    {piece_type::k_guard, "士"},
+    {piece_type::k_bishop, "象"},  {piece_type::k_rook, "车"},
+    {piece_type::k_horse, "马"},   {piece_type::k_cannon, "炮"},
+    {piece_type::k_soldier, "卒"},
+};
+
 // Default piece type at standard position (for unrevealed move rule).
 piece_type default_type_at(int _r, int _c) {
   if (_r == 0 || _r == 9 - 0) {
@@ -337,13 +350,17 @@ void reveal_chess_scene::shuffle_board() {
       pieces.push_back(piece_type::k_soldier | mask);
     }
   }
-  std::shuffle(pieces.begin(), pieces.end(), std::default_random_engine{});
-  for (int i = 0; i < pieces.size(); i++) {
+  std::random_device rd;
+  std::mt19937 g(rd());
+  std::shuffle(pieces.begin(), pieces.end(), g);
+  for (size_t i = 0; i < pieces.size(); i++) {
     int r = positions[i].first;
     int c = positions[i].second;
     m_board[r][c] = pieces[i];
   }
 
+  m_red_turn = true;
+  m_game_result = game_result::ongoing;
   invalidate_piece_index(m_last_move_from);
   invalidate_piece_index(m_last_move_to);
   invalidate_piece_index(m_selected_piece);
@@ -457,8 +474,40 @@ void reveal_chess_scene::render() {
 void reveal_chess_scene::render_ui() {
   ImGui::Text("Reveal Chess");
   ImGui::Separator();
-  ImGui::Text("Hovered piece: %d, %d", m_hovered_piece.first,
-              m_hovered_piece.second);
+  if (m_game_result == game_result::ongoing) {
+    ImGui::Text("Current: %s", m_red_turn ? "Red" : "Black");
+  } else if (m_game_result == game_result::red_win) {
+    ImGui::TextColored(ImVec4(0.9f, 0.3f, 0.2f, 1.0f), "Red wins!");
+  } else {
+    ImGui::TextColored(ImVec4(0.2f, 0.2f, 0.3f, 1.0f), "Black wins!");
+  }
+  ImGui::Text("Hover: (%d, %d)", m_hovered_piece.first, m_hovered_piece.second);
+  if (ImGui::Button("Restart")) {
+    shuffle_board();
+  }
+
+  // -------------------
+  ImGui::Separator();
+  ImGui::Text("Cheat");
+  if (piece_index_is_valid(m_hovered_piece)) {
+    auto cell = m_board[m_hovered_piece.first][m_hovered_piece.second];
+    if (cell != 0) {
+      const bool is_read_piece = cell & piece_type::k_red_mask;
+      std::string side = is_read_piece ? "Red" : "Black";
+      std::string type =
+          is_read_piece
+              ? piece_text_red.at(static_cast<piece_type>(cell & 0xFF))
+              : piece_text_black.at(static_cast<piece_type>(cell & 0xFF));
+      ImGui::Text("Hover: Side: %s, Type: %s", side.c_str(), type.c_str());
+    }
+  }
+  if (ImGui::Button("Reveal All")) {
+    for (int r = 0; r < 10; r++) {
+      for (int c = 0; c < 9; c++) {
+        m_board[r][c] &= ~piece_type::k_cover_mask;
+      }
+    }
+  }
 }
 
 void reveal_chess_scene::on_object_hovered(int _object_id) {
@@ -471,45 +520,97 @@ void reveal_chess_scene::on_object_hovered(int _object_id) {
   m_hovered_piece = {r, c};
 }
 
-bool reveal_chess_scene::on_mouse_button(int _button, int _action, int _mods) {
-  if (_button == GLFW_MOUSE_BUTTON_LEFT && _action == GLFW_PRESS) {
-    if (piece_index_is_valid(m_selected_piece)) {
-      if (!piece_index_is_valid(m_hovered_piece)) {
-        invalidate_piece_index(m_selected_piece);
-        return true;
-      } else {
-        if (m_selected_piece == m_hovered_piece) {
-          invalidate_piece_index(m_selected_piece);
-          return true;
-        } else {
-          auto valid_moves = get_valid_moves();
-          auto iter = std::find(valid_moves.begin(), valid_moves.end(),
-                                m_hovered_piece);
-          if (iter == valid_moves.end()) {
-            m_selected_piece = m_hovered_piece;
-          } else {
-            auto sel_piece_type =
-                m_board[m_selected_piece.first][m_selected_piece.second];
-
-            m_board[m_hovered_piece.first][m_hovered_piece.second] =
-                sel_piece_type & (~piece_type::k_cover_mask);
-
-            m_board[m_selected_piece.first][m_selected_piece.second] = 0;
-
-            // Record last move
-            m_last_move_from = m_selected_piece;
-            m_last_move_to = m_hovered_piece;
-
-            invalidate_piece_index(m_selected_piece);
-          }
-        }
-      }
-    } else {
-      m_selected_piece = m_hovered_piece;
-    }
+namespace {
+bool is_red_piece(unsigned int _cell, int _r, int _c) {
+  if (_cell == 0)
+    return false;
+  if ((_cell & piece_type::k_cover_mask) && (_r < 5))
     return true;
-  }
+
+  if (!(_cell & piece_type::k_cover_mask) &&
+      (_cell & piece_type::k_red_mask) != 0)
+    return true;
+
   return false;
+}
+bool is_black_piece(unsigned int _cell, int _r, int _c) {
+  if (_cell == 0)
+    return false;
+  if ((_cell & piece_type::k_cover_mask) && (_r >= 5))
+    return true;
+
+  if (!(_cell & piece_type::k_cover_mask) &&
+      (_cell & piece_type::k_black_mask) != 0)
+    return true;
+
+  return false;
+}
+bool is_piece_of_current_side(bool _red_turn, unsigned int _cell, int _r,
+                              int _c) {
+  return _red_turn ? is_red_piece(_cell, _r, _c)
+                   : is_black_piece(_cell, _r, _c);
+}
+} // namespace
+
+bool reveal_chess_scene::on_mouse_button(int _button, int _action, int _mods) {
+  if (_button != GLFW_MOUSE_BUTTON_LEFT || _action != GLFW_PRESS)
+    return false;
+  if (m_game_result != game_result::ongoing)
+    return true;
+
+  if (piece_index_is_valid(m_selected_piece)) {
+    if (!piece_index_is_valid(m_hovered_piece)) {
+      invalidate_piece_index(m_selected_piece);
+      return true;
+    }
+    if (m_selected_piece == m_hovered_piece) {
+      invalidate_piece_index(m_selected_piece);
+      return true;
+    }
+    auto valid_moves = get_valid_moves();
+    auto iter =
+        std::find(valid_moves.begin(), valid_moves.end(), m_hovered_piece);
+    if (iter == valid_moves.end()) {
+      // Clicked on non-valid cell: select it only if it's our piece
+      int r = m_hovered_piece.first, c = m_hovered_piece.second;
+      if (is_piece_of_current_side(m_red_turn, m_board[r][c], r, c))
+        m_selected_piece = m_hovered_piece;
+      else
+        invalidate_piece_index(m_selected_piece);
+      return true;
+    }
+    // Execute move
+    int tr = m_hovered_piece.first, tc = m_hovered_piece.second;
+    unsigned int captured = m_board[tr][tc];
+    auto sel_piece_type =
+        m_board[m_selected_piece.first][m_selected_piece.second];
+
+    m_board[tr][tc] = sel_piece_type & (~piece_type::k_cover_mask);
+    m_board[m_selected_piece.first][m_selected_piece.second] = 0;
+
+    m_last_move_from = m_selected_piece;
+    m_last_move_to = m_hovered_piece;
+    invalidate_piece_index(m_selected_piece);
+
+    // Victory: captured enemy king
+    if (captured != 0) {
+      piece_type pt = static_cast<piece_type>(captured & 0xFF);
+      if (pt == piece_type::k_king)
+        m_game_result =
+            m_red_turn ? game_result::red_win : game_result::black_win;
+    }
+    if (m_game_result == game_result::ongoing)
+      m_red_turn = !m_red_turn;
+  } else {
+    // No selection: select only if hovered cell has current side's piece
+    if (!piece_index_is_valid(m_hovered_piece)) {
+      return true;
+    }
+    int r = m_hovered_piece.first, c = m_hovered_piece.second;
+    if (is_piece_of_current_side(m_red_turn, m_board[r][c], r, c))
+      m_selected_piece = m_hovered_piece;
+  }
+  return true;
 }
 
 std::vector<std::pair<int, int>> reveal_chess_scene::get_valid_moves() {
@@ -524,18 +625,6 @@ std::vector<std::pair<int, int>> reveal_chess_scene::get_valid_moves() {
 }
 
 void reveal_chess_scene::draw_text() {
-  static const std::map<piece_type, std::string> piece_text_red = {
-      {piece_type::k_king, "将"},    {piece_type::k_guard, "仕"},
-      {piece_type::k_bishop, "相"},  {piece_type::k_rook, "车"},
-      {piece_type::k_horse, "马"},   {piece_type::k_cannon, "炮"},
-      {piece_type::k_soldier, "兵"},
-  };
-  static const std::map<piece_type, std::string> piece_text_black = {
-      {piece_type::k_king, "帅"},    {piece_type::k_guard, "士"},
-      {piece_type::k_bishop, "象"},  {piece_type::k_rook, "车"},
-      {piece_type::k_horse, "马"},   {piece_type::k_cannon, "炮"},
-      {piece_type::k_soldier, "卒"},
-  };
   for (int r = 0; r < 10; r++) {
     for (int c = 0; c < 9; c++) {
 
