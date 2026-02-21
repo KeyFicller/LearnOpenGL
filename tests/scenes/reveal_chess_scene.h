@@ -42,17 +42,21 @@ private:
   void draw_pieces();
   void draw_text();
   void draw_valid_moves();
+  void draw_last_move();
 
 private:
   shader *m_board_shader = nullptr;
   shader *m_piece_shader = nullptr;
   shader *m_valid_move_shader = nullptr;
+  shader *m_last_move_shader = nullptr;
   mesh_manager m_board_mesh_manager;
   mesh_manager m_piece_mesh_manager;
   mesh_manager m_valid_move_mesh_manager;
+  mesh_manager m_last_move_mesh_manager;
   int m_board[10][9];
   std::pair<int, int> m_selected_piece = {-1, -1};
-
+  std::pair<int, int> m_last_move_from = {-1, -1};
+  std::pair<int, int> m_last_move_to = {-1, -1};
   // For debug
   std::pair<int, int> m_hovered_piece = {-1, 1};
 };

@@ -99,14 +99,21 @@ get_valid_moves_for_piece(const int board[10][9], piece_type _piece_type,
     for (int i = 0; i < 4; i++) {
       int nr = _r + guard_dr[i], nc = _c + guard_dc[i];
       if (is_self_covered) {
-        if (in_bounds(nr, nc))
+        if (!in_bounds(nr, nc))
+          continue;
+        if (_r == 0 && nr >= 0 && nr <= 2 && nc >= 3 && nc <= 5)
+          add_if_ok(nr, nc);
+        if (_r == 9 && nr >= 7 && nr <= 9 && nc >= 3 && nc <= 5)
           add_if_ok(nr, nc);
       } else {
-        const bool is_red = (_piece_type & piece_type::k_red_mask) != 0;
-        if (is_red && nr >= 0 && nr <= 2 && nc >= 3 && nc <= 5)
-          add_if_ok(nr, nc);
-        if (!is_red && nr >= 7 && nr <= 9 && nc >= 3 && nc <= 5)
-          add_if_ok(nr, nc);
+        // const bool is_red = (_piece_type & piece_type::k_red_mask) != 0;
+        // if (is_red && nr >= 0 && nr <= 2 && nc >= 3 && nc <= 5)
+        //   add_if_ok(nr, nc);
+        // if (!is_red && nr >= 7 && nr <= 9 && nc >= 3 && nc <= 5)
+        //   add_if_ok(nr, nc);
+
+        // Any position should be valid for revealed guard.
+        add_if_ok(nr, nc);
       }
     }
     break;
@@ -124,11 +131,14 @@ get_valid_moves_for_piece(const int board[10][9], piece_type _piece_type,
       if (is_self_covered) {
         add_if_ok(nr, nc);
       } else {
-        const bool is_red = (_piece_type & piece_type::k_red_mask) != 0;
-        if (is_red && nr <= 4)
-          add_if_ok(nr, nc);
-        if (!is_red && nr >= 5)
-          add_if_ok(nr, nc);
+        // const bool is_red = (_piece_type & piece_type::k_red_mask) != 0;
+        // if (is_red && nr <= 4)
+        //   add_if_ok(nr, nc);
+        // if (!is_red && nr >= 5)
+        //   add_if_ok(nr, nc);
+
+        // Any position should be valid for revealed bishop.
+        add_if_ok(nr, nc);
       }
     }
     break;
@@ -232,6 +242,8 @@ reveal_chess_scene::~reveal_chess_scene() {
     delete m_piece_shader;
   if (m_valid_move_shader)
     delete m_valid_move_shader;
+  if (m_last_move_shader)
+    delete m_last_move_shader;
 }
 
 void reveal_chess_scene::init(GLFWwindow *_window) {
@@ -256,6 +268,10 @@ void reveal_chess_scene::init(GLFWwindow *_window) {
       "shaders/reveal_chess_test/chess_hint/valid_move_vertex.shader",
       "shaders/reveal_chess_test/chess_hint/valid_move_fragment.shader",
       "shaders/reveal_chess_test/chess_hint/valid_move_geometry.shader");
+  m_last_move_shader = new shader(
+      "shaders/reveal_chess_test/chess_hint/last_move_vertex.shader",
+      "shaders/reveal_chess_test/chess_hint/last_move_fragment.shader",
+      "shaders/reveal_chess_test/chess_hint/last_move_geometry.shader");
   shuffle_board();
 }
 
@@ -327,6 +343,11 @@ void reveal_chess_scene::shuffle_board() {
     int c = positions[i].second;
     m_board[r][c] = pieces[i];
   }
+
+  invalidate_piece_index(m_last_move_from);
+  invalidate_piece_index(m_last_move_to);
+  invalidate_piece_index(m_selected_piece);
+  invalidate_piece_index(m_hovered_piece);
 }
 
 void reveal_chess_scene::draw_board() {
@@ -430,6 +451,7 @@ void reveal_chess_scene::render() {
   draw_pieces();
   draw_text();
   draw_valid_moves();
+  draw_last_move();
 }
 
 void reveal_chess_scene::render_ui() {
@@ -473,6 +495,10 @@ bool reveal_chess_scene::on_mouse_button(int _button, int _action, int _mods) {
                 sel_piece_type & (~piece_type::k_cover_mask);
 
             m_board[m_selected_piece.first][m_selected_piece.second] = 0;
+
+            // Record last move
+            m_last_move_from = m_selected_piece;
+            m_last_move_to = m_hovered_piece;
 
             invalidate_piece_index(m_selected_piece);
           }
@@ -561,4 +587,30 @@ void reveal_chess_scene::draw_text() {
       }
     }
   }
+}
+
+void reveal_chess_scene::draw_last_move() {
+  if (!piece_index_is_valid(m_last_move_from) ||
+      !piece_index_is_valid(m_last_move_to))
+    return;
+  if (!m_last_move_shader)
+    return;
+
+  std::vector<int> cell_data;
+  cell_data.push_back(m_last_move_from.first);
+  cell_data.push_back(m_last_move_from.second);
+  cell_data.push_back(m_last_move_to.first);
+  cell_data.push_back(m_last_move_to.second);
+  mesh_data last_move_mesh(cell_data.data(), cell_data.size() * sizeof(int), 2,
+                           {{1, GL_INT, GL_FALSE}, {1, GL_INT, GL_FALSE}});
+  m_last_move_mesh_manager.setup_mesh(last_move_mesh);
+
+  m_last_move_shader->use();
+  m_last_move_mesh_manager.bind();
+  glEnable(GL_BLEND);
+  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+  m_last_move_shader->set_uniform(
+      "u_color", glm::vec4(0.95f, 0.85f, 0.45f, 0.75f)); // warm yellow bracket
+  glDrawArrays(GL_POINTS, 0, m_last_move_mesh_manager.get_index_count());
+  glDisable(GL_BLEND);
 }
