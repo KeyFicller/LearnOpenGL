@@ -31,7 +31,7 @@ namespace Scripts
 
         public static float OffsetX()
         {
-            return 0.5f;
+            return 0.3f;
         }
 
         public static float OffsetY()
@@ -40,6 +40,7 @@ namespace Scripts
         }
     }
 }
+
 
 
 
