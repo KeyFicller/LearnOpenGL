@@ -2,8 +2,12 @@
 
 #include "basic/shader.h"
 #include "scene_base.h"
+#include "tests/component/connection.h"
 #include "tests/component/mesh_manager.h"
 #include <array>
+#include <atomic>
+#include <string>
+#include <thread>
 #include <vector>
 
 enum piece_type : unsigned int {
@@ -40,6 +44,16 @@ private:
   bool on_mouse_button(int _button, int _action, int _mods) override;
   std::vector<std::pair<int, int>> get_valid_moves();
 
+  void update(float _delta_time) override;
+
+  // When connected: whether it's my turn (Server=red first, Client=black first)
+  bool is_my_turn() const;
+  // Apply the opponent's move, update the board and turn
+  void apply_remote_move(int fr, int fc, int tr, int tc);
+  void poll_network();
+  void send_move(int fr, int fc, int tr, int tc);
+  void send_board_sync();
+
   void draw_board();
   void draw_pieces();
   void draw_text();
@@ -63,4 +77,25 @@ private:
 
   bool m_red_turn = true;
   game_result m_game_result = game_result::ongoing;
+
+  server *m_server = nullptr;
+  client *m_client = nullptr;
+  enum class connect_mode {
+    none,
+    server,
+    client,
+  };
+  connect_mode m_connect_mode = connect_mode::none;
+  int m_port = 8888;
+  std::string m_host = "127.0.0.1";
+
+  std::atomic<bool> m_server_ready{false};
+  std::atomic<bool> m_server_starting{false};
+  std::thread m_server_thread;
+  static constexpr size_t k_move_msg_size = 17; // 1 type + 4*4 bytes
+  std::string m_recv_buf;
+  bool m_board_sync_sent = false;
+  bool m_board_sync_received = false; // client: need to receive board sync from
+                                      // server before making a move
+  bool m_cheat_reveal_all = false;
 };

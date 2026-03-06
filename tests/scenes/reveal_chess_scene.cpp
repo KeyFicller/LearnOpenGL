@@ -5,7 +5,9 @@
 #include "imgui.h"
 #include <GLFW/glfw3.h>
 #include <algorithm>
+#include <arpa/inet.h>
 #include <cmath>
+#include <cstdint>
 #include <cstring>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -14,6 +16,52 @@
 #include "tests/component/mesh_manager.h"
 #include "tests/component/prefab_quad.h"
 #include "tests/component/text_renderer.h"
+
+namespace {
+constexpr uint8_t k_msg_move = 0;
+constexpr uint8_t k_msg_board_sync = 1;
+constexpr size_t k_move_msg_size = 17; // 1 type + 4 * int32
+constexpr size_t k_board_sync_size = 1 + 10 * 9 * sizeof(int32_t); // 361
+
+static void pack_move_msg(char *buf, int fr, int fc, int tr, int tc) {
+  buf[0] = k_msg_move;
+  int32_t *p = reinterpret_cast<int32_t *>(buf + 1);
+  p[0] = htonl(static_cast<int32_t>(fr));
+  p[1] = htonl(static_cast<int32_t>(fc));
+  p[2] = htonl(static_cast<int32_t>(tr));
+  p[3] = htonl(static_cast<int32_t>(tc));
+}
+
+static bool unpack_move_msg(const char *buf, int *fr, int *fc, int *tr,
+                            int *tc) {
+  if (buf[0] != k_msg_move)
+    return false;
+  const int32_t *p = reinterpret_cast<const int32_t *>(buf + 1);
+  *fr = static_cast<int>(ntohl(p[0]));
+  *fc = static_cast<int>(ntohl(p[1]));
+  *tr = static_cast<int>(ntohl(p[2]));
+  *tc = static_cast<int>(ntohl(p[3]));
+  return true;
+}
+
+static void pack_board_sync(char *buf, const int board[10][9]) {
+  buf[0] = k_msg_board_sync;
+  int32_t *p = reinterpret_cast<int32_t *>(buf + 1);
+  for (int r = 0; r < 10; r++)
+    for (int c = 0; c < 9; c++)
+      *p++ = htonl(static_cast<int32_t>(board[r][c]));
+}
+
+static bool unpack_board_sync(const char *buf, int board[10][9]) {
+  if (buf[0] != k_msg_board_sync)
+    return false;
+  const int32_t *p = reinterpret_cast<const int32_t *>(buf + 1);
+  for (int r = 0; r < 10; r++)
+    for (int c = 0; c < 9; c++)
+      board[r][c] = static_cast<int>(ntohl(*p++));
+  return true;
+}
+} // namespace
 
 namespace {
 
@@ -249,6 +297,12 @@ reveal_chess_scene::reveal_chess_scene() : test_scene_base("Reveal Chess") {
 }
 
 reveal_chess_scene::~reveal_chess_scene() {
+  if (m_server_thread.joinable())
+    m_server_thread.join();
+  delete m_server;
+  m_server = nullptr;
+  delete m_client;
+  m_client = nullptr;
   if (m_board_shader)
     delete m_board_shader;
   if (m_piece_shader)
@@ -367,6 +421,105 @@ void reveal_chess_scene::shuffle_board() {
   invalidate_piece_index(m_hovered_piece);
 }
 
+bool reveal_chess_scene::is_my_turn() const {
+  if (m_connect_mode == connect_mode::none)
+    return true;
+  if (m_connect_mode == connect_mode::server)
+    return m_red_turn;
+  return m_board_sync_received && !m_red_turn;
+}
+
+void reveal_chess_scene::apply_remote_move(int fr, int fc, int tr, int tc) {
+  if (!in_bounds(fr, fc) || !in_bounds(tr, tc))
+    return;
+  unsigned int piece = m_board[fr][fc];
+  unsigned int captured = m_board[tr][tc];
+  m_board[tr][tc] = piece & (~piece_type::k_cover_mask);
+  m_board[fr][fc] = 0;
+  m_last_move_from = {fr, fc};
+  m_last_move_to = {tr, tc};
+  invalidate_piece_index(m_selected_piece);
+
+  if (captured != 0) {
+    piece_type pt = static_cast<piece_type>(captured & 0xFF);
+    if (pt == piece_type::k_king)
+      m_game_result =
+          m_red_turn ? game_result::red_win : game_result::black_win;
+  }
+  if (m_game_result == game_result::ongoing)
+    m_red_turn = !m_red_turn;
+}
+
+void reveal_chess_scene::send_move(int fr, int fc, int tr, int tc) {
+  char buf[k_move_msg_size];
+  pack_move_msg(buf, fr, fc, tr, tc);
+  if (m_server)
+    m_server->send(buf, sizeof(buf));
+  else if (m_client && m_client->is_connected())
+    m_client->send(buf, sizeof(buf));
+}
+
+void reveal_chess_scene::send_board_sync() {
+  if (!m_server || m_board_sync_sent)
+    return;
+  char buf[k_board_sync_size];
+  pack_board_sync(buf, m_board);
+  if (m_server->send(buf, sizeof(buf)) == static_cast<ssize_t>(sizeof(buf)))
+    m_board_sync_sent = true;
+}
+
+void reveal_chess_scene::poll_network() {
+  if (m_connect_mode == connect_mode::none)
+    return;
+  char tmp[512];
+  ssize_t n = -1;
+  if (m_server)
+    n = m_server->recv(tmp, sizeof(tmp));
+  else if (m_client && m_client->is_connected())
+    n = m_client->recv(tmp, sizeof(tmp));
+  if (n <= 0)
+    return;
+  m_recv_buf.append(tmp, static_cast<size_t>(n));
+
+  while (m_recv_buf.size() >= 1) {
+    uint8_t type = static_cast<uint8_t>(m_recv_buf[0]);
+    if (type == k_msg_move && m_recv_buf.size() >= k_move_msg_size) {
+      int fr, fc, tr, tc;
+      if (unpack_move_msg(m_recv_buf.data(), &fr, &fc, &tr, &tc))
+        apply_remote_move(fr, fc, tr, tc);
+      m_recv_buf.erase(0, k_move_msg_size);
+    } else if (type == k_msg_board_sync &&
+               m_recv_buf.size() >= k_board_sync_size) {
+      if (unpack_board_sync(m_recv_buf.data(), m_board)) {
+        m_red_turn = true;
+        m_game_result = game_result::ongoing;
+        m_board_sync_received = true;
+        invalidate_piece_index(m_last_move_from);
+        invalidate_piece_index(m_last_move_to);
+        invalidate_piece_index(m_selected_piece);
+      }
+      m_recv_buf.erase(0, k_board_sync_size);
+    } else {
+      break;
+    }
+  }
+}
+
+void reveal_chess_scene::update(float _delta_time) {
+  (void)_delta_time;
+  if (m_server_ready) {
+    m_server_ready = false;
+    m_connect_mode = connect_mode::server;
+    m_server_starting = false;
+    if (m_server) {
+      m_server->set_non_blocking(true);
+      shuffle_board();
+      send_board_sync();
+    }
+  }
+  poll_network();
+}
+
 void reveal_chess_scene::draw_board() {
   m_board_shader->use();
   m_board_mesh_manager.bind();
@@ -384,11 +537,17 @@ void reveal_chess_scene::draw_pieces() {
     }
   }
 
+  const bool cheat_reveal_on_hover = (m_connect_mode == connect_mode::none ||
+                                      m_connect_mode == connect_mode::server) &&
+                                     m_cheat_reveal_all;
   std::vector<int> piece_data;
   for (auto &[r, c] : piece_positions) {
     piece_data.push_back(r);
     piece_data.push_back(c);
-    piece_data.push_back(m_board[r][c]);
+    int display_val = m_board[r][c];
+    if (cheat_reveal_on_hover && (display_val & piece_type::k_cover_mask))
+      display_val = display_val & ~static_cast<int>(piece_type::k_cover_mask);
+    piece_data.push_back(display_val);
     piece_data.push_back(r * 10 + c);
   }
   mesh_data piece_mesh_data(piece_data.data(), piece_data.size() * sizeof(int),
@@ -475,37 +634,104 @@ void reveal_chess_scene::render_ui() {
   ImGui::Text("Reveal Chess");
   ImGui::Separator();
   if (m_game_result == game_result::ongoing) {
-    ImGui::Text("Current: %s", m_red_turn ? "Red" : "Black");
+    if (m_connect_mode != connect_mode::none) {
+      if (m_connect_mode == connect_mode::client && !m_board_sync_received)
+        ImGui::TextColored(ImVec4(0.7f, 0.6f, 0.2f, 1), "Waiting for board...");
+      else if (is_my_turn())
+        ImGui::TextColored(ImVec4(0.2f, 0.7f, 0.3f, 1), "Your turn");
+      else
+        ImGui::TextColored(ImVec4(0.6f, 0.5f, 0.5f, 1), "Opponent's turn");
+    } else {
+      ImGui::Text("Current: %s", m_red_turn ? "Red" : "Black");
+    }
   } else if (m_game_result == game_result::red_win) {
     ImGui::TextColored(ImVec4(0.9f, 0.3f, 0.2f, 1.0f), "Red wins!");
   } else {
     ImGui::TextColored(ImVec4(0.2f, 0.2f, 0.3f, 1.0f), "Black wins!");
   }
   ImGui::Text("Hover: (%d, %d)", m_hovered_piece.first, m_hovered_piece.second);
+  bool can_restart = (m_connect_mode == connect_mode::none);
+  if (!can_restart)
+    ImGui::BeginDisabled();
   if (ImGui::Button("Restart")) {
     shuffle_board();
   }
-
-  // -------------------
-  ImGui::Separator();
-  ImGui::Text("Cheat");
-  if (piece_index_is_valid(m_hovered_piece)) {
-    auto cell = m_board[m_hovered_piece.first][m_hovered_piece.second];
-    if (cell != 0) {
-      const bool is_read_piece = cell & piece_type::k_red_mask;
-      std::string side = is_read_piece ? "Red" : "Black";
-      std::string type =
-          is_read_piece
-              ? piece_text_red.at(static_cast<piece_type>(cell & 0xFF))
-              : piece_text_black.at(static_cast<piece_type>(cell & 0xFF));
-      ImGui::Text("Hover: Side: %s, Type: %s", side.c_str(), type.c_str());
-    }
+  if (!can_restart) {
+    ImGui::EndDisabled();
+    if (ImGui::IsItemHovered())
+      ImGui::SetTooltip("Disconnect to restart");
   }
-  if (ImGui::Button("Reveal All")) {
-    for (int r = 0; r < 10; r++) {
-      for (int c = 0; c < 9; c++) {
-        m_board[r][c] &= ~piece_type::k_cover_mask;
+
+  // ------------------- Cheat：
+  if (m_connect_mode == connect_mode::none ||
+      m_connect_mode == connect_mode::server) {
+    ImGui::Separator();
+    ImGui::Text("Cheat (Server only when connected)");
+    if (piece_index_is_valid(m_hovered_piece)) {
+      auto cell = m_board[m_hovered_piece.first][m_hovered_piece.second];
+      if (cell != 0) {
+        const bool is_read_piece = cell & piece_type::k_red_mask;
+        std::string side = is_read_piece ? "Red" : "Black";
+        std::string type =
+            is_read_piece
+                ? piece_text_red.at(static_cast<piece_type>(cell & 0xFF))
+                : piece_text_black.at(static_cast<piece_type>(cell & 0xFF));
+        ImGui::Text("Hover: Side: %s, Type: %s", side.c_str(), type.c_str());
       }
+    }
+    ImGui::Button("Reveal All");
+    m_cheat_reveal_all = false;
+    if (ImGui::IsItemHovered())
+      m_cheat_reveal_all = true;
+  }
+
+  // Connection
+  ImGui::Separator();
+  ImGui::Text("Connection");
+  if (m_connect_mode == connect_mode::none) {
+    ImGui::SliderInt("Port", &m_port, 1024, 65535);
+    char host_buf[256];
+    strncpy(host_buf, m_host.c_str(), sizeof(host_buf) - 1);
+    host_buf[sizeof(host_buf) - 1] = '\0';
+    if (ImGui::InputText("Host", host_buf, sizeof(host_buf)))
+      m_host = host_buf;
+    if (ImGui::Button("Create Server")) {
+      if (!m_server_starting && !m_server) {
+        m_server_starting = true;
+        m_server_ready = false;
+        m_server_thread = std::thread([this]() {
+          try {
+            m_server = new server(static_cast<uint16_t>(m_port));
+          } catch (...) {
+            m_server = nullptr;
+          }
+          m_server_ready = true;
+          m_server_starting = false;
+        });
+      }
+    }
+    if (m_server_starting)
+      ImGui::TextColored(ImVec4(1, 0.8f, 0, 1),
+                         "Waiting for client on port %d...", m_port);
+    if (ImGui::Button("Connect as Client")) {
+      if (!m_client) {
+        m_client = new client();
+        if (m_client->connect(m_host, static_cast<uint16_t>(m_port))) {
+          m_connect_mode = connect_mode::client;
+          m_client->set_non_blocking(true);
+        } else {
+          delete m_client;
+          m_client = nullptr;
+        }
+      }
+    }
+  } else {
+    if (m_connect_mode == connect_mode::server) {
+      ImGui::TextColored(ImVec4(0.9f, 0.3f, 0.2f, 1), "You are Red (Server)");
+      ImGui::Text("Port: %d", m_port);
+    } else {
+      ImGui::TextColored(ImVec4(0.2f, 0.2f, 0.4f, 1), "You are Black (Client)");
+      ImGui::Text("Connected to %s:%d", m_host.c_str(), m_port);
     }
   }
 }
@@ -557,6 +783,8 @@ bool reveal_chess_scene::on_mouse_button(int _button, int _action, int _mods) {
     return false;
   if (m_game_result != game_result::ongoing)
     return true;
+  if (m_connect_mode != connect_mode::none && !is_my_turn())
+    return true;
 
   if (piece_index_is_valid(m_selected_piece)) {
     if (!piece_index_is_valid(m_hovered_piece)) {
@@ -591,6 +819,10 @@ bool reveal_chess_scene::on_mouse_button(int _button, int _action, int _mods) {
     m_last_move_from = m_selected_piece;
     m_last_move_to = m_hovered_piece;
     invalidate_piece_index(m_selected_piece);
+
+    if (m_connect_mode != connect_mode::none)
+      send_move(m_last_move_from.first, m_last_move_from.second,
+                m_last_move_to.first, m_last_move_to.second);
 
     // Victory: captured enemy king
     if (captured != 0) {
@@ -632,7 +864,11 @@ void reveal_chess_scene::draw_text() {
       const bool is_selected = m_selected_piece == std::pair<int, int>(r, c);
       if (m_board[r][c]) {
         if (m_board[r][c] & piece_type::k_cover_mask) {
-          continue;
+          const bool cheat_show = (m_connect_mode == connect_mode::none ||
+                                   m_connect_mode == connect_mode::server) &&
+                                  m_cheat_reveal_all;
+          if (!cheat_show)
+            continue;
         }
 
         std::string piece_text;

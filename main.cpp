@@ -16,6 +16,7 @@
 
 #include "basic/framebuffer.h"
 #include "callbacks.h"
+#include "resource_root.h"
 #include "tests/framework/test_suit.h"
 
 // Window dimensions
@@ -24,6 +25,12 @@ const GLuint WIDTH = 800, HEIGHT = 600;
 // The MAIN function, from here we start the application and run the game loop
 int main() {
   try {
+    if (!set_resource_root_as_cwd()) {
+      std::cerr
+          << "Warning: could not set resource root; resource paths may fail."
+          << std::endl;
+    }
+
     // Init GLFW
     if (!glfwInit()) {
       std::cerr << "Failed to initialize GLFW" << std::endl;
@@ -90,8 +97,8 @@ int main() {
     ImFontConfig font_cfg;
     font_cfg.MergeMode = true;
     io.Fonts->AddFontFromFileTTF("assets/fonts/Arial Unicode.ttf", 18.0f,
-                                &font_cfg,
-                                io.Fonts->GetGlyphRangesChineseFull());
+                                 &font_cfg,
+                                 io.Fonts->GetGlyphRangesChineseFull());
 
     // Setup Platform/Renderer backends
     // Note: install_callbacks = false to prevent ImGui from intercepting our

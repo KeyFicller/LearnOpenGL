@@ -183,7 +183,7 @@ set(IMGUI_SOURCES
     "vendor/imgui_opengl3_glad.cpp"
 )
 
-set(LEARNOPENGL_SOURCES main.cpp callbacks.cpp)
+set(LEARNOPENGL_SOURCES main.cpp callbacks.cpp resource_root.cpp)
 if(MONO_FOUND)
   list(APPEND LEARNOPENGL_SOURCES scripts/mono_invoker.cpp)
 endif()
@@ -241,6 +241,7 @@ add_executable(LearnOpenGL
     tests/scenes/script_editor_scene.cpp
     tests/component/script_editor.cpp
     tests/component/text_renderer.cpp
+    tests/component/connection.cpp
     ${IMGUI_SOURCES}
 )
 
