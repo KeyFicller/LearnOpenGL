@@ -53,6 +53,8 @@ private:
   void poll_network();
   void send_move(int fr, int fc, int tr, int tc);
   void send_board_sync();
+  void send_heartbeat();
+  void disconnect_peer();
 
   void draw_board();
   void draw_pieces();
@@ -98,4 +100,7 @@ private:
   bool m_board_sync_received = false; // client: need to receive board sync from
                                       // server before making a move
   bool m_cheat_reveal_all = false;
+
+  double m_last_recv_time = 0;
+  double m_last_heartbeat_sent_time = 0;
 };

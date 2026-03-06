@@ -18,13 +18,18 @@
 #include "tests/component/text_renderer.h"
 
 namespace {
-constexpr uint8_t k_msg_move = 0;
-constexpr uint8_t k_msg_board_sync = 1;
+enum class msg_type : uint8_t {
+  k_msg_move = 0,
+  k_msg_board_sync = 1,
+  k_msg_heartbeat = 2,
+};
 constexpr size_t k_move_msg_size = 17; // 1 type + 4 * int32
 constexpr size_t k_board_sync_size = 1 + 10 * 9 * sizeof(int32_t); // 361
+constexpr double k_heartbeat_interval = 2.0;
+constexpr double k_heartbeat_timeout = 6.0;
 
 static void pack_move_msg(char *buf, int fr, int fc, int tr, int tc) {
-  buf[0] = k_msg_move;
+  buf[0] = static_cast<char>(msg_type::k_msg_move);
   int32_t *p = reinterpret_cast<int32_t *>(buf + 1);
   p[0] = htonl(static_cast<int32_t>(fr));
   p[1] = htonl(static_cast<int32_t>(fc));
@@ -34,7 +39,7 @@ static void pack_move_msg(char *buf, int fr, int fc, int tr, int tc) {
 
 static bool unpack_move_msg(const char *buf, int *fr, int *fc, int *tr,
                             int *tc) {
-  if (buf[0] != k_msg_move)
+  if (buf[0] != static_cast<char>(msg_type::k_msg_move))
     return false;
   const int32_t *p = reinterpret_cast<const int32_t *>(buf + 1);
   *fr = static_cast<int>(ntohl(p[0]));
@@ -45,7 +50,7 @@ static bool unpack_move_msg(const char *buf, int *fr, int *fc, int *tr,
 }
 
 static void pack_board_sync(char *buf, const int board[10][9]) {
-  buf[0] = k_msg_board_sync;
+  buf[0] = static_cast<char>(msg_type::k_msg_board_sync);
   int32_t *p = reinterpret_cast<int32_t *>(buf + 1);
   for (int r = 0; r < 10; r++)
     for (int c = 0; c < 9; c++)
@@ -53,7 +58,7 @@ static void pack_board_sync(char *buf, const int board[10][9]) {
 }
 
 static bool unpack_board_sync(const char *buf, int board[10][9]) {
-  if (buf[0] != k_msg_board_sync)
+  if (buf[0] != static_cast<char>(msg_type::k_msg_board_sync))
     return false;
   const int32_t *p = reinterpret_cast<const int32_t *>(buf + 1);
   for (int r = 0; r < 10; r++)
@@ -468,6 +473,29 @@ void reveal_chess_scene::send_board_sync() {
     m_board_sync_sent = true;
 }
 
+void reveal_chess_scene::send_heartbeat() {
+  const char buf = static_cast<char>(msg_type::k_msg_heartbeat);
+  if (m_server)
+    m_server->send(&buf, 1);
+  else if (m_client && m_client->is_connected())
+    m_client->send(&buf, 1);
+}
+
+void reveal_chess_scene::disconnect_peer() {
+  if (m_server) {
+    delete m_server;
+    m_server = nullptr;
+  }
+  if (m_client) {
+    delete m_client;
+    m_client = nullptr;
+  }
+  m_connect_mode = connect_mode::none;
+  m_board_sync_sent = false;
+  m_board_sync_received = false;
+  m_recv_buf.clear();
+}
+
 void reveal_chess_scene::poll_network() {
   if (m_connect_mode == connect_mode::none)
     return;
@@ -477,18 +505,24 @@ void reveal_chess_scene::poll_network() {
     n = m_server->recv(tmp, sizeof(tmp));
   else if (m_client && m_client->is_connected())
     n = m_client->recv(tmp, sizeof(tmp));
-  if (n <= 0)
+  if (n < 0)
     return;
+  if (n == 0) {
+    disconnect_peer();
+    return;
+  }
   m_recv_buf.append(tmp, static_cast<size_t>(n));
+  m_last_recv_time = glfwGetTime();
 
   while (m_recv_buf.size() >= 1) {
     uint8_t type = static_cast<uint8_t>(m_recv_buf[0]);
-    if (type == k_msg_move && m_recv_buf.size() >= k_move_msg_size) {
+    if (type == static_cast<uint8_t>(msg_type::k_msg_move) &&
+        m_recv_buf.size() >= k_move_msg_size) {
       int fr, fc, tr, tc;
       if (unpack_move_msg(m_recv_buf.data(), &fr, &fc, &tr, &tc))
         apply_remote_move(fr, fc, tr, tc);
       m_recv_buf.erase(0, k_move_msg_size);
-    } else if (type == k_msg_board_sync &&
+    } else if (type == static_cast<uint8_t>(msg_type::k_msg_board_sync) &&
                m_recv_buf.size() >= k_board_sync_size) {
       if (unpack_board_sync(m_recv_buf.data(), m_board)) {
         m_red_turn = true;
@@ -499,6 +533,8 @@ void reveal_chess_scene::poll_network() {
         invalidate_piece_index(m_selected_piece);
       }
       m_recv_buf.erase(0, k_board_sync_size);
+    } else if (type == static_cast<uint8_t>(msg_type::k_msg_heartbeat)) {
+      m_recv_buf.erase(0, 1);
     } else {
       break;
     }
@@ -513,11 +549,25 @@ void reveal_chess_scene::update(float _delta_time) {
     m_server_starting = false;
     if (m_server) {
       m_server->set_non_blocking(true);
+      m_last_recv_time = glfwGetTime();
+      m_last_heartbeat_sent_time = m_last_recv_time;
       shuffle_board();
       send_board_sync();
     }
   }
   poll_network();
+
+  if (m_connect_mode != connect_mode::none) {
+    const double now = glfwGetTime();
+    if (now - m_last_recv_time > k_heartbeat_timeout) {
+      disconnect_peer();
+      return;
+    }
+    if (now - m_last_heartbeat_sent_time >= k_heartbeat_interval) {
+      send_heartbeat();
+      m_last_heartbeat_sent_time = now;
+    }
+  }
 }
 
 void reveal_chess_scene::draw_board() {
@@ -662,7 +712,7 @@ void reveal_chess_scene::render_ui() {
       ImGui::SetTooltip("Disconnect to restart");
   }
 
-  // ------------------- Cheat：
+  // ------------------- Cheat
   if (m_connect_mode == connect_mode::none ||
       m_connect_mode == connect_mode::server) {
     ImGui::Separator();
@@ -719,6 +769,8 @@ void reveal_chess_scene::render_ui() {
         if (m_client->connect(m_host, static_cast<uint16_t>(m_port))) {
           m_connect_mode = connect_mode::client;
           m_client->set_non_blocking(true);
+          m_last_recv_time = glfwGetTime();
+          m_last_heartbeat_sent_time = m_last_recv_time;
         } else {
           delete m_client;
           m_client = nullptr;
