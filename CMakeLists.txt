@@ -242,6 +242,7 @@ add_executable(LearnOpenGL
     tests/component/script_editor.cpp
     tests/component/text_renderer.cpp
     tests/component/connection.cpp
+    tests/component/opengl_shader_definition.cpp
     ${IMGUI_SOURCES}
 )
 

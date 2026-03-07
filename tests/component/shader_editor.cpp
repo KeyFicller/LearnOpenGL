@@ -2,6 +2,7 @@
 #include "TextEditor.h"
 #include "imgui.h"
 #include "imgui_internal.h"
+#include "opengl_shader_definition.h"
 #include <cstddef>
 
 namespace {
@@ -245,7 +246,7 @@ basic_code_editor::basic_code_editor(const std::string &_name,
     : m_name(_name) {
   switch (_type) {
   case code_editor_type::k_shader:
-    m_editor.SetLanguageDefinition(TextEditor::LanguageDefinition::GLSL());
+    m_editor.SetLanguageDefinition(opengl_shader_definition());
     break;
   // case code_editor_type::k_script:
   //   m_editor.SetLanguageDefinition(TextEditor::LanguageDefinition::CPlusPlus());
