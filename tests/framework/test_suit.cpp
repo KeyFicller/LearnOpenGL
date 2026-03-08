@@ -17,6 +17,7 @@
 #include "tests/scenes/light_type_scene.h"
 #include "tests/scenes/multiple_light_scene.h"
 #include "tests/scenes/reveal_chess_scene.h"
+#include "tests/scenes/soft_body_frog_scene.h"
 #include "tests/scenes/scene_factory.h"
 #include "tests/scenes/script_editor_scene.h"
 #include "tests/scenes/shader_editor_scene.h"
@@ -68,6 +69,7 @@ void test_suit::init(GLFWwindow *_window) {
     REGISTER_SCENE(test_scene::k_script_editor_test, script_editor_scene);
 #endif
     REGISTER_SCENE(test_scene::k_reveal_chess_test, reveal_chess_scene);
+    REGISTER_SCENE(test_scene::k_soft_body_frog_test, soft_body_frog_scene);
   } catch (const std::exception &e) {
     std::cerr << "Error initializing test scenes: " << e.what() << std::endl;
     throw; // Re-throw to be caught by main

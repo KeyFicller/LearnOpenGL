@@ -237,6 +237,7 @@ add_executable(LearnOpenGL
     tests/scenes/spline_movement_sub_scenes.cpp
     tests/scenes/spline_movement_driver.cpp
     tests/scenes/reveal_chess_scene.cpp
+    tests/scenes/soft_body_frog_scene.cpp
     tests/scenes/shader_editor_scene.cpp
     tests/scenes/script_editor_scene.cpp
     tests/component/script_editor.cpp
