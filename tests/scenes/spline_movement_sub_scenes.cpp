@@ -1,8 +1,13 @@
 #include "spline_movement_sub_scenes.h"
+#include "GLFW/glfw3.h"
+#include "basic/shader.h"
 #include "glad/gl.h"
+#include "glm/fwd.hpp"
+#include "glm/gtc/type_ptr.hpp"
 #include "glm/trigonometric.hpp"
 #include "spline_movement_scene.h"
 #include "tests/component/mesh_manager.h"
+#include "tests/scenes/soft_body_dirver.h"
 
 spline_movement_snake_sub_scene::spline_movement_snake_sub_scene(
     spline_movement_scene *_parent)
@@ -309,4 +314,202 @@ void spline_movement_lizard_sub_scene::update_mesh_data() {
         {vertex_attribute{3, GL_FLOAT, false}});
     m_legs_line_strip_manager[i].setup_mesh(legs_line_strip_mesh_data);
   }
+}
+
+soft_body_sub_scene::soft_body_sub_scene(spline_movement_scene *_parent)
+    : sub_scene<spline_movement_scene>(_parent, "Soft Body") {
+
+  m_soft_body_dirver =
+      soft_body_dirver(glm::vec2(-1.0f, 1.0f), glm::vec2(-1.0f, 1.0f));
+
+  m_point_shader = new shader(
+      "shaders/spline_movement_test/soft_body/flat_point_vertex.shader",
+      "shaders/spline_movement_test/soft_body/flat_point_fragment.shader",
+      "shaders/spline_movement_test/soft_body/flat_point_geometry.shader");
+  m_segment_shader = new shader(
+      "shaders/spline_movement_test/soft_body/flat_segment_vertex.shader",
+      "shaders/spline_movement_test/soft_body/flat_segment_fragment.shader",
+      "shaders/spline_movement_test/soft_body/flat_segment_geometry.shader");
+}
+
+soft_body_sub_scene::~soft_body_sub_scene() {
+  delete m_point_shader;
+  delete m_segment_shader;
+}
+
+void soft_body_sub_scene::render() {
+  if (!m_soft_body_dirver.get_points().empty() ||
+      !m_soft_body_dirver.get_segments().empty() ||
+      !m_soft_body_dirver.get_loops().empty()) {
+    m_point_shader->use();
+    m_point_mesh.bind();
+    glDrawArrays(GL_POINTS, 0, m_point_mesh.get_index_count());
+  }
+
+  if (!m_soft_body_dirver.get_segments().empty() ||
+      !m_soft_body_dirver.get_loops().empty()) {
+    m_segment_shader->use();
+    m_segment_mesh.bind();
+    glDrawElements(GL_LINES, m_segment_mesh.get_index_count(), GL_UNSIGNED_INT,
+                   0);
+  }
+}
+
+void soft_body_sub_scene::render_ui() {
+  ImGui::Separator();
+  ImGui::Text("Soft Body");
+  ImGui::Spacing();
+  ImGui::Text("Mouse Position: %f, %f", m_mouse_position.x, m_mouse_position.y);
+  static const char *hint_object_type[] = {"Point", "Segment", "Triangle",
+                                           "Circle"};
+  ImGui::Combo("Object Type", reinterpret_cast<int *>(&m_object_type),
+               hint_object_type, IM_ARRAYSIZE(hint_object_type));
+  ImGui::SliderFloat("Shape Factor",
+                     &m_soft_body_dirver.m_area_correction_strength, 0.0f,
+                     1.0f);
+  if (ImGui::Button("Clear")) {
+    m_soft_body_dirver.clear();
+    // update_mesh_data();
+  }
+}
+
+void soft_body_sub_scene::update(float _delta_time) {
+  m_soft_body_dirver.update(_delta_time);
+
+  update_mesh_data();
+}
+
+void soft_body_sub_scene::update_mesh_data() {
+  std::vector<glm::vec2> coordinates;
+  for (auto &point : m_soft_body_dirver.get_points()) {
+    coordinates.push_back(point.position);
+  }
+  std::vector<unsigned int> segment_indices;
+  for (auto &segment : m_soft_body_dirver.get_segments()) {
+    segment_indices.push_back(segment.index1);
+    segment_indices.push_back(segment.index2);
+  }
+  for (auto &loop : m_soft_body_dirver.get_loops()) {
+    const auto &all_segments = m_soft_body_dirver.get_segments();
+    for (int seg_idx : loop.segment_indices) {
+      if (seg_idx >= 0 && static_cast<size_t>(seg_idx) < all_segments.size()) {
+        const auto &seg = all_segments[static_cast<size_t>(seg_idx)];
+        segment_indices.push_back(seg.index1);
+        segment_indices.push_back(seg.index2);
+      }
+    }
+  }
+  mesh_data points_mesh_data(
+      coordinates.data(), coordinates.size() * sizeof(glm::vec2),
+      coordinates.size(), {vertex_attribute{2, GL_FLOAT, false}});
+  m_point_mesh.setup_mesh(points_mesh_data);
+
+  mesh_data segment_mesh_data(coordinates.data(),
+                              coordinates.size() * sizeof(glm::vec2),
+                              segment_indices.data(), segment_indices.size(),
+                              {vertex_attribute{2, GL_FLOAT, false}});
+  m_segment_mesh.setup_mesh(segment_mesh_data);
+}
+
+bool soft_body_sub_scene::on_mouse_button(int _button, int _action, int _mods) {
+  if (_button == GLFW_MOUSE_BUTTON_LEFT && _action == GLFW_PRESS) {
+    switch (m_object_type) {
+    case object_type::k_point: {
+      soft_body_point point;
+      point.position = m_mouse_position;
+      point.velocity = glm::vec2(m_random_distribution(m_random_engine),
+                                 m_random_distribution(m_random_engine));
+      point.acceleration = glm::vec2(0.0f, -9.8f);
+      m_soft_body_dirver.add_point(point);
+      break;
+    }
+    case object_type::k_segment: {
+      glm::vec2 init_dir = glm::vec2(m_random_distribution(m_random_engine),
+                                     m_random_distribution(m_random_engine));
+      init_dir = glm::normalize(init_dir);
+      // add two points
+      soft_body_point point1;
+      point1.position = m_mouse_position;
+      point1.velocity = glm::vec2(m_random_distribution(m_random_engine),
+                                  m_random_distribution(m_random_engine));
+      point1.acceleration = glm::vec2(0.0f, -9.8f);
+      m_soft_body_dirver.add_point(point1);
+      soft_body_point point2;
+      point2.position = m_mouse_position + init_dir * 0.2f;
+      point2.velocity = glm::vec2(m_random_distribution(m_random_engine),
+                                  m_random_distribution(m_random_engine));
+      point2.acceleration = glm::vec2(0.0f, -9.8f);
+      m_soft_body_dirver.add_point(point2);
+      soft_body_segment segment;
+      segment.index1 = m_soft_body_dirver.get_points().size() - 2;
+      segment.index2 = m_soft_body_dirver.get_points().size() - 1;
+      segment.length = 0.2f;
+      m_soft_body_dirver.add_segment(segment);
+
+      break;
+    }
+    case object_type::k_triangle:
+    case object_type::k_circle: {
+      soft_body_point center;
+      center.position = m_mouse_position;
+      center.velocity = glm::vec2(m_random_distribution(m_random_engine),
+                                  m_random_distribution(m_random_engine));
+      center.acceleration = glm::vec2(0.0f, -9.8f);
+
+      const int point_count = m_object_type == object_type::k_triangle ? 3 : 20;
+      const int base = static_cast<int>(m_soft_body_dirver.get_points().size());
+      for (int i = 0; i < point_count; i++) {
+        soft_body_point point = center;
+        glm::vec2 direction = glm::vec2(
+            glm::cos(i * 2.0f * static_cast<float>(M_PI) / point_count),
+            glm::sin(i * 2.0f * static_cast<float>(M_PI) / point_count));
+        point.position = center.position + direction * 0.2f;
+        m_soft_body_dirver.add_point(point);
+      }
+      soft_body_loop loop;
+      for (int i = 0; i < point_count; i++) {
+        soft_body_segment segment;
+        segment.index1 = base + i;
+        segment.index2 = base + (i + 1) % point_count;
+        segment.length =
+            glm::length(m_soft_body_dirver.get_point(segment.index1).position -
+                        m_soft_body_dirver.get_point(segment.index2).position);
+        m_soft_body_dirver.add_segment(segment);
+        loop.segment_indices.push_back(
+            static_cast<int>(m_soft_body_dirver.get_segments().size()) - 1);
+      }
+      m_soft_body_dirver.add_loop(loop);
+      break;
+    }
+    }
+
+    update_mesh_data();
+
+    return true;
+  }
+  return false;
+}
+
+bool soft_body_sub_scene::on_mouse_moved(double _xpos, double _ypos) {
+  GLint viewport[4];
+  glGetIntegerv(GL_VIEWPORT, viewport);
+  float viewport_width = static_cast<float>(viewport[2]);
+  float viewport_height = static_cast<float>(viewport[3]);
+
+  if (viewport_width <= 0 || viewport_height <= 0) {
+    return false;
+  }
+
+  float x_screen = static_cast<float>(_xpos) - static_cast<float>(viewport[0]);
+  float y_screen = static_cast<float>(_ypos) - static_cast<float>(viewport[1]);
+
+  float x_norm = x_screen / viewport_width;
+  float y_norm = y_screen / viewport_height;
+
+  float x_clip = 2.0f * x_norm - 1.0f;
+  float y_clip = 1.0f - 2.0f * y_norm;
+
+  m_mouse_position = glm::vec2(x_clip, y_clip);
+
+  return true;
 }

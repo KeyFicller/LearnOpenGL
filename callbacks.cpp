@@ -36,6 +36,9 @@ void mouse_callback(GLFWwindow *window, double xpos, double ypos) {
   test_suit *test_suit_ptr =
       static_cast<test_suit *>(glfwGetWindowUserPointer(window));
   if (test_suit_ptr) {
+    if (!test_suit_ptr->m_viewport_hovered) {
+      return;
+    }
     auto real_xpos = xpos - test_suit_ptr->m_viewport_x;
     auto real_ypos = ypos - test_suit_ptr->m_viewport_y;
     test_suit_ptr->on_mouse_moved(real_xpos, real_ypos);
@@ -61,6 +64,9 @@ void mouse_button_callback(GLFWwindow *window, int button, int action,
   test_suit *test_suit_ptr =
       static_cast<test_suit *>(glfwGetWindowUserPointer(window));
   if (test_suit_ptr) {
+    if (!test_suit_ptr->m_viewport_hovered) {
+      return;
+    }
     test_suit_ptr->on_mouse_button(button, action, mods);
   }
 }

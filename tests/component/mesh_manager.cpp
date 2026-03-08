@@ -43,9 +43,18 @@ mesh_manager &mesh_manager::operator=(mesh_manager &&other) noexcept {
 
 void mesh_manager::setup_mesh(const mesh_data &data) {
   // Clean up existing resources
-  delete m_VAO;
-  delete m_VBO;
-  delete m_EBO;
+  if (m_VAO) {
+    delete m_VAO;
+    m_VAO = nullptr;
+  }
+  if (m_VBO) {
+    delete m_VBO;
+    m_VBO = nullptr;
+  }
+  if (m_EBO) {
+    delete m_EBO;
+    m_EBO = nullptr;
+  }
 
   // Create VAO
   m_VAO = new vertex_array();
@@ -62,8 +71,10 @@ void mesh_manager::setup_mesh(const mesh_data &data) {
     m_EBO->bind();
     m_EBO->set_data(data.indices, data.index_count * sizeof(unsigned int));
   } else {
-    delete m_EBO;
-    m_EBO = nullptr;
+    if (m_EBO) {
+      delete m_EBO;
+      m_EBO = nullptr;
+    }
   }
 
   // Set vertex attributes

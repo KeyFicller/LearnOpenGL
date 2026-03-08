@@ -71,6 +71,7 @@ public:
   float m_viewport_width = 0.0f;
   float m_viewport_height = 0.0f;
   framebuffer *m_scene_framebuffer = nullptr;
+  bool m_viewport_hovered = false;
 
 private:
   // Current active test scene

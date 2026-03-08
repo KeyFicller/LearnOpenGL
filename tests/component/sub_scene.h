@@ -44,6 +44,9 @@ public:
 
   // Event handlers
   virtual bool on_mouse_moved(double _xpos, double _ypos) { return false; }
+  virtual bool on_mouse_button(int _button, int _action, int _mods) {
+    return false;
+  }
 
 protected:
   ParentScene *m_parent;
@@ -143,6 +146,13 @@ public:
   bool on_mouse_moved(double _xpos, double _ypos) {
     if (auto *current_scene = current()) {
       return current_scene->on_mouse_moved(_xpos, _ypos);
+    }
+    return false;
+  }
+
+  bool on_mouse_button(int _button, int _action, int _mods) {
+    if (auto *current_scene = current()) {
+      return current_scene->on_mouse_button(_button, _action, _mods);
     }
     return false;
   }

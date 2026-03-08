@@ -5,10 +5,12 @@
 
 class spline_movement_snake_sub_scene;
 class spline_movement_lizard_sub_scene;
+class soft_body_sub_scene;
 
 class spline_movement_scene : public renderable_scene_base {
   friend class spline_movement_snake_sub_scene;
   friend class spline_movement_lizard_sub_scene;
+  friend class soft_body_sub_scene;
 
 public:
   spline_movement_scene();
@@ -20,6 +22,7 @@ public:
   void render_ui() override;
   void update(float _delta_time) override;
   bool on_mouse_moved(double _xpos, double _ypos) override;
+  bool on_mouse_button(int _button, int _action, int _mods) override;
 
 private:
   // Sub-scene manager

@@ -1,12 +1,14 @@
 #pragma once
 
 #include "basic/shader.h"
+#include "soft_body_dirver.h"
 #include "spline_movement_driver.h"
 #include "tests/component/mesh_manager.h"
 #include "tests/component/sub_scene.h"
 #include <glm/glm.hpp>
 #include <map>
 #include <memory>
+#include <random>
 #include <string>
 
 // Forward declaration
@@ -66,4 +68,47 @@ protected:
   mesh_manager m_legs_control_points_manager[4];
   mesh_manager m_legs_line_strip_manager[4];
   float m_leg_size = 0.005f;
+};
+
+/**
+ * @brief Sub-scene: Soft Body Driver
+ */
+class soft_body_sub_scene : public sub_scene<spline_movement_scene> {
+  enum object_type : int {
+    k_point = 0,
+    k_segment = 1,
+    k_triangle = 2,
+    k_circle = 3
+  };
+
+public:
+  soft_body_sub_scene(spline_movement_scene *_parent);
+  ~soft_body_sub_scene() override;
+
+  void render() override;
+  void render_ui() override;
+  void update(float _delta_time) override;
+
+  bool on_mouse_moved(double _xpos, double _ypos) override;
+  bool on_mouse_button(int _button, int _action, int _mods) override;
+
+private:
+  void update_mesh_data();
+
+protected:
+  soft_body_dirver m_soft_body_dirver =
+      soft_body_dirver(glm::vec2(-1.0f, 1.0f), glm::vec2(-1.0f, 1.0f));
+
+  glm::vec2 m_mouse_position = glm::vec2(0.0f, 0.0f);
+
+  shader *m_point_shader = nullptr;
+  shader *m_segment_shader = nullptr;
+  mesh_manager m_point_mesh;
+  mesh_manager m_segment_mesh;
+  object_type m_object_type = object_type::k_point;
+
+  std::random_device m_random_device;
+  std::mt19937 m_random_engine = std::mt19937(m_random_device());
+  std::uniform_real_distribution<float> m_random_distribution =
+      std::uniform_real_distribution<float>(-1.0f, 1.0f);
 };

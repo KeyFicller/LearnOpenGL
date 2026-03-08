@@ -23,6 +23,8 @@ void spline_movement_scene::init(GLFWwindow *_window) {
       std::make_unique<spline_movement_snake_sub_scene>(this));
   m_sub_scene_manager.add_sub_scene(
       std::make_unique<spline_movement_lizard_sub_scene>(this));
+  m_sub_scene_manager.add_sub_scene(
+      std::make_unique<soft_body_sub_scene>(this));
 }
 
 void spline_movement_scene::render() { m_sub_scene_manager.render(); }
@@ -53,4 +55,9 @@ void spline_movement_scene::update(float _delta_time) {
 
 bool spline_movement_scene::on_mouse_moved(double _xpos, double _ypos) {
   return m_sub_scene_manager.on_mouse_moved(_xpos, _ypos);
+}
+
+bool spline_movement_scene::on_mouse_button(int _button, int _action,
+                                            int _mods) {
+  return m_sub_scene_manager.on_mouse_button(_button, _action, _mods);
 }

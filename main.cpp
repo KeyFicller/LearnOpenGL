@@ -252,6 +252,7 @@ int main() {
       ImVec2 display_size = ImGui::GetContentRegionAvail();
       ImGui::Image((void *)(intptr_t)scene_framebuffer.get_color_texture(),
                    display_size, ImVec2(0, 1), ImVec2(1, 0));
+      test_suit.m_viewport_hovered = ImGui::IsWindowHovered();
       ImGui::End();
 
       // Render ImGui
