@@ -101,12 +101,11 @@ void spline_movement_snake_sub_scene::draw_spline() {
 }
 
 void spline_movement_snake_sub_scene::render() {
-  // Configure stencil test for writing
+  glEnable(GL_STENCIL_TEST);
   glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
   glStencilFunc(GL_ALWAYS, 1, 0xFF);
   glStencilMask(0xFF);
 
-  // Draw normal object and write to stencil buffer
   for (auto &shader : m_shaders) {
     if (shader.first == spline_shader_type::k_control_points) {
       continue;
@@ -117,9 +116,8 @@ void spline_movement_snake_sub_scene::render() {
   draw_spline();
   draw_attachments();
 
-  // Draw boundary outline using stencil test
   glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
-  glStencilMask(0x00); // Disable writing to stencil buffer
+  glStencilMask(0x00);
   glDisable(GL_DEPTH_TEST);
 
   for (auto &shader : m_shaders) {
@@ -133,7 +131,8 @@ void spline_movement_snake_sub_scene::render() {
   draw_attachments();
 
   glEnable(GL_DEPTH_TEST);
-  glStencilMask(0xFF); // Re-enable stencil writing for next frame
+  glStencilMask(0xFF);
+  glDisable(GL_STENCIL_TEST);
 }
 
 void spline_movement_snake_sub_scene::render_ui() {

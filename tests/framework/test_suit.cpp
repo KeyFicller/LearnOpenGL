@@ -1,5 +1,6 @@
 #include "tests/framework/test_suit.h"
 
+#include "glad/gl.h"
 #include "imgui.h"
 #include "tests/scenes/advanced_glsl_scene.h"
 #include "tests/scenes/blender_test_scene.h"
@@ -17,10 +18,10 @@
 #include "tests/scenes/light_type_scene.h"
 #include "tests/scenes/multiple_light_scene.h"
 #include "tests/scenes/reveal_chess_scene.h"
-#include "tests/scenes/soft_body_frog_scene.h"
 #include "tests/scenes/scene_factory.h"
 #include "tests/scenes/script_editor_scene.h"
 #include "tests/scenes/shader_editor_scene.h"
+#include "tests/scenes/soft_body_frog_scene.h"
 #include "tests/scenes/spline_movement_scene.h"
 #include "tests/scenes/stencil_test_scene.h"
 #include "tests/scenes/texture_cube_scene.h"
@@ -90,6 +91,9 @@ void test_suit::render_ui() {
       test_scene scene = static_cast<test_scene>(i);
       bool is_selected = (m_current_scene == scene);
       if (ImGui::RadioButton(get_scene_name(scene), is_selected)) {
+        glEnable(GL_DEPTH_TEST);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         m_current_scene = scene;
       }
     }
@@ -102,6 +106,9 @@ void test_suit::render_ui() {
       test_scene scene = static_cast<test_scene>(i);
       bool is_selected = (m_current_scene == scene);
       if (ImGui::RadioButton(get_scene_name(scene), is_selected)) {
+        glEnable(GL_DEPTH_TEST);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         m_current_scene = scene;
       }
     }

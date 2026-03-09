@@ -16,6 +16,7 @@
 #include "tests/component/mesh_manager.h"
 #include "tests/component/prefab_quad.h"
 #include "tests/component/text_renderer.h"
+#include "tests/component/interaction_utils.h"
 
 namespace {
 enum class msg_type : uint8_t {
@@ -939,12 +940,9 @@ void reveal_chess_scene::draw_text() {
           return _a + (_b - _a) * _t;
         };
 
-        GLint viewport[4];
-        glGetIntegerv(GL_VIEWPORT, viewport);
         const float ref_height = 800.0f;
-        float scale = (viewport[3] > 0)
-                          ? (static_cast<float>(viewport[3]) / ref_height)
-                          : 1.0f;
+        float scale =
+            interaction_utils::viewport_scale_from_ref_height(ref_height);
         float cx = mix(-0.9f, 0.9f, float(c) / 8.0f);
         float cy = mix(0.9f, -0.9f, float(r) / 9.0f);
 

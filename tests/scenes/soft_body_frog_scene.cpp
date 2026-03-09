@@ -2,11 +2,12 @@
 #include "GLFW/glfw3.h"
 #include "glad/gl.h"
 #include "glm/gtc/type_ptr.hpp"
+#include "tests/component/interaction_utils.h"
 #include <cmath>
 #include <cstddef>
 
 soft_body_frog_scene::soft_body_frog_scene()
-    : renderable_scene_base("Soft Body Frog"),
+    : renderable_scene_base("Dumb Slime"),
       m_driver(glm::vec2(-1.0f, 1.0f), glm::vec2(-1.0f, 1.0f)) {}
 
 soft_body_frog_scene::~soft_body_frog_scene() {
@@ -65,9 +66,8 @@ void soft_body_frog_scene::init_frog_loop() {
     soft_body_segment seg;
     seg.index1 = base + i;
     seg.index2 = base + (i + 1) % n;
-    seg.length = glm::length(
-        m_driver.get_point(seg.index1).position -
-        m_driver.get_point(seg.index2).position);
+    seg.length = glm::length(m_driver.get_point(seg.index1).position -
+                             m_driver.get_point(seg.index2).position);
     m_driver.add_segment(seg);
     loop.segment_indices.push_back(
         static_cast<int>(m_driver.get_segments().size()) - 1);
@@ -75,7 +75,8 @@ void soft_body_frog_scene::init_frog_loop() {
   m_driver.add_loop(loop);
 }
 
-std::vector<int> soft_body_frog_scene::get_loop_point_order(size_t _loop_index) const {
+std::vector<int>
+soft_body_frog_scene::get_loop_point_order(size_t _loop_index) const {
   const auto &loops = m_driver.get_loops();
   const auto &segments = m_driver.get_segments();
   if (_loop_index >= loops.size())
@@ -146,23 +147,29 @@ void soft_body_frog_scene::update_mesh_data() {
                       {vertex_attribute{2, GL_FLOAT, false}});
   m_body_mesh.setup_mesh(body_data);
 
-  std::vector<unsigned int> outline_indices;
-  for (size_t i = 0; i < order.size(); i++) {
-    outline_indices.push_back(static_cast<unsigned int>(order[i]));
-    outline_indices.push_back(
-        static_cast<unsigned int>(order[(i + 1) % order.size()]));
+  std::vector<glm::vec2> outline_verts;
+  outline_verts.reserve(order.size());
+  for (int i : order) {
+    outline_verts.push_back(points[static_cast<size_t>(i)].position);
   }
-  mesh_data outline_data(
-      points.data(), points.size() * sizeof(glm::vec2), outline_indices.data(),
-      outline_indices.size(), {vertex_attribute{2, GL_FLOAT, false}});
+  std::vector<unsigned int> outline_indices;
+  for (size_t i = 0; i < outline_verts.size(); i++) {
+    outline_indices.push_back(static_cast<unsigned int>(i));
+    outline_indices.push_back(
+        static_cast<unsigned int>((i + 1) % outline_verts.size()));
+  }
+  mesh_data outline_data(outline_verts.data(),
+                         outline_verts.size() * sizeof(glm::vec2),
+                         outline_indices.data(), outline_indices.size(),
+                         {vertex_attribute{2, GL_FLOAT, false}});
   m_outline_mesh.setup_mesh(outline_data);
 
   glm::vec2 left_eye = centroid + glm::vec2(-m_eye_offset_x, m_eye_offset_y);
   glm::vec2 right_eye = centroid + glm::vec2(m_eye_offset_x, m_eye_offset_y);
   std::vector<glm::vec2> eye_centers = {left_eye, right_eye};
   mesh_data eye_data(eye_centers.data(), eye_centers.size() * sizeof(glm::vec2),
-                    eye_centers.size(),
-                    {vertex_attribute{2, GL_FLOAT, false}});
+                     eye_centers.size(),
+                     {vertex_attribute{2, GL_FLOAT, false}});
   m_eye_mesh.setup_mesh(eye_data);
 
   float mx = centroid.x;
@@ -179,10 +186,10 @@ void soft_body_frog_scene::update_mesh_data() {
     mouth_indices.push_back(static_cast<unsigned int>(i));
     mouth_indices.push_back(static_cast<unsigned int>(i + 1));
   }
-  mesh_data mouth_data(
-      mouth_verts.data(), mouth_verts.size() * sizeof(glm::vec2),
-      mouth_indices.data(), mouth_indices.size(),
-      {vertex_attribute{2, GL_FLOAT, false}});
+  mesh_data mouth_data(mouth_verts.data(),
+                       mouth_verts.size() * sizeof(glm::vec2),
+                       mouth_indices.data(), mouth_indices.size(),
+                       {vertex_attribute{2, GL_FLOAT, false}});
   m_mouth_mesh.setup_mesh(mouth_data);
 }
 
@@ -191,6 +198,10 @@ void soft_body_frog_scene::render() {
     return;
 
   glm::mat4 mvp = m_camera.ProjectionMatrix * m_camera.ViewMatrix;
+
+  GLboolean depth_enabled = glIsEnabled(GL_DEPTH_TEST);
+  if (depth_enabled)
+    glDisable(GL_DEPTH_TEST);
 
   glEnable(GL_BLEND);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -240,21 +251,89 @@ void soft_body_frog_scene::render() {
   glDrawElements(GL_LINES, m_mouth_mesh.get_index_count(), GL_UNSIGNED_INT, 0);
 
   glDisable(GL_BLEND);
+
+  if (depth_enabled)
+    glEnable(GL_DEPTH_TEST);
 }
 
 void soft_body_frog_scene::render_ui() {
   render_camera_ui();
   ImGui::Separator();
-  ImGui::Text("Frog");
   ImGui::ColorEdit3("Body", glm::value_ptr(m_body_color));
   ImGui::ColorEdit3("Eye ring", glm::value_ptr(m_eye_ring_color));
   ImGui::SliderFloat("Outline width", &m_outline_width, 0.002f, 0.02f);
-  ImGui::SliderFloat("Area strength", &m_driver.m_area_correction_strength, 0.0f,
-                    1.0f);
+  ImGui::SliderFloat("Area strength", &m_driver.m_area_correction_strength,
+                     0.0f, 1.0f);
 }
 
 void soft_body_frog_scene::update(float _delta_time) {
   renderable_scene_base::update(_delta_time);
   m_driver.update(_delta_time);
+
+  if (m_dragging && m_drag_point_index >= 0 &&
+      static_cast<size_t>(m_drag_point_index) < m_driver.get_points().size()) {
+    auto &p = m_driver.get_point(m_drag_point_index);
+    p.position = m_mouse_position;
+    p.velocity = glm::vec2(0.0f);
+  }
+
   update_mesh_data();
+}
+
+void soft_body_frog_scene::on_object_hovered(int _object_id) {
+  if (_object_id == 1) {
+    m_hovered_object = true;
+  } else {
+    m_hovered_object = false;
+  }
+}
+
+bool soft_body_frog_scene::on_mouse_button(int _button, int _action,
+                                           int _mods) {
+  (void)_mods;
+  if (_button == GLFW_MOUSE_BUTTON_LEFT && _action == GLFW_PRESS) {
+    const auto &points = m_driver.get_points();
+    if (points.empty())
+      return false;
+
+    float best_dist2 = 0.06f * 0.06f;
+    int best_index = -1;
+    for (size_t i = 0; i < points.size(); ++i) {
+      glm::vec2 diff = points[i].position - m_mouse_position;
+      float d2 = glm::dot(diff, diff);
+      if (d2 <= best_dist2) {
+        best_dist2 = d2;
+        best_index = static_cast<int>(i);
+      }
+    }
+
+    if (best_index >= 0) {
+      m_dragging = true;
+      m_drag_point_index = best_index;
+      auto &p = m_driver.get_point(m_drag_point_index);
+      p.position = m_mouse_position;
+      p.velocity = glm::vec2(0.0f);
+      return true;
+    }
+  } else if (_button == GLFW_MOUSE_BUTTON_LEFT && _action == GLFW_RELEASE) {
+    m_dragging = false;
+    m_drag_point_index = -1;
+  }
+  return false;
+}
+
+bool soft_body_frog_scene::on_mouse_moved(double _xpos, double _ypos) {
+  if (!interaction_utils::screen_to_clip(_xpos, _ypos, m_mouse_position)) {
+    return false;
+  }
+
+  if (m_dragging && m_drag_point_index >= 0 &&
+      static_cast<size_t>(m_drag_point_index) < m_driver.get_points().size()) {
+    auto &p = m_driver.get_point(m_drag_point_index);
+    p.position = m_mouse_position;
+    p.velocity = glm::vec2(0.0f);
+    return true;
+  }
+
+  return false;
 }

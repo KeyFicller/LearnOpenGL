@@ -16,17 +16,25 @@ public:
   void render() override;
   void render_ui() override;
   void update(float _delta_time) override;
+  bool on_mouse_moved(double _xpos, double _ypos) override;
 
 private:
   void init_frog_loop();
   std::vector<int> get_loop_point_order(size_t _loop_index) const;
   void update_mesh_data();
+  void on_object_hovered(int _object_id) override;
+  bool on_mouse_button(int _button, int _action, int _mods) override;
 
   soft_body_dirver m_driver;
   mesh_manager m_body_mesh;
   mesh_manager m_outline_mesh;
   mesh_manager m_eye_mesh;
   mesh_manager m_mouth_mesh;
+
+  bool m_hovered_object = false;
+  glm::vec2 m_mouse_position = glm::vec2(0.0f);
+  int m_drag_point_index = -1;
+  bool m_dragging = false;
 
   shader *m_body_shader = nullptr;
   shader *m_outline_shader = nullptr;
