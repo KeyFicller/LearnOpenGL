@@ -207,6 +207,24 @@ public:
     m_last_points.clear();
   }
 
+  void apply_offset(const glm::vec2 &_offset) {
+    for (auto &point : m_points) {
+      point.position += _offset;
+    }
+  }
+
+  void apply_velocity(const glm::vec2 &_velocity) {
+    for (auto &point : m_points) {
+      point.velocity += _velocity;
+    }
+  }
+
+  void apply_acceleration(const glm::vec2 &_acceleration) {
+    for (auto &point : m_points) {
+      point.acceleration += _acceleration;
+    }
+  }
+
 protected:
   glm::vec2 m_horizontal_bound;
   glm::vec2 m_vertical_bound;

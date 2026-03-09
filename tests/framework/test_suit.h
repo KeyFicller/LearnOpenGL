@@ -32,6 +32,7 @@ enum class test_scene {
   k_shader_editor_test,
   k_script_editor_test,
   k_reveal_chess_test,
+  k_soft_body_frog_test,
   k_advanced_test_count,
   k_count
 };
