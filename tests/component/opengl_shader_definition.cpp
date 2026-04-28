@@ -139,6 +139,27 @@ const TextEditor::LanguageDefinition &opengl_shader_definition() {
         "common",
         "partition",
         "active",
+        // tessellation shader keywords
+        "isolines",
+        "triangles",
+        "quads",
+        "equal_spacing",
+        "fractional_even_spacing",
+        "fractional_odd_spacing",
+        "cw",
+        "ccw",
+        "point_mode",
+        "vertices",
+        // built in variables
+        "gl_VertexID",
+        "gl_InstanceID",
+        "gl_Position",
+        "gl_PatchVerticesIn",
+        "gl_PrimitiveID",
+        "gl_InvocationID",
+        "gl_TessCoord",
+        "gl_TessLevelInner",
+        "gl_TessLevelOuter",
     };
     for (auto &k : keywords)
       langDef.mKeywords.insert(k);

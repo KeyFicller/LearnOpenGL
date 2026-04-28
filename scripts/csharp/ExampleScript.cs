@@ -31,15 +31,16 @@ namespace Scripts
 
         public static float OffsetX()
         {
-            return 0.3f;
+            return 0.6f;
         }
 
         public static float OffsetY()
         {
-            return 0.2f;
+            return 0.5f;
         }
     }
 }
+
 
 
 

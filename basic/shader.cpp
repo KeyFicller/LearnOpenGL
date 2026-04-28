@@ -33,8 +33,8 @@ int create_shader_from_source(const std::string &_source, GLenum _shader_type,
   if (!success) {
     glGetShaderInfoLog(shader, 1024, NULL, info_log);
     std::stringstream ss;
-    ss << "Shader compilation failed for " << (_path_for_error ? _path_for_error : "")
-       << ":\n"
+    ss << "Shader compilation failed for "
+       << (_path_for_error ? _path_for_error : "") << ":\n"
        << info_log;
     glDeleteShader(shader);
     throw std::runtime_error(ss.str());
@@ -61,7 +61,9 @@ int create_shader_from_file(const char *_path, GLenum _shader_type) {
 
 int create_shader_program_from_shaders(GLuint _vertex_shader,
                                        GLuint _fragment_shader,
-                                       GLuint _geometry_shader) {
+                                       GLuint _geometry_shader,
+                                       GLuint _tess_control_shader,
+                                       GLuint _tess_evaluation_shader) {
   GLuint shader_program = glCreateProgram();
   check_gl_error("glCreateProgram");
 
@@ -74,6 +76,14 @@ int create_shader_program_from_shaders(GLuint _vertex_shader,
   if (_geometry_shader != 0) {
     glAttachShader(shader_program, _geometry_shader);
     check_gl_error("glAttachShader (geometry)");
+  }
+  if (_tess_control_shader != 0) {
+    glAttachShader(shader_program, _tess_control_shader);
+    check_gl_error("glAttachShader (tess control)");
+  }
+  if (_tess_evaluation_shader != 0) {
+    glAttachShader(shader_program, _tess_evaluation_shader);
+    check_gl_error("glAttachShader (tess evaluation)");
   }
 
   glLinkProgram(shader_program);
@@ -92,6 +102,12 @@ int create_shader_program_from_shaders(GLuint _vertex_shader,
     if (_geometry_shader != 0) {
       glDeleteShader(_geometry_shader);
     }
+    if (_tess_control_shader != 0) {
+      glDeleteShader(_tess_control_shader);
+    }
+    if (_tess_evaluation_shader != 0) {
+      glDeleteShader(_tess_evaluation_shader);
+    }
     throw std::runtime_error(ss.str());
   }
 
@@ -100,11 +116,18 @@ int create_shader_program_from_shaders(GLuint _vertex_shader,
   if (_geometry_shader != 0) {
     glDeleteShader(_geometry_shader);
   }
+  if (_tess_control_shader != 0) {
+    glDeleteShader(_tess_control_shader);
+  }
+  if (_tess_evaluation_shader != 0) {
+    glDeleteShader(_tess_evaluation_shader);
+  }
   return shader_program;
 }
 
 shader::shader(const char *_vertex_path, const char *_fragment_path,
-               const char *_geometry_path) {
+               const char *_geometry_path, const char *_tess_control_path,
+               const char *_tess_evaluation_path) {
   try {
 
     GLuint vertex_shader =
@@ -115,12 +138,23 @@ shader::shader(const char *_vertex_path, const char *_fragment_path,
         _geometry_path
             ? create_shader_from_file(_geometry_path, GL_GEOMETRY_SHADER)
             : 0;
-    m_ID = create_shader_program_from_shaders(vertex_shader, fragment_shader,
-                                              geometry_shader);
+    GLuint tess_control_shader =
+        _tess_control_path ? create_shader_from_file(_tess_control_path,
+                                                     GL_TESS_CONTROL_SHADER)
+                           : 0;
+    GLuint tess_evaluation_shader =
+        _tess_evaluation_path
+            ? create_shader_from_file(_tess_evaluation_path,
+                                      GL_TESS_EVALUATION_SHADER)
+            : 0;
+    m_ID = create_shader_program_from_shaders(
+        vertex_shader, fragment_shader, geometry_shader, tess_control_shader,
+        tess_evaluation_shader);
   } catch (std::exception &e) {
     std::stringstream ss;
     ss << "Failed to create shader program from file: " << _vertex_path << ", "
-       << _fragment_path << ", " << _geometry_path << ": " << e.what();
+       << _fragment_path << ", " << _geometry_path << ", " << _tess_control_path
+       << ", " << _tess_evaluation_path << ": " << e.what();
     throw std::runtime_error(ss.str());
   }
 }
@@ -131,7 +165,9 @@ void shader::use() { glUseProgram(m_ID); }
 
 shader *shader::shader_from_source(const std::string &_vertex_source,
                                    const std::string &_fragment_source,
-                                   const std::string &_geometry_source) {
+                                   const std::string &_geometry_source,
+                                   const std::string &_tess_control_source,
+                                   const std::string &_tess_evaluation_source) {
 
   GLuint vertex_shader =
       create_shader_from_source(_vertex_source, GL_VERTEX_SHADER, nullptr);
@@ -140,9 +176,20 @@ shader *shader::shader_from_source(const std::string &_vertex_source,
   GLuint geometry_shader =
       !_geometry_source.empty()
           ? create_shader_from_source(_geometry_source, GL_GEOMETRY_SHADER,
-                                     nullptr)
+                                      nullptr)
+          : 0;
+  GLuint tess_control_shader =
+      !_tess_control_source.empty()
+          ? create_shader_from_source(_tess_control_source,
+                                      GL_TESS_CONTROL_SHADER, nullptr)
+          : 0;
+  GLuint tess_evaluation_shader =
+      !_tess_evaluation_source.empty()
+          ? create_shader_from_source(_tess_evaluation_source,
+                                      GL_TESS_EVALUATION_SHADER, nullptr)
           : 0;
   int shader_program = create_shader_program_from_shaders(
-      vertex_shader, fragment_shader, geometry_shader);
+      vertex_shader, fragment_shader, geometry_shader, tess_control_shader,
+      tess_evaluation_shader);
   return new shader(shader_program);
 }
