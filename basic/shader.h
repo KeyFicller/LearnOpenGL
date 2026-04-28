@@ -14,12 +14,17 @@
 class shader {
 public:
   shader(const char *_vertex_path, const char *_fragment_path,
-         const char *_geometry_path = nullptr);
+         const char *_geometry_path = nullptr,
+         const char *_tess_control_path = nullptr,
+         const char *_tess_evaluation_path = nullptr);
   virtual ~shader();
 
   static shader *shader_from_source(const std::string &_vertex_source,
                                     const std::string &_fragment_source,
-                                    const std::string &_geometry_source = "");
+                                    const std::string &_geometry_source = "",
+                                    const std::string &_tess_control_source = "",
+                                    const std::string &_tess_evaluation_source =
+                                        "");
 
   shader(const shader &) = delete;
   shader &operator=(const shader &) = delete;

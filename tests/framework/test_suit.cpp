@@ -26,6 +26,7 @@
 #include "tests/scenes/stencil_test_scene.h"
 #include "tests/scenes/texture_cube_scene.h"
 #include "tests/scenes/texture_test_scene.h"
+#include "tests/scenes/tessellation_shader_scene.h"
 #include "tests/scenes/transform_test_scene.h"
 #include "tests/scenes/triangle_test_scene.h"
 #include <exception>
@@ -63,6 +64,8 @@ void test_suit::init(GLFWwindow *_window) {
     REGISTER_SCENE(test_scene::k_advanced_glsl_test_test, advanced_glsl_scene);
     REGISTER_SCENE(test_scene::k_geometry_shader_test_test,
                    geometry_shader_scene);
+    REGISTER_SCENE(test_scene::k_tessellation_shader_test_test,
+                   tessellation_shader_scene);
     REGISTER_SCENE(test_scene::k_instance_test, instance_scene);
     REGISTER_SCENE(test_scene::k_spline_movement_test, spline_movement_scene);
     REGISTER_SCENE(test_scene::k_shader_editor_test, shader_editor_scene);
