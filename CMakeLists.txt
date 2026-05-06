@@ -28,7 +28,7 @@ include(FetchContent)
 # ------------------------ Vendor:  GLFW ------------------------
 FetchContent_Declare(
   glfw
-  GIT_REPOSITORY https://bgithub.xyz/glfw/glfw.git
+  GIT_REPOSITORY https://github.com/glfw/glfw.git
   GIT_TAG        3.3.8
 )
 
@@ -39,7 +39,7 @@ FetchContent_MakeAvailable(glfw)
 
 FetchContent_Declare(
   glad
-  GIT_REPOSITORY https://bgithub.xyz/Dav1dde/glad.git
+  GIT_REPOSITORY https://github.com/Dav1dde/glad.git
   GIT_TAG        v2.0.0
 )
 
@@ -99,7 +99,7 @@ target_link_libraries(glad_gl PUBLIC ${CMAKE_DL_LIBS})
 # Fetch stb_image
 FetchContent_Declare(
   stb_image
-  GIT_REPOSITORY https://bgithub.xyz/nothings/stb.git
+  GIT_REPOSITORY https://github.com/nothings/stb.git
   GIT_TAG        f1c79c0
 )
 FetchContent_MakeAvailable(stb_image)
@@ -108,7 +108,7 @@ FetchContent_MakeAvailable(stb_image)
 # ------------------------ Vendor:  imgui ------------------------
 FetchContent_Declare(
   imgui
-  GIT_REPOSITORY https://bgithub.xyz/ocornut/imgui.git
+  GIT_REPOSITORY https://github.com/ocornut/imgui.git
   GIT_TAG        v1.92.0-docking
 )
 FetchContent_MakeAvailable(imgui)
@@ -118,7 +118,7 @@ FetchContent_MakeAvailable(imgui)
 # Fetch glm
 FetchContent_Declare(
   glm
-  GIT_REPOSITORY https://bgithub.xyz/g-truc/glm.git
+  GIT_REPOSITORY https://github.com/g-truc/glm.git
   GIT_TAG        1.0.3
 )
 FetchContent_MakeAvailable(glm)
@@ -127,7 +127,7 @@ FetchContent_MakeAvailable(glm)
 # ------------------------ Vendor:  assimp ------------------------
 FetchContent_Declare(
   assimp
-  GIT_REPOSITORY https://bgithub.xyz/assimp/assimp.git
+  GIT_REPOSITORY https://github.com/assimp/assimp.git
   GIT_TAG        v6.0.0
 )
 FetchContent_MakeAvailable(assimp)
@@ -136,7 +136,7 @@ FetchContent_MakeAvailable(assimp)
 # ------------------------ Vendor: periscope ------------------------
 FetchContent_Declare(
   periscope
-  GIT_REPOSITORY https://bgithub.xyz/KeyFicller/periscope.git
+  GIT_REPOSITORY https://github.com/KeyFicller/periscope.git
   GIT_TAG        4c0e70a
 )
 FetchContent_MakeAvailable(periscope)
@@ -164,7 +164,7 @@ endif()
 # ------------------------ Vendor: FreeType -----------------------
 FetchContent_Declare(
   freetype
-  GIT_REPOSITORY https://bgithub.xyz/freetype/freetype.git
+  GIT_REPOSITORY https://github.com/freetype/freetype.git
   GIT_TAG        VER-2-14-0
 )
 FetchContent_MakeAvailable(freetype)
@@ -239,6 +239,7 @@ add_executable(LearnOpenGL
     tests/scenes/spline_movement_driver.cpp
     tests/scenes/reveal_chess_scene.cpp
     tests/scenes/soft_body_frog_scene.cpp
+    tests/scenes/occt_demo_scene.cpp
     tests/scenes/shader_editor_scene.cpp
     tests/scenes/script_editor_scene.cpp
     tests/component/script_editor.cpp
@@ -250,15 +251,62 @@ add_executable(LearnOpenGL
 )
 
 target_link_libraries(LearnOpenGL PRIVATE glfw glad_gl assimp freetype)
+
+# Optional Open CASCADE Technology (OCCT) demo scene:
+# Point LEARNOPENGL_OCCT_BUILD_DIR at your OCCT *build* directory (the one that
+# contains OpenCASCADETargets.cmake). Override in CMake or set empty to disable.
+set(LEARNOPENGL_OCCT_BUILD_DIR
+    "/Users/keyficller/Documents/OCCT/build"
+    CACHE PATH
+    "OCCT build directory (contains OpenCASCADETargets.cmake); set empty to disable OCCT"
+)
+if(LEARNOPENGL_OCCT_BUILD_DIR AND EXISTS "${LEARNOPENGL_OCCT_BUILD_DIR}/OpenCASCADETargets.cmake")
+  set(CMAKE_MAP_IMPORTED_CONFIG_DEBUG RELWITHDEBINFO)
+  set(CMAKE_MAP_IMPORTED_CONFIG_RELEASE RELWITHDEBINFO)
+  set(CMAKE_MAP_IMPORTED_CONFIG_RELWITHDEBINFO RELWITHDEBINFO)
+  set(CMAKE_MAP_IMPORTED_CONFIG_MINSIZEREL RELWITHDEBINFO)
+  include("${LEARNOPENGL_OCCT_BUILD_DIR}/OpenCASCADETargets.cmake")
+  target_compile_definitions(LearnOpenGL PRIVATE LEARNOPENGL_USE_OCCT=1)
+  target_include_directories(LearnOpenGL PRIVATE
+      "${LEARNOPENGL_OCCT_BUILD_DIR}/include/opencascade")
+  target_link_libraries(LearnOpenGL PRIVATE TKPrim TKMesh)
+  # Locate OCCT shared libraries for runtime (macOS build tree layout)
+  set(LEARNOPENGL_OCCT_LIBDIR "")
+  file(GLOB LEARNOPENGL_OCCT_LIBDIRS "${LEARNOPENGL_OCCT_BUILD_DIR}/mac64/*/libi")
+  if(LEARNOPENGL_OCCT_LIBDIRS)
+    list(GET LEARNOPENGL_OCCT_LIBDIRS 0 LEARNOPENGL_OCCT_LIBDIR)
+  endif()
+  if(NOT LEARNOPENGL_OCCT_LIBDIR AND EXISTS "${LEARNOPENGL_OCCT_BUILD_DIR}/mac64/clang/libi")
+    set(LEARNOPENGL_OCCT_LIBDIR "${LEARNOPENGL_OCCT_BUILD_DIR}/mac64/clang/libi")
+  endif()
+  if(LEARNOPENGL_OCCT_LIBDIR)
+    set_property(TARGET LearnOpenGL APPEND PROPERTY BUILD_RPATH
+        "${LEARNOPENGL_OCCT_LIBDIR}")
+    set_property(TARGET LearnOpenGL APPEND PROPERTY INSTALL_RPATH
+        "${LEARNOPENGL_OCCT_LIBDIR}")
+  endif()
+  message(STATUS "Open CASCADE enabled: ${LEARNOPENGL_OCCT_BUILD_DIR}")
+else()
+  set(LEARNOPENGL_OCCT_LIBDIR "")
+  if(LEARNOPENGL_OCCT_BUILD_DIR)
+    message(WARNING "LEARNOPENGL_OCCT_BUILD_DIR set but OpenCASCADETargets.cmake not found; OCCT demo disabled.")
+  endif()
+endif()
 if(MONO_FOUND)
   target_link_directories(LearnOpenGL PRIVATE ${MONO_LIBRARY_DIRS})
   target_link_libraries(LearnOpenGL PRIVATE ${MONO_LIBRARIES})
   target_include_directories(LearnOpenGL PRIVATE ${MONO_INCLUDE_DIRS})
   target_compile_definitions(LearnOpenGL PRIVATE LEARNOPENGL_USE_MONO=1)
-  # Help Mono find System.Native and other runtime libs at load time
+  # Help Mono find System.Native and other runtime libs at load time;
+  # OCCT dylibs use @rpath too — merge paths (plain INSTALL_RPATH overwrites
+  # earlier APPEND values and breaks OCCT when BUILD_WITH_INSTALL_RPATH is on).
   if(APPLE)
+    set(_learn_rpath "/opt/homebrew/lib;/usr/local/lib")
+    if(LEARNOPENGL_OCCT_LIBDIR)
+      set(_learn_rpath "${LEARNOPENGL_OCCT_LIBDIR};${_learn_rpath}")
+    endif()
     set_target_properties(LearnOpenGL PROPERTIES
-      INSTALL_RPATH "/opt/homebrew/lib;/usr/local/lib"
+      INSTALL_RPATH "${_learn_rpath}"
       BUILD_WITH_INSTALL_RPATH TRUE)
   endif()
 endif()
