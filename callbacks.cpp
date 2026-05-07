@@ -80,6 +80,9 @@ void scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
   test_suit *test_suit_ptr =
       static_cast<test_suit *>(glfwGetWindowUserPointer(window));
   if (test_suit_ptr) {
+    if (!test_suit_ptr->m_viewport_hovered) {
+      return;
+    }
     test_suit_ptr->on_mouse_scroll(xoffset, yoffset);
   }
 }

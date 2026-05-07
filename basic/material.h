@@ -12,6 +12,14 @@ struct material {
   glm::vec3 Diffuse = glm::vec3(1.0f, 1.0f, 1.0f);
   glm::vec3 Specular = glm::vec3(1.0f, 1.0f, 1.0f);
   float Shininess = 32.0f;
+
+  /// When true, UI uses SimpleAlbedo / SimpleSpecular / Shininess and fills
+  /// Ambient, Diffuse, Specular automatically.
+  bool SimpleMaterial = false;
+
+  glm::vec3 SimpleAlbedo = glm::vec3(1.0f);
+  /// Becomes Specular = vec3(SimpleSpecular) in simple mode.
+  float SimpleSpecular = 0.25f;
 };
 
 /**

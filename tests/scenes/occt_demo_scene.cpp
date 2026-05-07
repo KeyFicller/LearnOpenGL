@@ -6,7 +6,10 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 #ifdef LEARNOPENGL_USE_OCCT
+#include <BRepAlgoAPI_Fuse.hxx>
+#include <BRepBuilderAPI_Transform.hxx>
 #include <BRepMesh_IncrementalMesh.hxx>
+#include <BRepPrimAPI_MakeBox.hxx>
 #include <BRepPrimAPI_MakeSphere.hxx>
 #include <BRep_Tool.hxx>
 #include <Poly_Triangulation.hxx>
@@ -17,7 +20,8 @@
 #include <TopoDS.hxx>
 #include <TopoDS_Face.hxx>
 #include <gp_Pnt.hxx>
-#include <sstream>
+#include <gp_Trsf.hxx>
+#include <gp_Vec.hxx>
 #include <stdexcept>
 
 namespace {
@@ -55,7 +59,27 @@ static void append_flat_triangle(std::vector<float> &out, const glm::vec3 &a,
 #endif
 
 occt_demo_scene::occt_demo_scene()
-    : renderable_scene_base("OCCT Demo") {}
+    : renderable_scene_base("OCCT Demo") {
+  m_light.Type = light_type::k_directional;
+  m_light.Direction = glm::vec3(0.35f, 1.0f, 0.4f);
+  m_light.SimpleLighting = true;
+  m_light.SimpleColor = glm::vec3(1.0f);
+  m_light.SimpleIntensity = 0.55f;
+  const glm::vec3 light_base =
+      m_light.SimpleColor * m_light.SimpleIntensity;
+  m_light.Ambient = light_base * 0.22f;
+  m_light.Diffuse = light_base;
+  m_light.Specular = light_base * 0.45f;
+
+  const glm::vec3 obj{0.25f, 0.72f, 0.92f};
+  m_material.SimpleMaterial = true;
+  m_material.SimpleAlbedo = obj;
+  m_material.SimpleSpecular = 0.25f;
+  m_material.Ambient = obj * 0.25f;
+  m_material.Diffuse = obj;
+  m_material.Specular = glm::vec3(0.25f);
+  m_material.Shininess = 64.0f;
+}
 
 void occt_demo_scene::init(GLFWwindow *_window) {
   renderable_scene_base::init(_window);
@@ -67,9 +91,10 @@ void occt_demo_scene::init(GLFWwindow *_window) {
       "contains OpenCASCADETargets.cmake), then reconfigure.";
 #else
   try {
-    load_shader_pair(
-        "shaders/occt_demo/vertex.shader", "shaders/occt_demo/fragment.shader",
-        "shaders/occt_demo/fragment.shader", m_shader, m_light_shader);
+    load_shader_pair("shaders/occt_demo/vertex.shader",
+                     "shaders/occt_demo/fragment.shader",
+                     "shaders/light_material_test/light_fragment.shader",
+                     m_shader, m_light_shader);
   } catch (const std::exception &e) {
     m_status_message = e.what();
   }
@@ -82,7 +107,7 @@ void occt_demo_scene::init(GLFWwindow *_window) {
   if (m_shader) {
     try {
       build_mesh_from_occt();
-      m_status_message = "Mesh built from OCCT BRep + BRepMesh.";
+      m_status_message = "Mesh: OCCT BRep box + sphere (fused) + BRepMesh.";
     } catch (const std::exception &e) {
       m_status_message = e.what();
     }
@@ -95,8 +120,36 @@ void occt_demo_scene::build_mesh_from_occt() {
   m_vertex_data.clear();
   m_triangle_count = 0;
 
-  BRepPrimAPI_MakeSphere sphereMaker(static_cast<double>(m_sphere_radius));
-  TopoDS_Shape shape = sphereMaker.Shape();
+  const double bx = static_cast<double>(m_box_size.x);
+  const double by = static_cast<double>(m_box_size.y);
+  const double bz = static_cast<double>(m_box_size.z);
+  const double hbx = bx * 0.5;
+  const double hby = by * 0.5;
+  const double hbz = bz * 0.5;
+  const gp_Pnt box_min(static_cast<double>(m_box_center.x) - hbx,
+                       static_cast<double>(m_box_center.y) - hby,
+                       static_cast<double>(m_box_center.z) - hbz);
+  const gp_Pnt box_max(static_cast<double>(m_box_center.x) + hbx,
+                       static_cast<double>(m_box_center.y) + hby,
+                       static_cast<double>(m_box_center.z) + hbz);
+  const TopoDS_Shape box_shape = BRepPrimAPI_MakeBox(box_min, box_max).Shape();
+
+  TopoDS_Shape sphere_shape =
+      BRepPrimAPI_MakeSphere(static_cast<double>(m_sphere_radius)).Shape();
+  gp_Trsf sphere_trsf;
+  sphere_trsf.SetTranslation(
+      gp_Vec(static_cast<double>(m_sphere_center.x),
+             static_cast<double>(m_sphere_center.y),
+             static_cast<double>(m_sphere_center.z)));
+  const TopoDS_Shape sphere_placed =
+      BRepBuilderAPI_Transform(sphere_shape, sphere_trsf, true).Shape();
+
+  BRepAlgoAPI_Fuse fuse(box_shape, sphere_placed);
+  fuse.Build();
+  if (!fuse.IsDone()) {
+    throw std::runtime_error("OCCT: BRepAlgoAPI_Fuse failed.");
+  }
+  const TopoDS_Shape shape = fuse.Shape();
 
   BRepMesh_IncrementalMesh mesher(shape,
                                   static_cast<double>(m_mesh_deflection));
@@ -111,9 +164,9 @@ void occt_demo_scene::build_mesh_from_occt() {
       continue;
     }
     const gp_Trsf trsf = loc.Transformation();
-    const Standard_Integer n_triangles = tri->NbTriangles();
+    const int n_triangles = tri->NbTriangles();
 
-    for (Standard_Integer t = 1; t <= n_triangles; ++t) {
+    for (int t = 1; t <= n_triangles; ++t) {
       const Poly_Triangle triangle = tri->Triangle(t);
       int i1 = 0;
       int i2 = 0;
@@ -156,10 +209,9 @@ void occt_demo_scene::render() {
 
   m_shader->use();
   set_matrices(m_shader);
-  const glm::vec3 light_dir(0.35f, 1.0f, 0.4f);
-  m_shader->set_uniform("uLightDir", light_dir);
-  m_shader->set_uniform("uViewPos", m_camera.Position);
-  m_shader->set_uniform("uObjectColor", glm::vec3(0.25f, 0.72f, 0.92f));
+  uniform(*m_shader, m_light, "uLight");
+  uniform(*m_shader, m_material, "uMaterial");
+  m_shader->set_uniform("uEyePosition", m_camera.Position);
   m_mesh.draw();
 }
 
@@ -173,7 +225,28 @@ void occt_demo_scene::render_ui() {
   }
 
 #ifdef LEARNOPENGL_USE_OCCT
-  if (ImGui::SliderFloat("Sphere radius", &m_sphere_radius, 0.2f, 2.0f)) {
+  if (ImGui::DragFloat3("Box size", &m_box_size.x, 0.02f, 0.1f, 4.0f)) {
+    try {
+      build_mesh_from_occt();
+    } catch (const std::exception &e) {
+      m_status_message = e.what();
+    }
+  }
+  if (ImGui::DragFloat3("Box center", &m_box_center.x, 0.02f)) {
+    try {
+      build_mesh_from_occt();
+    } catch (const std::exception &e) {
+      m_status_message = e.what();
+    }
+  }
+  if (ImGui::DragFloat3("Sphere center", &m_sphere_center.x, 0.02f)) {
+    try {
+      build_mesh_from_occt();
+    } catch (const std::exception &e) {
+      m_status_message = e.what();
+    }
+  }
+  if (ImGui::SliderFloat("Sphere radius", &m_sphere_radius, 0.15f, 2.0f)) {
     try {
       build_mesh_from_occt();
     } catch (const std::exception &e) {
@@ -189,6 +262,21 @@ void occt_demo_scene::render_ui() {
     }
   }
   ImGui::Text("Triangles: %zu", m_triangle_count);
+
+  ImGui::Separator();
+  ImGui::Text("Lighting & material");
+
+  ImGui::PushID("occt_light");
+  ui(m_light);
+  ImGui::PopID();
+
+  ImGui::Spacing();
+  ImGui::Separator();
+  ImGui::Spacing();
+
+  ImGui::PushID("occt_material");
+  ui(m_material);
+  ImGui::PopID();
 #endif
 
   render_camera_ui();

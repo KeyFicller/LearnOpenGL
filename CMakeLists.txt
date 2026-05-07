@@ -269,7 +269,7 @@ if(LEARNOPENGL_OCCT_BUILD_DIR AND EXISTS "${LEARNOPENGL_OCCT_BUILD_DIR}/OpenCASC
   target_compile_definitions(LearnOpenGL PRIVATE LEARNOPENGL_USE_OCCT=1)
   target_include_directories(LearnOpenGL PRIVATE
       "${LEARNOPENGL_OCCT_BUILD_DIR}/include/opencascade")
-  target_link_libraries(LearnOpenGL PRIVATE TKPrim TKMesh)
+  target_link_libraries(LearnOpenGL PRIVATE TKPrim TKMesh TKBO)
   # Locate OCCT shared libraries for runtime (macOS build tree layout)
   set(LEARNOPENGL_OCCT_LIBDIR "")
   file(GLOB LEARNOPENGL_OCCT_LIBDIRS "${LEARNOPENGL_OCCT_BUILD_DIR}/mac64/*/libi")

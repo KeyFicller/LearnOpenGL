@@ -1,5 +1,7 @@
 #include "camera_scene_base.h"
 
+#include "basic/imgui_form.h"
+
 #include "imgui.h"
 
 camera_scene_base::camera_scene_base(const std::string &_name)
@@ -50,15 +52,17 @@ void camera_scene_base::render_camera_ui() {
   if (m_camera_controller_enabled && m_camera_controller) {
     ImGui::Indent();
 
-    if (ImGui::Checkbox("Orthographic", &m_camera.Orthographic)) {
-      m_camera.update_projection_matrix();
-    }
+    ImGui::TextDisabled("Ctrl+drag: pan · Alt+drag: orbit");
+    ImGui::Spacing();
 
-    // Mouse capture toggle
-    // bool mouse_captured = m_camera_controller->is_mouse_captured();
-    // if (ImGui::Checkbox("Capture Mouse", &mouse_captured)) {
-    //   m_camera_controller->set_mouse_captured(mouse_captured);
-    // }
+    int projection = m_camera.Orthographic ? 1 : 0;
+    ImGui::PushItemWidth(imgui_form_item_width(0.78f));
+    if (ImGui::Combo("Projection", &projection,
+                     "Perspective\0Orthographic\0")) {
+      m_camera.Orthographic = (projection == 1);
+      m_camera.set_aspect_ratio(m_camera.AspectRatio);
+    }
+    ImGui::PopItemWidth();
 
     // Configuration
     if (ImGui::CollapsingHeader("Camera Settings")) {
@@ -67,10 +71,25 @@ void camera_scene_base::render_camera_ui() {
         m_camera_controller->set_movement_speed(speed);
       }
 
-      float sensitivity = m_camera_controller->get_mouse_sensitivity();
-      if (ImGui::SliderFloat("Mouse Sensitivity", &sensitivity, 0.01f, 1.0f,
-                             "%.2f")) {
-        m_camera_controller->set_mouse_sensitivity(sensitivity);
+      float pan = m_camera_controller->get_pan_sensitivity();
+      if (ImGui::SliderFloat("Pan sensitivity", &pan, 0.001f, 0.03f, "%.4f")) {
+        m_camera_controller->set_pan_sensitivity(pan);
+      }
+
+      float orb = m_camera_controller->get_orbit_sensitivity();
+      if (ImGui::SliderFloat("Orbit sensitivity", &orb, 0.02f, 0.5f, "%.2f")) {
+        m_camera_controller->set_orbit_sensitivity(orb);
+      }
+
+      float rad = m_camera_controller->get_orbit_radius();
+      if (ImGui::SliderFloat("Orbit target distance", &rad, 0.5f, 30.0f,
+                             "%.1f")) {
+        m_camera_controller->set_orbit_radius(rad);
+      }
+      if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip(
+            "Alt-orbit rotates around the point this far ahead on the view ray "
+            "when you press Alt (re-armed each Alt+drag session).");
       }
 
       float scroll_sensitivity = m_camera_controller->get_scroll_sensitivity();

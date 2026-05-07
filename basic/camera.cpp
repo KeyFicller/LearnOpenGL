@@ -32,6 +32,18 @@ void camera::update_projection_matrix() {
 
 void camera::set_aspect_ratio(float _aspect_ratio) {
   AspectRatio = _aspect_ratio;
+  if (Orthographic) {
+    const float cx = (Left + Right) * 0.5f;
+    const float cy = (Bottom + Top) * 0.5f;
+    const float hh = (Top - Bottom) * 0.5f;
+    if (hh > 1e-8f) {
+      const float hw = hh * AspectRatio;
+      Left = cx - hw;
+      Right = cx + hw;
+      Bottom = cy - hh;
+      Top = cy + hh;
+    }
+  }
   update_projection_matrix();
 }
 

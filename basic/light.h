@@ -36,6 +36,14 @@ struct light {
   // Properties for spot lights
   float Cutoff = 12.5f;      // Inner cutoff angle in degrees
   float OuterCutoff = 17.5f; // Outer cutoff angle in degrees
+
+  /// When true, UI uses color + intensity and fills Ambient/Diffuse/Specular
+  /// with fixed ratios; when false, those terms are edited directly.
+  bool SimpleLighting = false;
+
+  /// Driven when SimpleLighting is true: color × intensity → classic terms.
+  glm::vec3 SimpleColor = glm::vec3(1.0f);
+  float SimpleIntensity = 1.0f;
 };
 
 // -----------------------------------------------------------------------------
@@ -62,7 +70,6 @@ void uniform(shader &_shader, const light &_light, std::string _name);
 
 // -----------------------------------------------------------------------------
 /**
- * @brief UI for a light
- * @param _light The light to display in the UI
+ * @brief UI for a light (type combo, then simple/advanced checkbox, then fields)
  */
 void ui(light &_light);
