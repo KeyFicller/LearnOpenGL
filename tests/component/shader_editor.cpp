@@ -3,7 +3,14 @@
 #include "imgui.h"
 #include "imgui_internal.h"
 #include "opengl_shader_definition.h"
+#include <algorithm>
 #include <cstddef>
+
+static ImFont *g_code_editor_registered_font = nullptr;
+
+void register_code_editor_imgui_font(ImFont *font) {
+  g_code_editor_registered_font = font;
+}
 
 namespace {
 
@@ -259,8 +266,9 @@ basic_code_editor::basic_code_editor(const std::string &_name,
   m_editor.SetKeyPressedCallback(
       std::bind(&basic_code_editor::key_pressed_events_entry, this));
 
-  m_editor.SetMouseScrolledCallback(
-      std::bind(&basic_code_editor::mouse_scrolled_events_entry, this));
+  /* Scroll zoom is handled in render() before TextEditor consumes io.MouseWheel
+   * for scrolling; a callback here sees MouseWheel == 0 and would never zoom.
+   */
 }
 
 void basic_code_editor::set_text(const std::string &_text) {
@@ -289,13 +297,36 @@ void basic_code_editor::render() {
               m_editor.IsOverwrite() ? "Ovr" : "Ins",
               m_editor.CanUndo() ? "*" : " ",
               m_editor.GetLanguageDefinition().mName.c_str());
-  ImGui::PushFont(NULL, m_font_scale * ImGui::GetFontSize());
+
+  ImFont *editor_font = g_code_editor_registered_font
+                            ? g_code_editor_registered_font
+                            : ImGui::GetFont();
+  ImGui::PushFont(editor_font);
+
+  constexpr float k_zoom_min = 0.35f;
+  constexpr float k_zoom_max = 4.0f;
+
+  // Ctrl/Cmd + wheel: steal scroll before inner editor consumes MouseWheel for
+  // buffer scroll.
+  ImGuiIO &io_zoom = ImGui::GetIO();
+  const bool zoom_mod =
+      io_zoom.ConfigMacOSXBehaviors ? io_zoom.KeySuper : io_zoom.KeyCtrl;
+  if (zoom_mod && io_zoom.MouseWheel != 0.0f &&
+      ImGui::IsWindowHovered(ImGuiHoveredFlags_RootAndChildWindows)) {
+    m_font_scale = std::clamp(m_font_scale + io_zoom.MouseWheel * 0.1f,
+                              k_zoom_min, k_zoom_max);
+    io_zoom.MouseWheel = 0.0f;
+  }
+
+  const float zoom_clamped = std::clamp(m_font_scale, k_zoom_min, k_zoom_max);
+  m_editor.SetViewportFontScale(zoom_clamped);
   m_editor.Render((m_name + "Impl").c_str());
+
+  ImGui::PopFont();
 
   if (m_editor.IsTextChanged() && !m_editor.LastOperationIsDelete()) {
     if (m_just_inserted_completion) {
       m_just_inserted_completion = false;
-      ImGui::PopFont();
       ImGui::End();
       return;
     }
@@ -307,7 +338,6 @@ void basic_code_editor::render() {
 
   if (m_editor.IsTextChanged())
     restore_default_help_info();
-  ImGui::PopFont();
 
   ImGui::End();
 }
@@ -363,13 +393,19 @@ void basic_code_editor::update_candidates() {
   }
 
   std::sort(m_autocomplete_candidates.begin(), m_autocomplete_candidates.end());
+  m_autocomplete_candidates.erase(std::unique(m_autocomplete_candidates.begin(),
+                                              m_autocomplete_candidates.end()),
+                                  m_autocomplete_candidates.end());
+  if (!seed.prefix.empty()) {
+    m_autocomplete_candidates.erase(
+        std::remove_if(m_autocomplete_candidates.begin(),
+                       m_autocomplete_candidates.end(),
+                       [&](const std::string &c) { return c == seed.prefix; }),
+        m_autocomplete_candidates.end());
+  }
   m_selected_candidate = 0;
 
   m_show_autocomplete_pooup = !m_autocomplete_candidates.empty();
-  if (m_autocomplete_candidates.size() == 1 &&
-      m_autocomplete_candidates[0] == seed.prefix) {
-    m_show_autocomplete_pooup = false;
-  }
 }
 
 bool basic_code_editor::need_search_for_candidates() const {
@@ -453,27 +489,6 @@ void basic_code_editor::show_autocomplete_popup() {
     }
     ImGui::End();
   }
-}
-
-bool basic_code_editor::mouse_scrolled_events_entry() {
-  ImGuiIO &io = ImGui::GetIO();
-  auto shift = io.KeyShift;
-  auto ctrl = io.ConfigMacOSXBehaviors ? io.KeySuper : io.KeyCtrl;
-
-  if (ctrl) {
-    if (ImGui::IsKeyPressed(ImGuiKey_MouseWheelY)) {
-      float delta = ImGui::GetIO().MouseWheel;
-      if (delta > 0) {
-        m_font_scale += 0.1f;
-      } else {
-        m_font_scale -= 0.1;
-      }
-
-      return true;
-    }
-  }
-
-  return false;
 }
 
 void basic_code_editor::scan_for_context() {
@@ -649,7 +664,8 @@ autocomplete_seed shader_editor::seed_for_autocomplete() const {
   auto seed1 = seek_for_seed(m_editor.GetCurrentLineText(),
                              m_editor.GetCursorPosition().mColumn, &stop_index);
   auto line = m_editor.GetCurrentLineText();
-  if (stop_index <= 0 || line[stop_index - 1] == ' ') {
+  if (stop_index <= 0 || line[stop_index - 1] == ' ' ||
+      line[stop_index - 1] == '(') {
     // Seed has no scope, it's a keyword.
     return autocomplete_seed{autocomplete_type::k_keyword, "", seed1};
   }
@@ -685,7 +701,9 @@ const std::vector<std::string> &shader_editor::get_builtin_keywords() const {
       // Matrix functions
       "transpose", "determinant", "inverse",
       // Adavanced OpenGL internal variables
-      "gl_Position",
+      "gl_Position", "gl_FragCoord",
+      // User builtin variables
+      "u_time", "u_mouse", "u_resolution",
       // TODO:@KeyFicller Add more advanced OpenGL internal variables.
   };
   return glsl_keywords;

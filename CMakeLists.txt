@@ -192,7 +192,8 @@ add_executable(LearnOpenGL
     basic/shader.cpp 
     basic/texture.cpp
     basic/framebuffer.cpp
-    basic/light.cpp
+    basic/light.cpp 
+    basic/imgui_font_setup.cpp
     basic/material.cpp
     basic/vertex_array.cpp
     basic/camera.cpp

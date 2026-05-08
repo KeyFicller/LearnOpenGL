@@ -3,6 +3,12 @@
 #include "TextEditor.h"
 #include <string>
 
+struct ImFont;
+
+/// Call after building the ImGui atlas (e.g. from main) with a high-quality
+/// monospace/proportional font baked at the desired pixel size.
+void register_code_editor_imgui_font(ImFont *font);
+
 enum class code_editor_type { k_shader, k_script };
 enum class autocomplete_type { k_none, k_keyword, k_class_member };
 
@@ -52,7 +58,6 @@ protected:
   bool key_pressed_events_entry();
   bool key_pressed_events_for_save();
   bool key_pressed_events_for_autocomplete();
-  bool mouse_scrolled_events_entry();
   void draw_help_info();
   virtual void scan_for_context();
   bool need_search_for_candidates() const;
@@ -75,7 +80,8 @@ protected:
 
   std::function<bool()> m_save_callback = nullptr;
   bool m_tab_to_indent = true;
-  float m_font_scale = 2.0f;
+  /// Ctrl+scroll zoom; 1.0 = native baked font size from register_code_editor_imgui_font().
+  float m_font_scale = 1.0f;
 
   bool m_just_inserted_completion = false;
 };

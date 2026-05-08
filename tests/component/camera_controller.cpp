@@ -8,8 +8,7 @@
 namespace {
 
 void sync_yaw_pitch_from_direction(camera &_camera, const glm::vec3 &dir_unit) {
-  _camera.Pitch =
-      glm::degrees(std::asin(std::clamp(dir_unit.y, -1.0f, 1.0f)));
+  _camera.Pitch = glm::degrees(std::asin(std::clamp(dir_unit.y, -1.0f, 1.0f)));
   _camera.Yaw = glm::degrees(std::atan2(dir_unit.z, dir_unit.x));
 }
 
@@ -117,19 +116,18 @@ void camera_controller::on_mouse_moved(double _xpos, double _ypos) {
   if (nav_mode == 1) {
     // Ctrl: pan in view plane (right / up)
     if (m_camera.Orthographic) {
+      constexpr float pan_sensitivity_ref = 0.006f;
       const float world_w = m_camera.Right - m_camera.Left;
       const float world_h = m_camera.Top - m_camera.Bottom;
-      const float kx =
-          m_pan_sensitivity * world_w /
-          std::max(1.0f, static_cast<float>(m_viewport_w));
-      const float ky =
-          m_pan_sensitivity * world_h /
-          std::max(1.0f, static_cast<float>(m_viewport_h));
-      m_camera.Position +=
-          m_camera.right() * (xrel * kx) + m_camera.up() * (yrel * ky);
+      const float px_to_world_x =
+          world_w / std::max(1.0f, static_cast<float>(m_viewport_w));
+      const float px_to_world_y =
+          world_h / std::max(1.0f, static_cast<float>(m_viewport_h));
+      const float scale = m_pan_sensitivity / pan_sensitivity_ref;
+      m_camera.Position += m_camera.right() * (xrel * px_to_world_x * scale) +
+                           m_camera.up() * (yrel * px_to_world_y * scale);
     } else {
-      const float depth =
-          std::max(0.5f, glm::length(m_camera.Position));
+      const float depth = std::max(0.5f, glm::length(m_camera.Position));
       const float k = m_pan_sensitivity * depth;
       m_camera.Position +=
           m_camera.right() * (xrel * k) + m_camera.up() * (yrel * k);
