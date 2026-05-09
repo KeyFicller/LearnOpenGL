@@ -39,7 +39,7 @@ const TextEditor::LanguageDefinition &opengl_shader_definition() {
         "gl_PrimitiveID", "gl_InvocationID", "gl_TessCoord",
         "gl_TessLevelInner", "gl_TessLevelOuter", "gl_FragCoord",
         // user built in keywords
-        "u_time", "u_mouse", "u_resolution"};
+        "u_time", "u_random", "u_texture", "u_mouse", "u_resolution"};
     for (auto &k : keywords)
       langDef.mKeywords.insert(k);
 

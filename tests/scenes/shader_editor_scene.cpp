@@ -5,14 +5,19 @@
 #include "tests/component/mesh_manager.h"
 #include "tests/framework/test_suit.h"
 
+#include "basic/texture.h"
+
 #include <GLFW/glfw3.h>
 #include <algorithm>
 #include <cctype>
 #include <cstring>
+#include <array>
 #include <filesystem>
 #include <fstream>
 #include <glm/glm.hpp>
 #include <iterator>
+#include <nfd.h>
+#include <random>
 #include <string>
 
 namespace fs = std::filesystem;
@@ -98,8 +103,32 @@ bool write_default_shaders_to_dir(const fs::path &dir, std::string *err) {
                               k_default_fragment_shader, err);
 }
 
+void squeeze_trailing_blank_newlines(std::string &buffer) {
+  while (buffer.size() >= 2 && buffer.back() == '\n' &&
+         buffer[buffer.size() - 2] == '\n') {
+    buffer.pop_back();
+  }
+}
+
+/* Formats loadable by stb_image (see basic/texture.cpp). Comma-separated specs
+ * per nativefiledialog-extended (no leading dot). */
+static const nfdfilteritem_t k_builtin_texture_file_filters[] = {
+    {"All supported",
+     "png,jpg,jpeg,jpe,jfif,bmp,dib,tga,gif,hdr,pic,pnm,ppm,pgm,pbm,psd"},
+    {"PNG", "png"},
+    {"JPEG", "jpg,jpeg,jpe,jfif"},
+    {"BMP / DIB", "bmp,dib"},
+    {"TGA", "tga"},
+    {"GIF", "gif"},
+    {"Radiance HDR", "hdr"},
+    {"Softimage PIC", "pic"},
+    {"PNM / PPM / PGM", "pnm,ppm,pgm,pbm"},
+    {"Photoshop PSD", "psd"},
+};
+
 struct builtin_uniforms {
   float u_time = 0.0f;
+  float u_random = 0.0f;
   glm::vec2 u_mouse = glm::vec2(0.0f, 0.0f);
   glm::vec2 u_resolution = glm::vec2(0.0f, 0.0f);
 };
@@ -108,6 +137,14 @@ static builtin_uniforms _builtin_uniforms;
 
 void update_builtin_uniforms(GLFWwindow *window) {
   _builtin_uniforms.u_time = static_cast<float>(glfwGetTime());
+  thread_local bool rng_seeded = false;
+  thread_local std::mt19937 rng{};
+  if (!rng_seeded) {
+    rng.seed(std::random_device{}());
+    rng_seeded = true;
+  }
+  std::uniform_real_distribution<float> u01(0.0f, 1.0f);
+  _builtin_uniforms.u_random = u01(rng);
   if (!window) {
     return;
   }
@@ -138,17 +175,10 @@ void update_builtin_uniforms(GLFWwindow *window) {
 
 void apply_builtin_uniforms(shader *_shader) {
   _shader->set_uniform<float>("u_time", _builtin_uniforms.u_time);
+  _shader->set_uniform<float>("u_random", _builtin_uniforms.u_random);
   _shader->set_uniform<glm::vec2>("u_mouse", _builtin_uniforms.u_mouse);
   _shader->set_uniform<glm::vec2>("u_resolution",
                                   _builtin_uniforms.u_resolution);
-}
-
-void ui_builtin_uniforms() {
-  ImGui::Text("u_time: %.2f", _builtin_uniforms.u_time);
-  ImGui::Text("u_resolution: %.0f x %.0f", _builtin_uniforms.u_resolution.x,
-              _builtin_uniforms.u_resolution.y);
-  ImGui::Text("u_mouse (norm, GL Y-up): (%.3f, %.3f)",
-              _builtin_uniforms.u_mouse.x, _builtin_uniforms.u_mouse.y);
 }
 
 } // namespace
@@ -283,11 +313,15 @@ void shader_editor_scene::reload_sources_from_disk() {
   if (!load_text_file(vertex_path().c_str(), m_vertex_shader_source)) {
     m_vertex_shader_source.assign(k_default_vertex_shader);
     (void)save_text_file(vertex_path().c_str(), m_vertex_shader_source);
+  } else {
+    squeeze_trailing_blank_newlines(m_vertex_shader_source);
   }
 
   if (!load_text_file(fragment_path().c_str(), m_fragment_shader_source)) {
     m_fragment_shader_source.assign(k_default_fragment_shader);
     (void)save_text_file(fragment_path().c_str(), m_fragment_shader_source);
+  } else {
+    squeeze_trailing_blank_newlines(m_fragment_shader_source);
   }
 }
 
@@ -318,6 +352,18 @@ void shader_editor_scene::init(GLFWwindow *_window) {
   m_vertex_shader_editor->set_text(m_vertex_shader_source);
   m_fragment_shader_editor->set_text(m_fragment_shader_source);
 
+  {
+    std::error_code ec_png;
+    fs::create_directories(fs::path(k_project_root) / k_user_png_subdir,
+                         ec_png);
+    const std::array<uint8_t, 4> white{{255, 255, 255, 255}};
+    m_builtin_user_png = std::make_unique<texture_2d>(white);
+    m_builtin_png_path_label =
+        "Default 1x1 white (click thumbnail — pick image under "
+        + std::string(k_project_root) + "/" + k_user_png_subdir + ")";
+    m_builtin_png_load_error.clear();
+  }
+
   mesh_data data(quad_vertices, sizeof(quad_vertices), quad_indices,
                  sizeof(quad_indices) / sizeof(unsigned int),
                  {{3, GL_FLOAT, GL_FALSE}});
@@ -338,6 +384,11 @@ void shader_editor_scene::render() {
   }
   m_shader->use();
   update_builtin_uniforms(m_window);
+  constexpr int k_builtin_tex_unit = 0;
+  if (m_builtin_user_png) {
+    m_builtin_user_png->bind(k_builtin_tex_unit);
+  }
+  m_shader->set_uniform<int>("u_texture", k_builtin_tex_unit);
   apply_builtin_uniforms(m_shader);
   m_mesh_manager.draw();
 }
@@ -400,8 +451,7 @@ void shader_editor_scene::render_ui() {
     m_fragment_shader_editor->render();
   }
 
-  ImGui::SeparatorText("User builtin variables");
-  ui_builtin_uniforms();
+  draw_builtin_uniforms_panel();
 }
 
 bool shader_editor_scene::compile_and_replace_shader(
@@ -443,4 +493,85 @@ bool shader_editor_scene::on_save_shader() {
     m_fragment_shader_editor->restore_default_help_info();
   }
   return true;
+}
+
+bool shader_editor_scene::try_reload_builtin_user_png(
+    const std::string &_path_utf8) {
+  m_builtin_png_load_error.clear();
+  try {
+    auto loaded = std::make_unique<texture_2d>(_path_utf8.c_str());
+    m_builtin_user_png = std::move(loaded);
+    m_builtin_png_path_label = _path_utf8;
+    return true;
+  } catch (const std::exception &e) {
+    m_builtin_png_load_error = e.what();
+    return false;
+  }
+}
+
+void shader_editor_scene::open_user_texture_file_dialog() {
+  std::error_code ec;
+  const fs::path folder = fs::path(k_project_root) / k_user_png_subdir;
+  fs::create_directories(folder, ec);
+  std::string default_path = fs::absolute(folder).string();
+
+  nfdchar_t *out_path = nullptr;
+  constexpr nfdfiltersize_t n_filters =
+      sizeof(k_builtin_texture_file_filters) /
+      sizeof(k_builtin_texture_file_filters[0]);
+  nfdresult_t r = NFD_OpenDialog(&out_path, k_builtin_texture_file_filters,
+                                  n_filters, default_path.c_str());
+  if (r == NFD_OKAY && out_path) {
+    (void)try_reload_builtin_user_png(std::string(out_path));
+    NFD_FreePath(out_path);
+  } else if (r == NFD_ERROR && NFD_GetError() != nullptr) {
+    m_builtin_png_load_error = NFD_GetError();
+  }
+}
+
+void shader_editor_scene::draw_builtin_uniforms_panel() {
+  ImGui::SeparatorText("User builtin variables");
+  ImGui::Text("u_time: %.2f", _builtin_uniforms.u_time);
+  ImGui::Text("u_random: %.6f  (uniform in [0,1), new each frame)",
+              _builtin_uniforms.u_random);
+  ImGui::Text("u_resolution: %.0f x %.0f", _builtin_uniforms.u_resolution.x,
+              _builtin_uniforms.u_resolution.y);
+  ImGui::Text("u_mouse (norm, GL Y-up): (%.3f, %.3f)",
+              _builtin_uniforms.u_mouse.x, _builtin_uniforms.u_mouse.y);
+
+  ImGui::Separator();
+  ImGui::TextWrapped("uniform sampler2D u_texture  (texture unit %d)", 0);
+  constexpr ImVec2 thumb(112.0f, 112.0f);
+  if (m_builtin_user_png) {
+    ImGui::Image(
+        reinterpret_cast<void *>(
+            static_cast<intptr_t>(m_builtin_user_png->ID())),
+        thumb, ImVec2(0.0f, 1.0f), ImVec2(1.0f, 0.0f));
+    if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
+      open_user_texture_file_dialog();
+    }
+    if (ImGui::IsItemHovered()) {
+      ImGui::SetTooltip(
+          "Click — system file picker.\n"
+          "PNG, JPEG, BMP, TGA, GIF, HDR, PIC, PNM, PSD (stb_image).\n"
+          "Starts in %s/%s",
+          k_project_root, k_user_png_subdir);
+    }
+  }
+  ImGui::SameLine();
+  ImGui::BeginGroup();
+  if (m_builtin_user_png) {
+    ImGui::Text("Dimensions: %d x %d", m_builtin_user_png->width(),
+                m_builtin_user_png->height());
+  }
+  ImGui::TextWrapped("%s", m_builtin_png_path_label.c_str());
+  if (!m_builtin_png_load_error.empty()) {
+    ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(255, 90, 90, 255));
+    ImGui::TextWrapped("%s", m_builtin_png_load_error.c_str());
+    ImGui::PopStyleColor();
+    if (ImGui::SmallButton("Clear error")) {
+      m_builtin_png_load_error.clear();
+    }
+  }
+  ImGui::EndGroup();
 }

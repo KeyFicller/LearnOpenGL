@@ -9,12 +9,3 @@ void main() {
   FragColor = vec4((sin(u_time)+1.0)*0.5,
    (cos(u_time)+1.0)*0.5, 0.0, 1.0);
 }
-
-
-
-
-
-
-
-
-

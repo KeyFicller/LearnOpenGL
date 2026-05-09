@@ -12,12 +12,3 @@ void main()
     float in_circle = 1.0 - step(0.5, length(vPos.xy));
     FragColor = vec4(vec3(1.0, 0.0, 0.0) * in_circle, 1.0);
 }
-
-
-
-
-
-
-
-
-

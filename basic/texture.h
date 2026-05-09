@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstdint>
 #include <glad/gl.h>
 
 /**
@@ -34,6 +35,10 @@ public:
    */
   texture_2d(const char *_path, wrap_mode _wrap_mode = wrap_mode::k_repeat,
              filter_mode _filter_mode = filter_mode::k_nearest);
+  explicit texture_2d(const std::array<uint8_t, 4> &_solid_rgba8,
+                       wrap_mode _wrap_mode = wrap_mode::k_repeat,
+                       filter_mode _filter_mode = filter_mode::k_linear);
+
   virtual ~texture_2d();
 
   texture_2d(const texture_2d &) = delete;

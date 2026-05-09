@@ -18,11 +18,17 @@ float rect(vec2 pt, vec2 center, vec2 size)
     return horz * vert;
 }
 
+mat2 rotate_matrix(float theta)
+{
+    float c = cos(theta);
+    float s = sin(theta);
+    return mat2(c, -s, s, c);
+}
+
 void main()
 {
-   vec2 uv = (u_mouse + vec2(-0.5)) * 2;
-    float in_move_rect = rect(vPos.xy, uv, vec2(0.5));
-    float in_fixed_rect = rect(vPos.xy, vec2(0.0), vec2(0.3));
-    FragColor = vec4(vec3(1.0, 0.0, 0.0) * in_move_rect +
-     vec3(0.0, 1.0, 0.0) * in_fixed_rect, 1.0);
+    vec2 center = vec2(0.0);
+    vec2 pt = rotate_matrix(u_time) * vPos.xy;
+    float in_rect = rect(pt, center, vec2(0.4));
+    FragColor = vec4(vec3(0.8, 0.6, 0.0) * in_rect, 1.0);
 }

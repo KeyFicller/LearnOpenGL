@@ -9,6 +9,8 @@
 // GLFW (include after glad)
 #include <GLFW/glfw3.h>
 
+#include <nfd.h>
+
 // ImGui
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
@@ -26,6 +28,8 @@ const GLuint WIDTH = 800, HEIGHT = 600;
 // The MAIN function, from here we start the application and run the game loop
 int main() {
   try {
+    bool nfd_inited = false;
+
     if (!set_resource_root_as_cwd()) {
       std::cerr
           << "Warning: could not set resource root; resource paths may fail."
@@ -77,6 +81,13 @@ int main() {
     // Successfully loaded OpenGL
     std::cout << "Loaded OpenGL " << GLAD_VERSION_MAJOR(version) << "."
               << GLAD_VERSION_MINOR(version) << std::endl;
+
+    if (NFD_Init() == NFD_OKAY) {
+      nfd_inited = true;
+    } else {
+      std::cerr << "NFD_Init failed (native file dialogs disabled): "
+                << (NFD_GetError() ? NFD_GetError() : "unknown") << std::endl;
+    }
 
     // Define the viewport dimensions
     glViewport(0, 0, WIDTH, HEIGHT);
@@ -262,6 +273,9 @@ int main() {
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
+
+    if (nfd_inited)
+      NFD_Quit();
 
     // Terminates GLFW, clearing any resources allocated by GLFW.
     glfwTerminate();

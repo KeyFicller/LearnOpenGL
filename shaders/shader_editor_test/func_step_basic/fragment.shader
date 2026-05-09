@@ -15,11 +15,3 @@ void main()
     color.g = step(0.0, vPos.y);
     FragColor = vec4(color, 1.0);
 }
-
-
-
-
-
-
-
-

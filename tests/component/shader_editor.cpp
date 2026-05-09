@@ -4,6 +4,7 @@
 #include "imgui_internal.h"
 #include "opengl_shader_definition.h"
 #include <algorithm>
+#include <cctype>
 #include <cstddef>
 
 static ImFont *g_code_editor_registered_font = nullptr;
@@ -37,6 +38,18 @@ std::string seek_for_seed(const std::string &_current_line, int _index,
   }
 
   return "";
+}
+
+// No autocomplete when inserting in the middle of an identifier/token.
+inline bool cursor_followed_by_identifier_char(const std::string &_line,
+                                                 int _cursor_column) {
+  if (_cursor_column < 0 ||
+      _cursor_column >= static_cast<int>(_line.size())) {
+    return false;
+  }
+  const size_t i = static_cast<size_t>(_cursor_column);
+  unsigned char uch = static_cast<unsigned char>(_line[i]);
+  return std::isalnum(uch) || _line[i] == '_';
 }
 
 // https://en.wikipedia.org/wiki/UTF-8
@@ -275,16 +288,39 @@ void basic_code_editor::set_text(const std::string &_text) {
   m_editor.SetText(_text);
 }
 
-std::string basic_code_editor::get_text() const { return m_editor.GetText(); }
+std::string basic_code_editor::get_text() const {
+  /* TextEditor::GetText() emits an extra newline for a trailing blank line —
+   * every round-trip to disk duplicates EOF newlines when switching projects.
+   */
+  const auto lines = m_editor.GetTextLines();
+  std::string result;
+  size_t estimated = 0;
+  for (const auto &line : lines) {
+    estimated += line.size();
+  }
+  estimated += lines.size() > 1 ? lines.size() - 1 : 0;
+  result.reserve(estimated);
+  for (size_t i = 0; i < lines.size(); ++i) {
+    result.append(lines[i]);
+    if (i + 1 < lines.size()) {
+      result.push_back('\n');
+    }
+  }
+  return result;
+}
 
 void basic_code_editor::set_help_info(const std::string &_hint) {
   m_help_info = _hint;
 }
 
 autocomplete_seed basic_code_editor::seed_for_autocomplete() const {
+  const auto line = m_editor.GetCurrentLineText();
+  const int col = m_editor.GetCursorPosition().mColumn;
+  if (cursor_followed_by_identifier_char(line, col)) {
+    return autocomplete_seed{};
+  }
   return autocomplete_seed{autocomplete_type::k_keyword, "",
-                           seek_for_seed(m_editor.GetCurrentLineText(),
-                                         m_editor.GetCursorPosition().mColumn)};
+                           seek_for_seed(line, col)};
 }
 
 void basic_code_editor::render() {
@@ -324,14 +360,14 @@ void basic_code_editor::render() {
 
   ImGui::PopFont();
 
-  if (m_editor.IsTextChanged() && !m_editor.LastOperationIsDelete()) {
-    if (m_just_inserted_completion) {
-      m_just_inserted_completion = false;
-      ImGui::End();
-      return;
-    }
-    update_candidates();
+  if (m_editor.IsTextChanged() && m_just_inserted_completion) {
+    m_just_inserted_completion = false;
+    ImGui::End();
+    return;
   }
+
+  if (m_editor.IsTextChanged() || m_editor.IsCursorPositionChanged())
+    update_candidates();
 
   if (m_show_autocomplete_pooup && !m_autocomplete_candidates.empty())
     show_autocomplete_popup();
@@ -419,30 +455,11 @@ void basic_code_editor::show_autocomplete_popup() {
     return;
   }
 
-  ImVec2 window_pos = ImGui::GetWindowPos();
-  ImVec2 content_min = ImGui::GetWindowContentRegionMin();
-
-  auto cursor_pos = m_editor.GetCursorPosition();
-
-  int total_lines = m_editor.GetTotalLines();
-  float left_margin =
-      ImGui::CalcTextSize(
-          std::string("0000" + std::to_string(total_lines)).c_str())
-          .x;
-
-  auto line = m_editor.GetCurrentLineText();
-  std::string line_before = line.substr(0, cursor_pos.mColumn);
-  float left_offset = ImGui::CalcTextSize(line_before.c_str()).x;
+  // Anchor from TextEditor — same geometry as drawn caret (gutter, zoom, tabs).
+  ImVec2 popup_pos = m_editor.GetAutocompleteAnchorScreenPos();
+  popup_pos.y += ImGui::GetStyle().ItemInnerSpacing.y;
 
   float line_height = ImGui::GetTextLineHeight();
-  float up_margin = line_height * 2.0f;
-
-  float up_offset = (cursor_pos.mLine + 2) * line_height;
-
-  ImVec2 popup_pos =
-      ImVec2(window_pos.x + content_min.x + left_margin + left_offset,
-             window_pos.y + content_min.y + up_margin + up_offset);
-
   float popup_width = 250.f;
   float popup_height_padding = ImGui::GetStyle().ItemSpacing.y;
   float total_popup_height = m_autocomplete_candidates.size() * line_height +
@@ -660,10 +677,14 @@ basic_code_editor::get_defined_keywords(const autocomplete_seed &_seed) const {
 }
 
 autocomplete_seed shader_editor::seed_for_autocomplete() const {
-  int stop_index = m_editor.GetCursorPosition().mColumn;
-  auto seed1 = seek_for_seed(m_editor.GetCurrentLineText(),
-                             m_editor.GetCursorPosition().mColumn, &stop_index);
-  auto line = m_editor.GetCurrentLineText();
+  const auto line = m_editor.GetCurrentLineText();
+  const int col = m_editor.GetCursorPosition().mColumn;
+  if (cursor_followed_by_identifier_char(line, col)) {
+    return autocomplete_seed{};
+  }
+
+  int stop_index = col;
+  auto seed1 = seek_for_seed(line, col, &stop_index);
   if (stop_index <= 0 || line[stop_index - 1] == ' ' ||
       line[stop_index - 1] == '(') {
     // Seed has no scope, it's a keyword.
@@ -703,7 +724,7 @@ const std::vector<std::string> &shader_editor::get_builtin_keywords() const {
       // Adavanced OpenGL internal variables
       "gl_Position", "gl_FragCoord",
       // User builtin variables
-      "u_time", "u_mouse", "u_resolution",
+      "u_time", "u_random", "u_texture", "u_mouse", "u_resolution",
       // TODO:@KeyFicller Add more advanced OpenGL internal variables.
   };
   return glsl_keywords;

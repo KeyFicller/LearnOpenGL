@@ -170,6 +170,17 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(freetype)
 # ---------------------------------------------------------------
 
+# ------------------------ Vendor: nativefiledialog-extended -----
+set(NFD_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(NFD_INSTALL OFF CACHE BOOL "" FORCE)
+FetchContent_Declare(
+  nativefiledialog-extended
+  GIT_REPOSITORY https://github.com/btzy/nativefiledialog-extended.git
+  GIT_TAG v1.1.1
+)
+FetchContent_MakeAvailable(nativefiledialog-extended)
+# ---------------------------------------------------------------
+
 # ImGui sources
 # Note: We use imgui_opengl3_glad.cpp to ensure GLAD is included before
 # imgui_impl_opengl3.cpp (required when using IMGUI_IMPL_OPENGL_LOADER_CUSTOM)
@@ -251,7 +262,7 @@ add_executable(LearnOpenGL
     ${IMGUI_SOURCES}
 )
 
-target_link_libraries(LearnOpenGL PRIVATE glfw glad_gl assimp freetype)
+target_link_libraries(LearnOpenGL PRIVATE glfw glad_gl assimp freetype nfd)
 
 # Optional Open CASCADE Technology (OCCT) demo scene:
 # Point LEARNOPENGL_OCCT_BUILD_DIR at your OCCT *build* directory (the one that

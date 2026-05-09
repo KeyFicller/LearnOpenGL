@@ -20,9 +20,8 @@ float rect(vec2 pt, vec2 center, vec2 size)
 
 void main()
 {
-   vec2 uv = (u_mouse + vec2(-0.5)) * 2;
-    float in_move_rect = rect(vPos.xy, uv, vec2(0.5));
-    float in_fixed_rect = rect(vPos.xy, vec2(0.0), vec2(0.3));
-    FragColor = vec4(vec3(1.0, 0.0, 0.0) * in_move_rect +
-     vec3(0.0, 1.0, 0.0) * in_fixed_rect, 1.0);
+    float path_radius = 0.3;
+    vec2 center = vec2(path_radius * cos(u_time), path_radius * sin(u_time));
+    float in_rect = rect(vPos.xy, center, vec2(0.3));
+    FragColor = vec4(vec3(0.8, 0.6, 0.0) * in_rect, 1.0);
 }
