@@ -37,6 +37,7 @@ enum class test_scene {
   k_soft_body_frog_test,
 #if LEARNOPENGL_USE_OCCT
   k_occt_demo_test,
+  k_toy_cad_test,
 #endif
   k_advanced_test_count,
   k_count

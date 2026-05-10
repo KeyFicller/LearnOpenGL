@@ -292,6 +292,20 @@ if(LEARNOPENGL_OCCT_BUILD_DIR AND EXISTS "${LEARNOPENGL_OCCT_BUILD_DIR}/OpenCASC
   set(CMAKE_MAP_IMPORTED_CONFIG_MINSIZEREL RELWITHDEBINFO)
   include("${LEARNOPENGL_OCCT_BUILD_DIR}/OpenCASCADETargets.cmake")
   target_compile_definitions(LearnOpenGL PRIVATE LEARNOPENGL_USE_OCCT=1)
+  # Toy CAD scene + tests/cad (compiled only when OCCT is enabled; no #ifdef in those sources).
+  target_sources(LearnOpenGL PRIVATE
+      tests/scenes/toy_cad_scene.cpp
+      tests/cad/database/database.cpp
+      tests/cad/database/object.cpp
+      tests/cad/database/datum.cpp
+      tests/cad/database/axis.cpp
+      tests/cad/renderer/drawable_object.cpp
+      tests/cad/history/history_object.cpp
+      tests/cad/history/history_tree.cpp
+      tests/cad/history/coordinate.cpp
+      tests/cad/interaction/doc_input_handler.cpp
+      tests/cad/interaction/inspector.cpp
+      tests/cad/instance.cpp)
   target_include_directories(LearnOpenGL PRIVATE
       "${LEARNOPENGL_OCCT_BUILD_DIR}/include/opencascade")
   target_link_libraries(LearnOpenGL PRIVATE TKPrim TKMesh TKBO)

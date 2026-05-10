@@ -27,9 +27,12 @@
 #include "tests/scenes/soft_body_frog_scene.h"
 #include "tests/scenes/spline_movement_scene.h"
 #include "tests/scenes/stencil_test_scene.h"
+#include "tests/scenes/tessellation_shader_scene.h"
 #include "tests/scenes/texture_cube_scene.h"
 #include "tests/scenes/texture_test_scene.h"
-#include "tests/scenes/tessellation_shader_scene.h"
+#ifdef LEARNOPENGL_USE_OCCT
+#include "tests/scenes/toy_cad_scene.h"
+#endif
 #include "tests/scenes/transform_test_scene.h"
 #include "tests/scenes/triangle_test_scene.h"
 #include <exception>
@@ -79,6 +82,7 @@ void test_suit::init(GLFWwindow *_window) {
     REGISTER_SCENE(test_scene::k_soft_body_frog_test, soft_body_frog_scene);
 #if LEARNOPENGL_USE_OCCT
     REGISTER_SCENE(test_scene::k_occt_demo_test, occt_demo_scene);
+    REGISTER_SCENE(test_scene::k_toy_cad_test, toy_cad_scene);
 #endif
   } catch (const std::exception &e) {
     std::cerr << "Error initializing test scenes: " << e.what() << std::endl;
