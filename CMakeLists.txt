@@ -157,7 +157,7 @@ if(PkgConfig_FOUND)
   endif()
 endif()
 if(NOT MONO_FOUND)
-  message(FATAL_ERROR "Mono not found")
+  message(STATUS "Mono not found: C# script editor disabled (install Mono + pkg-config mono-2 to enable).")
 endif()
 # ---------------------------------------------------------------
 
@@ -253,8 +253,6 @@ add_executable(LearnOpenGL
     tests/scenes/soft_body_frog_scene.cpp
     tests/scenes/occt_demo_scene.cpp
     tests/scenes/shader_editor_scene.cpp
-    tests/scenes/script_editor_scene.cpp
-    tests/component/script_editor.cpp
     tests/component/text_renderer.cpp
     tests/component/connection.cpp
     tests/component/interaction_utils.cpp
@@ -262,7 +260,22 @@ add_executable(LearnOpenGL
     ${IMGUI_SOURCES}
 )
 
+if(MONO_FOUND)
+  target_sources(LearnOpenGL PRIVATE
+    tests/scenes/script_editor_scene.cpp
+    tests/component/script_editor.cpp)
+endif()
+
+if(MSVC)
+  # UTF-8 source/exec charset for project sources only (u8 literals, comments).
+  # Do not use add_compile_options(/utf-8): FetchContent deps may set /source-charset and conflict (D8016).
+  target_compile_options(LearnOpenGL PRIVATE /utf-8)
+endif()
+
 target_link_libraries(LearnOpenGL PRIVATE glfw glad_gl assimp freetype nfd)
+if(WIN32)
+  target_link_libraries(LearnOpenGL PRIVATE ws2_32)
+endif()
 
 # Optional Open CASCADE Technology (OCCT) demo scene:
 # Point LEARNOPENGL_OCCT_BUILD_DIR at your OCCT *build* directory (the one that

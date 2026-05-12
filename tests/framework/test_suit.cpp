@@ -20,7 +20,9 @@
 #include "tests/scenes/occt_demo_scene.h"
 #include "tests/scenes/reveal_chess_scene.h"
 #include "tests/scenes/scene_factory.h"
+#ifdef LEARNOPENGL_USE_MONO
 #include "tests/scenes/script_editor_scene.h"
+#endif
 #include "tests/scenes/shader_editor_scene.h"
 #include "tests/scenes/soft_body_frog_scene.h"
 #include "tests/scenes/spline_movement_scene.h"
@@ -70,12 +72,14 @@ void test_suit::init(GLFWwindow *_window) {
     REGISTER_SCENE(test_scene::k_instance_test, instance_scene);
     REGISTER_SCENE(test_scene::k_spline_movement_test, spline_movement_scene);
     REGISTER_SCENE(test_scene::k_shader_editor_test, shader_editor_scene);
-#ifdef LEARNOPENGL_USE_MONO
+#if LEARNOPENGL_USE_MONO
     REGISTER_SCENE(test_scene::k_script_editor_test, script_editor_scene);
 #endif
     REGISTER_SCENE(test_scene::k_reveal_chess_test, reveal_chess_scene);
     REGISTER_SCENE(test_scene::k_soft_body_frog_test, soft_body_frog_scene);
+#if LEARNOPENGL_USE_OCCT
     REGISTER_SCENE(test_scene::k_occt_demo_test, occt_demo_scene);
+#endif
   } catch (const std::exception &e) {
     std::cerr << "Error initializing test scenes: " << e.what() << std::endl;
     throw; // Re-throw to be caught by main
@@ -152,11 +156,15 @@ void test_suit::render_scene() {
 }
 
 const char *test_suit::get_scene_name(test_scene _scene) {
-  return get_scene(_scene)->get_name();
+  test_scene_base *s = get_scene(_scene);
+  return s ? s->get_name() : "";
 }
 
 test_scene_base *test_suit::get_scene(test_scene _scene) {
-  return m_scenes[_scene];
+  auto it = m_scenes.find(_scene);
+  if (it == m_scenes.end())
+    return nullptr;
+  return it->second;
 }
 
 void test_suit::update(float _delta_time) {
