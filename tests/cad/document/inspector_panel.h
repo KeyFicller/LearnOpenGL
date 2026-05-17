@@ -5,12 +5,12 @@
 namespace toy_cad::interaction {
 
 /** Side panel: resolves a DB handle and calls `object::inspect()`. */
-class inspector final {
+class inspector_panel final {
 public:
-  static inspector &instance();
+  static inspector_panel &instance();
 
-  inspector(const inspector &) = delete;
-  inspector &operator=(const inspector &) = delete;
+  inspector_panel(const inspector_panel &) = delete;
+  inspector_panel &operator=(const inspector_panel &) = delete;
 
   void set_target(handle h);
   void clear_target();
@@ -20,12 +20,15 @@ public:
   void draw_ui();
 
 private:
-  inspector() = default;
+  inspector_panel() = default;
 
   handle m_target{};
 };
 
 /** Call inside `tree_item_context_menu` when row `h` refers to this node. */
 void append_tree_inspector_menu_items(handle h);
+
+/** Backward compatibility: inspector = inspector_panel */
+using inspector = inspector_panel;
 
 } // namespace toy_cad::interaction

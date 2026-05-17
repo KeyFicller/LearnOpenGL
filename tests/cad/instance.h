@@ -14,6 +14,7 @@ struct GLFWwindow;
 namespace toy_cad::interaction {
 
 class input_handler;
+class debug_panel;
 
 }
 
@@ -60,6 +61,8 @@ public:
 
   [[nodiscard]] shader &viewport_shader() { return *m_vp_shader; }
 
+  [[nodiscard]] shader &global_shader() { return *m_global_shader; }
+
   [[nodiscard]] viewport_axes_gizmo &viewport_axes() { return m_viewport_axes; }
   [[nodiscard]] const viewport_axes_gizmo &viewport_axes() const {
     return m_viewport_axes;
@@ -75,6 +78,7 @@ private:
   std::vector<interaction::input_handler *> m_input_stack{};
 
   std::unique_ptr<shader> m_vp_shader{};
+  std::unique_ptr<shader> m_global_shader{};
   viewport_axes_gizmo m_viewport_axes{};
 };
 

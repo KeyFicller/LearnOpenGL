@@ -2,7 +2,7 @@
 
 #include "tests/cad/instance.h"
 #include "tests/cad/interaction/doc_input_handler.h"
-#include "tests/cad/interaction/inspector.h"
+#include "tests/cad/document/inspector_panel.h"
 #include "tests/cad/interaction/inspector_tree_node.h"
 #include "tests/cad/renderer/viewport_axes_gizmo.h"
 
