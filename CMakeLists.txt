@@ -295,12 +295,18 @@ if(LEARNOPENGL_OCCT_BUILD_DIR AND EXISTS "${LEARNOPENGL_OCCT_BUILD_DIR}/OpenCASC
   # Toy CAD scene + tests/cad (compiled only when OCCT is enabled; no #ifdef in those sources).
   target_sources(LearnOpenGL PRIVATE
       tests/scenes/toy_cad_scene.cpp
+      tests/cad/renderer/viewport_axes_gizmo.cpp
+      tests/cad/renderer/viewport_axis.cpp
+      tests/cad/renderer/viewport_datum.cpp
       tests/cad/database/database.cpp
       tests/cad/database/object.cpp
       tests/cad/database/datum.cpp
       tests/cad/database/axis.cpp
       tests/cad/renderer/drawable_object.cpp
       tests/cad/history/history_object.cpp
+      tests/cad/history/feature.cpp
+      tests/cad/history/primitive_feature.cpp
+      tests/cad/history/box_feature.cpp
       tests/cad/history/history_tree.cpp
       tests/cad/history/coordinate.cpp
       tests/cad/interaction/doc_input_handler.cpp

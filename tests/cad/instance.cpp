@@ -5,10 +5,37 @@
 #include "tests/cad/history/coordinate.h"
 #include "tests/cad/interaction/doc_input_handler.h"
 #include "tests/cad/interaction/inspector.h"
+#include "tests/cad/renderer/viewport_axis.h"
+#include "tests/cad/renderer/viewport_datum.h"
+
+#include <gp_Ax1.hxx>
+#include <gp_Ax2.hxx>
+#include <gp_Dir.hxx>
+#include <gp_Pnt.hxx>
 
 #include <array>
 
 namespace toy_cad {
+
+namespace {
+
+const char *k_vp_vs = R"(#version 330 core
+layout (location = 0) in vec3 aPos;
+uniform mat4 uMVP;
+void main() {
+  gl_Position = uMVP * vec4(aPos, 1.0);
+}
+)";
+
+const char *k_vp_fs = R"(#version 330 core
+uniform vec4 uColor;
+out vec4 FragColor;
+void main() {
+  FragColor = uColor;
+}
+)";
+
+} // namespace
 
 void instance::push_input_handler(interaction::input_handler *handler) {
   m_input_stack.push_back(handler);
@@ -42,6 +69,29 @@ void instance::init(GLFWwindow *window) {
   }
   const handle coord = m_database.emplace<coordinate>(dh, ah);
   m_history.push_back(coord);
+
+  if (auto *d0 = m_database.try_get_as<datum>(dh[0])) {
+    d0->set_ax2(gp_Ax2(gp_Pnt(0., 0., 0.), gp_Dir(0., 0., 1.), gp_Dir(1., 0., 0.)));
+  }
+  if (auto *d1 = m_database.try_get_as<datum>(dh[1])) {
+    d1->set_ax2(gp_Ax2(gp_Pnt(0., 0., 0.), gp_Dir(0., 1., 0.), gp_Dir(1., 0., 0.)));
+  }
+  if (auto *d2 = m_database.try_get_as<datum>(dh[2])) {
+    d2->set_ax2(gp_Ax2(gp_Pnt(0., 0., 0.), gp_Dir(1., 0., 0.), gp_Dir(0., 1., 0.)));
+  }
+  if (auto *a0 = m_database.try_get_as<axis>(ah[0])) {
+    a0->set_ax1(gp_Ax1(gp_Pnt(0., 0., 0.), gp_Dir(1., 0., 0.)));
+  }
+  if (auto *a1 = m_database.try_get_as<axis>(ah[1])) {
+    a1->set_ax1(gp_Ax1(gp_Pnt(0., 0., 0.), gp_Dir(0., 1., 0.)));
+  }
+  if (auto *a2 = m_database.try_get_as<axis>(ah[2])) {
+    a2->set_ax1(gp_Ax1(gp_Pnt(0., 0., 0.), gp_Dir(0., 0., 1.)));
+  }
+
+  m_vp_shader.reset(shader::shader_from_source(k_vp_vs, k_vp_fs));
+  viewport_axis::instance();
+  viewport_datum::instance();
 }
 
 void instance::update(float delta_time) { (void)delta_time; }
@@ -49,6 +99,7 @@ void instance::update(float delta_time) { (void)delta_time; }
 void instance::render() {
   m_history.draw_global();
   m_history.draw_local();
+  m_viewport_axes.draw(m_disp.view_matrix);
 }
 
 void instance::render_ui() {

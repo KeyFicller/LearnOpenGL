@@ -1,9 +1,12 @@
 #pragma once
 
+#include "basic/shader.h"
 #include "tests/cad/database/database.h"
 #include "tests/cad/history/history_tree.h"
 #include "tests/cad/renderer/disp_var.h"
+#include "tests/cad/renderer/viewport_axes_gizmo.h"
 
+#include <memory>
 #include <vector>
 
 struct GLFWwindow;
@@ -55,6 +58,13 @@ public:
 
   [[nodiscard]] GLFWwindow *window() const { return m_window; }
 
+  [[nodiscard]] shader &viewport_shader() { return *m_vp_shader; }
+
+  [[nodiscard]] viewport_axes_gizmo &viewport_axes() { return m_viewport_axes; }
+  [[nodiscard]] const viewport_axes_gizmo &viewport_axes() const {
+    return m_viewport_axes;
+  }
+
 private:
   instance() = default;
 
@@ -63,6 +73,9 @@ private:
   disp_var m_disp{};
   history_tree m_history{};
   std::vector<interaction::input_handler *> m_input_stack{};
+
+  std::unique_ptr<shader> m_vp_shader{};
+  viewport_axes_gizmo m_viewport_axes{};
 };
 
 } // namespace toy_cad

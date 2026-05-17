@@ -1,16 +1,31 @@
 #include "datum.h"
 
+#include "tests/cad/instance.h"
 #include "tests/cad/interaction/doc_input_handler.h"
 #include "tests/cad/interaction/inspector.h"
 #include "tests/cad/interaction/inspector_tree_node.h"
+#include "tests/cad/renderer/viewport_axes_gizmo.h"
+
+#include "basic/shader.h"
 
 #include "imgui.h"
+
+#include <glm/glm.hpp>
 
 namespace toy_cad {
 
 void datum::draw_global() {}
 
-void datum::draw_local() {}
+void datum::draw_local() {
+  instance::get().viewport_shader().use();
+  auto &disp = instance::get().disp();
+  const glm::mat4 clip = disp.clip_from_world();
+  const glm::mat4 view = disp.view_matrix;
+  const gp_Pnt o = m_frame.Location();
+  const glm::vec3 anchor(static_cast<float>(o.X()), static_cast<float>(o.Y()),
+                         static_cast<float>(o.Z()));
+  viewport_axes_gizmo::draw_datum_planes_screen_fixed(anchor, view, clip);
+}
 
 void datum::draw_explorer_leaf(const char *leaf_label, handle row) {
   auto &doc = interaction::doc_input_handler::instance();
