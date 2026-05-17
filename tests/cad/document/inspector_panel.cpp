@@ -1,4 +1,4 @@
-#include "inspector.h"
+#include "inspector_panel.h"
 
 #include "tests/cad/database/object.h"
 #include "tests/cad/instance.h"
@@ -7,16 +7,16 @@
 
 namespace toy_cad::interaction {
 
-inspector &inspector::instance() {
-  static inspector inst;
+inspector_panel &inspector_panel::instance() {
+  static inspector_panel inst;
   return inst;
 }
 
-void inspector::set_target(handle h) { m_target = h; }
+void inspector_panel::set_target(handle h) { m_target = h; }
 
-void inspector::clear_target() { m_target = {}; }
+void inspector_panel::clear_target() { m_target = {}; }
 
-void inspector::draw_ui() {
+void inspector_panel::draw_ui() {
   if (!ImGui::Begin("Toy CAD Inspector")) {
     ImGui::End();
     return;
@@ -58,7 +58,7 @@ void append_tree_inspector_menu_items(handle h) {
     return;
   }
   if (ImGui::MenuItem("Inspect")) {
-    inspector::instance().set_target(h);
+    inspector_panel::instance().set_target(h);
   }
 }
 

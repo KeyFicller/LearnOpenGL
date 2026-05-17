@@ -294,10 +294,15 @@ if(LEARNOPENGL_OCCT_BUILD_DIR AND EXISTS "${LEARNOPENGL_OCCT_BUILD_DIR}/OpenCASC
       tests/cad/history/feature.cpp
       tests/cad/history/primitive_feature.cpp
       tests/cad/history/box_feature.cpp
+      tests/cad/history/box_command.cpp
       tests/cad/history/history_tree.cpp
       tests/cad/history/coordinate.cpp
+      tests/cad/document/command_panel.cpp
+      tests/cad/document/debug_panel.cpp
+      tests/cad/document/inspector_panel.cpp
+      tests/cad/interaction/command_dispatcher.cpp
       tests/cad/interaction/doc_input_handler.cpp
-      tests/cad/interaction/inspector.cpp
+      tests/cad/interaction/ray_pick.cpp
       tests/cad/instance.cpp)
   target_include_directories(LearnOpenGL PRIVATE
       "${LEARNOPENGL_OCCT_BUILD_DIR}/include/opencascade")

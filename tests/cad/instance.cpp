@@ -2,9 +2,14 @@
 
 #include "tests/cad/database/axis.h"
 #include "tests/cad/database/datum.h"
+#include "tests/cad/history/box_command.h"
 #include "tests/cad/history/coordinate.h"
+#include "tests/cad/document/command_panel.h"
+#include "tests/cad/document/debug_panel.h"
+#include "tests/cad/document/inspector_panel.h"
+#include "tests/cad/interaction/command_dispatcher.h"
 #include "tests/cad/interaction/doc_input_handler.h"
-#include "tests/cad/interaction/inspector.h"
+#include "tests/cad/interaction/ray_pick.h"
 #include "tests/cad/renderer/viewport_axis.h"
 #include "tests/cad/renderer/viewport_datum.h"
 
@@ -14,6 +19,7 @@
 #include <gp_Pnt.hxx>
 
 #include <array>
+#include <GLFW/glfw3.h>
 
 namespace toy_cad {
 
@@ -32,6 +38,58 @@ uniform vec4 uColor;
 out vec4 FragColor;
 void main() {
   FragColor = uColor;
+}
+)";
+
+// Global shader with lighting (ambient + directional)
+const char *k_global_vs = R"(#version 330 core
+layout (location = 0) in vec3 aPos;
+layout (location = 1) in vec3 aNormal;
+
+uniform mat4 uMVP;
+uniform mat4 uModel;
+
+out vec3 vWorldPos;
+out vec3 vNormal;
+
+void main() {
+  vec4 worldPos = uModel * vec4(aPos, 1.0);
+  vWorldPos = worldPos.xyz;
+  vNormal = mat3(transpose(inverse(uModel))) * aNormal;
+  gl_Position = uMVP * vec4(aPos, 1.0);
+}
+)";
+
+const char *k_global_fs = R"(#version 330 core
+in vec3 vWorldPos;
+in vec3 vNormal;
+
+uniform vec3 uCameraPos;
+uniform vec3 uLightDir;      // Directional light direction (normalized)
+uniform vec3 uAmbientColor;  // Ambient light color
+uniform vec3 uDiffuseColor;  // Diffuse light color
+uniform vec3 uBaseColor;     // Object base color
+
+out vec4 FragColor;
+
+void main() {
+  vec3 normal = normalize(vNormal);
+  vec3 lightDir = normalize(-uLightDir); // Light direction from surface to light
+
+  // Ambient
+  vec3 ambient = uAmbientColor * uBaseColor;
+
+  // Diffuse (Lambert)
+  float diff = max(dot(normal, lightDir), 0.0);
+  vec3 diffuse = uDiffuseColor * diff * uBaseColor;
+
+  // Simple view direction for specular hint (optional)
+  vec3 viewDir = normalize(uCameraPos - vWorldPos);
+  float spec = pow(max(dot(reflect(-lightDir, normal), viewDir), 0.0), 32.0);
+  vec3 specular = vec3(0.1) * spec; // Weak specular
+
+  vec3 result = ambient + diffuse + specular;
+  FragColor = vec4(result, 1.0);
 }
 )";
 
@@ -90,24 +148,58 @@ void instance::init(GLFWwindow *window) {
   }
 
   m_vp_shader.reset(shader::shader_from_source(k_vp_vs, k_vp_fs));
+  m_global_shader.reset(shader::shader_from_source(k_global_vs, k_global_fs));
   viewport_axis::instance();
   viewport_datum::instance();
+
+  // Register commands in command panel
+  interaction::command_panel::instance().register_button(
+      "Create Box", "Create a box by picking two diagonal corners",
+      []() {
+        interaction::command_dispatcher::instance().push_command(
+            std::make_unique<box_command>());
+      });
 }
 
-void instance::update(float delta_time) { (void)delta_time; }
+void instance::update(float delta_time) {
+  (void)delta_time;
+  // Update active command state
+  interaction::command_dispatcher::instance().update();
+}
 
 void instance::render() {
   m_history.draw_global();
   m_history.draw_local();
+
+  // Draw command preview (e.g., box preview during creation)
+  interaction::command_dispatcher::instance().draw();
+
   m_viewport_axes.draw(m_disp.view_matrix);
 }
 
 void instance::render_ui() {
   m_history.draw_ui();
   interaction::inspector::instance().draw_ui();
+  interaction::command_panel::instance().draw_ui();
+  interaction::command_dispatcher::instance().draw_ui();
+  interaction::debug_panel::instance().draw_ui();
 }
 
 bool instance::on_mouse_moved(double xpos, double ypos) {
+  // Cache mouse position and ray pick coordinate for debug panel
+  auto &dbg = interaction::debug_panel::instance();
+  dbg.set_mouse_position(xpos, ypos);
+
+  auto &picker = interaction::ray_pick::instance();
+  glm::vec3 world_point;
+  const bool valid = picker.pick_at(xpos, ypos, m_disp, world_point);
+  dbg.set_ray_pick_coordinate(world_point, valid);
+
+  // Forward to active command first (command takes priority)
+  if (interaction::command_dispatcher::instance().on_mouse_moved(xpos, ypos)) {
+    return true;
+  }
+
   if (auto *top = top_input_handler()) {
     return top->on_mouse_moved(xpos, ypos);
   }
@@ -122,6 +214,11 @@ bool instance::on_mouse_scroll(double xoffset, double yoffset) {
 }
 
 bool instance::on_mouse_button(int button, int action, int mods) {
+  // Forward to active command first (command takes priority)
+  if (interaction::command_dispatcher::instance().on_mouse_button(button, action, mods)) {
+    return true;
+  }
+
   if (auto *top = top_input_handler()) {
     return top->on_mouse_button(button, action, mods);
   }
