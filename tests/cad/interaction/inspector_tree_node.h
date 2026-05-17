@@ -14,7 +14,7 @@ struct tree_item_signals {
   bool right_clicked = false;
 };
 
-/** Collapsible branch via ImGui::TreeNodeEx — caller must ImGui::TreePop() when `open`. */
+/** Collapsible branch via ImGui::CollapsingHeader — draw children when `open`. */
 struct tree_branch_outcome {
   bool open = false;
   tree_item_signals signals{};
@@ -27,7 +27,7 @@ tree_branch_outcome tree_branch(const char *label_id,
 tree_branch_outcome tree_branch(const char *label_id, ImGuiTreeNodeFlags flags,
                                 handle item, doc_input_handler &doc);
 
-/** Leaf row (bullet, no TreePop). */
+/** Leaf row (CollapsingHeader + Leaf: selectable, no expand). */
 struct tree_leaf_outcome {
   tree_item_signals signals{};
 };
@@ -35,8 +35,24 @@ struct tree_leaf_outcome {
 tree_leaf_outcome tree_leaf(const char *label_id,
                             ImGuiTreeNodeFlags extra_flags = 0);
 
-tree_leaf_outcome tree_leaf(const char *label_id, ImGuiTreeNodeFlags extra_flags,
-                            handle item, doc_input_handler &doc);
+tree_leaf_outcome tree_leaf(const char *label_id,
+                            ImGuiTreeNodeFlags extra_flags, handle item,
+                            doc_input_handler &doc);
+
+/** RAII indent for children under an open CollapsingHeader (TreeNode-style depth). */
+class tree_indent_scope {
+public:
+  explicit tree_indent_scope(const float amount = 0.f)
+      : amount_(amount > 0.f ? amount : ImGui::GetStyle().IndentSpacing) {
+    ImGui::Indent(amount_);
+  }
+  tree_indent_scope(const tree_indent_scope &) = delete;
+  tree_indent_scope &operator=(const tree_indent_scope &) = delete;
+  ~tree_indent_scope() { ImGui::Unindent(amount_); }
+
+private:
+  float amount_;
+};
 
 /**
  * Call immediately after tree_branch / tree_leaf on the same line.
@@ -54,23 +70,31 @@ private:
   bool active_;
 };
 
+inline void tree_apply_default_open(const ImGuiTreeNodeFlags flags) {
+  if (flags & ImGuiTreeNodeFlags_DefaultOpen) {
+    ImGui::SetNextItemOpen(true, ImGuiCond_Once);
+  }
+}
+
 inline tree_branch_outcome tree_branch(const char *label_id,
                                        const ImGuiTreeNodeFlags flags) {
   tree_branch_outcome out;
-  out.open = ImGui::TreeNodeEx(label_id, flags);
+  tree_apply_default_open(flags);
+  out.open = ImGui::CollapsingHeader(label_id, flags);
   out.signals.left_clicked = ImGui::IsItemClicked(ImGuiMouseButton_Left);
   out.signals.right_clicked = ImGui::IsItemClicked(ImGuiMouseButton_Right);
   return out;
 }
 
 inline tree_branch_outcome tree_branch(const char *label_id,
-                                       ImGuiTreeNodeFlags flags,
-                                       handle item, doc_input_handler &doc) {
+                                       ImGuiTreeNodeFlags flags, handle item,
+                                       doc_input_handler &doc) {
   tree_branch_outcome out;
   if (item.valid() && doc.is_selected(item)) {
     flags |= ImGuiTreeNodeFlags_Selected;
   }
-  out.open = ImGui::TreeNodeEx(label_id, flags);
+  tree_apply_default_open(flags);
+  out.open = ImGui::CollapsingHeader(label_id, flags);
   out.signals.left_clicked = ImGui::IsItemClicked(ImGuiMouseButton_Left);
   out.signals.right_clicked = ImGui::IsItemClicked(ImGuiMouseButton_Right);
   if (item.valid() && out.signals.left_clicked) {
@@ -82,9 +106,8 @@ inline tree_branch_outcome tree_branch(const char *label_id,
 inline tree_leaf_outcome tree_leaf(const char *label_id,
                                    const ImGuiTreeNodeFlags extra_flags) {
   const ImGuiTreeNodeFlags flags =
-      ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen |
-      ImGuiTreeNodeFlags_Bullet | extra_flags;
-  ImGui::TreeNodeEx(label_id, flags);
+      ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet | extra_flags;
+  ImGui::CollapsingHeader(label_id, flags);
   tree_leaf_outcome out;
   out.signals.left_clicked = ImGui::IsItemClicked(ImGuiMouseButton_Left);
   out.signals.right_clicked = ImGui::IsItemClicked(ImGuiMouseButton_Right);
@@ -92,15 +115,14 @@ inline tree_leaf_outcome tree_leaf(const char *label_id,
 }
 
 inline tree_leaf_outcome tree_leaf(const char *label_id,
-                                   ImGuiTreeNodeFlags extra_flags,
-                                   handle item, doc_input_handler &doc) {
+                                   ImGuiTreeNodeFlags extra_flags, handle item,
+                                   doc_input_handler &doc) {
   ImGuiTreeNodeFlags flags =
-      ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen |
-      ImGuiTreeNodeFlags_Bullet | extra_flags;
+      ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet | extra_flags;
   if (item.valid() && doc.is_selected(item)) {
     flags |= ImGuiTreeNodeFlags_Selected;
   }
-  ImGui::TreeNodeEx(label_id, flags);
+  ImGui::CollapsingHeader(label_id, flags);
   tree_leaf_outcome out;
   out.signals.left_clicked = ImGui::IsItemClicked(ImGuiMouseButton_Left);
   out.signals.right_clicked = ImGui::IsItemClicked(ImGuiMouseButton_Right);

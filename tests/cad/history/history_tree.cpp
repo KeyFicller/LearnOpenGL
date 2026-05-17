@@ -34,8 +34,8 @@ void history_tree::draw_global() {
 void history_tree::draw_ui() {
   database &db = instance::get().db();
   if (ImGui::Begin("Toy CAD History")) {
-    const auto hist = interaction::tree_branch(
-        "History", ImGuiTreeNodeFlags_DefaultOpen);
+    const auto hist =
+        interaction::tree_branch("History", ImGuiTreeNodeFlags_DefaultOpen);
     {
       interaction::tree_item_context_menu menu;
       if (menu) {
@@ -43,6 +43,7 @@ void history_tree::draw_ui() {
       }
     }
     if (hist.open) {
+      const interaction::tree_indent_scope indent;
       int i = 0;
       for (handle h : m_handles) {
         ImGui::PushID(i);
@@ -52,7 +53,6 @@ void history_tree::draw_ui() {
         ImGui::PopID();
         ++i;
       }
-      ImGui::TreePop();
     }
   }
   ImGui::End();

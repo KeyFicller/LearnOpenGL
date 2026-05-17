@@ -6,6 +6,7 @@
 class toy_cad_scene : public renderable_scene_base {
 public:
   toy_cad_scene();
+  ~toy_cad_scene() override = default;
 
   void init(GLFWwindow *window) override;
   void update(float delta_time) override;

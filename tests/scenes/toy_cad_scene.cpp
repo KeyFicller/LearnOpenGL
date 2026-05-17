@@ -1,14 +1,38 @@
 #include "toy_cad_scene.h"
 
+#include "basic/camera.h"
+#include "glad/gl.h"
 #include "imgui.h"
 #include "tests/cad/instance.h"
+
+#include <glm/gtc/matrix_transform.hpp>
+
+namespace {
+
+glm::mat4 projection_for_render_target(const camera &cam, int rw, int rh) {
+  if (rw <= 0 || rh <= 0) {
+    return cam.ProjectionMatrix;
+  }
+  const float aspect = static_cast<float>(rw) / static_cast<float>(rh);
+  if (!cam.Orthographic) {
+    return glm::perspective(glm::radians(cam.FOV), aspect, cam.Near, cam.Far);
+  }
+  const float cx = (cam.Left + cam.Right) * 0.5f;
+  const float cy = (cam.Bottom + cam.Top) * 0.5f;
+  const float hh = (cam.Top - cam.Bottom) * 0.5f;
+  if (hh <= 1e-8f) {
+    return cam.ProjectionMatrix;
+  }
+  const float hw = hh * aspect;
+  return glm::ortho(cx - hw, cx + hw, cy - hh, cy + hh, cam.Near, cam.Far);
+}
+
+} // namespace
 
 toy_cad_scene::toy_cad_scene() : renderable_scene_base("Toy CAD") {}
 
 void toy_cad_scene::init(GLFWwindow *window) {
   renderable_scene_base::init(window);
-
-  m_camera_controller_enabled = true;
 
   m_camera.Position = {0.0f, 0.0f, 3.0f};
   m_camera.Yaw = -90.0f;
@@ -27,7 +51,17 @@ void toy_cad_scene::update(float delta_time) {
   disp.projection_matrix = m_camera.ProjectionMatrix;
 }
 
-void toy_cad_scene::render() { toy_cad::instance::get().render(); }
+void toy_cad_scene::render() {
+  GLint vp[4]{};
+  glGetIntegerv(GL_VIEWPORT, vp);
+  auto &disp = toy_cad::instance::get().disp();
+  disp.render_width = vp[2];
+  disp.render_height = vp[3];
+  disp.view_matrix = m_camera.ViewMatrix;
+  disp.projection_matrix = projection_for_render_target(m_camera, vp[2], vp[3]);
+
+  toy_cad::instance::get().render();
+}
 
 void toy_cad_scene::render_ui() {
   toy_cad::instance::get().render_ui();

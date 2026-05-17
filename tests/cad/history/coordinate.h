@@ -1,12 +1,12 @@
 #pragma once
 
-#include "history_object.h"
+#include "feature.h"
 #include "tests/cad/database/handle.h"
 #include <array>
 
 namespace toy_cad {
 
-class coordinate : public history_object {
+class coordinate : public feature {
 public:
   explicit coordinate(std::array<handle, 3> datum_handles,
                       std::array<handle, 3> axis_handles);
