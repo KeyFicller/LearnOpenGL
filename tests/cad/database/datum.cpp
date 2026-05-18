@@ -27,14 +27,22 @@ void datum::draw_local() {
   viewport_axes_gizmo::draw_datum_planes_screen_fixed(anchor, view, clip);
 }
 
-void datum::draw_explorer_leaf(const char *leaf_label, handle row) {
+void datum::draw_ui(handle explorer_row) {
   auto &doc = interaction::doc_input_handler::instance();
-  [[maybe_unused]] const auto leaf =
-      interaction::tree_leaf(leaf_label, 0, row, doc);
+
+  // Build leaf label from tag
+  std::string leaf = tag();
+  if (leaf.empty()) {
+    leaf = "datum";
+  }
+  leaf += "###datum_" + std::to_string(explorer_row.index);
+
+  [[maybe_unused]] const auto leaf_out =
+      interaction::tree_leaf(leaf.c_str(), 0, explorer_row, doc);
   interaction::tree_item_context_menu menu;
   if (menu) {
-    interaction::append_tree_inspector_menu_items(row);
-    ImGui::TextUnformatted("datum");
+    interaction::append_tree_inspector_menu_items(explorer_row);
+    ImGui::TextUnformatted(tag().empty() ? "datum" : tag().c_str());
   }
 }
 

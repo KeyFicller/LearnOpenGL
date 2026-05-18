@@ -27,14 +27,22 @@ void axis::draw_local() {
   viewport_axes_gizmo::draw_axes_screen_fixed(anchor, view, clip);
 }
 
-void axis::draw_explorer_leaf(const char *leaf_label, handle row) {
+void axis::draw_ui(handle explorer_row) {
   auto &doc = interaction::doc_input_handler::instance();
-  [[maybe_unused]] const auto leaf =
-      interaction::tree_leaf(leaf_label, 0, row, doc);
+
+  // Build leaf label from tag
+  std::string leaf = tag();
+  if (leaf.empty()) {
+    leaf = "axis";
+  }
+  leaf += "###axis_" + std::to_string(explorer_row.index);
+
+  [[maybe_unused]] const auto leaf_out =
+      interaction::tree_leaf(leaf.c_str(), 0, explorer_row, doc);
   interaction::tree_item_context_menu menu;
   if (menu) {
-    interaction::append_tree_inspector_menu_items(row);
-    ImGui::TextUnformatted("axis");
+    interaction::append_tree_inspector_menu_items(explorer_row);
+    ImGui::TextUnformatted(tag().empty() ? "axis" : tag().c_str());
   }
 }
 

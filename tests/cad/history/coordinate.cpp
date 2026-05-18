@@ -85,16 +85,7 @@ void coordinate::draw_ui(handle explorer_row) {
     ImGui::PushID(i);
     auto *d = db.try_get_as<datum>(m_datum_handles[static_cast<size_t>(i)]);
     if (d != nullptr) {
-      std::string leaf = d->tag();
-      if (leaf.empty()) {
-        char fb[48];
-        std::snprintf(fb, sizeof(fb), "基准面 %d", i);
-        leaf = fb;
-      }
-      leaf += "###coord_datum_";
-      leaf += std::to_string(i);
-      d->draw_explorer_leaf(leaf.c_str(),
-                            m_datum_handles[static_cast<size_t>(i)]);
+      d->draw_ui(m_datum_handles[static_cast<size_t>(i)]);
     }
     ImGui::PopID();
   }
@@ -103,16 +94,7 @@ void coordinate::draw_ui(handle explorer_row) {
     ImGui::PushID(i + 3);
     auto *a = db.try_get_as<axis>(m_axis_handles[static_cast<size_t>(i)]);
     if (a != nullptr) {
-      std::string leaf = a->tag();
-      if (leaf.empty()) {
-        char fb[48];
-        std::snprintf(fb, sizeof(fb), "轴 %d", i);
-        leaf = fb;
-      }
-      leaf += "###coord_axis_";
-      leaf += std::to_string(i);
-      a->draw_explorer_leaf(leaf.c_str(),
-                            m_axis_handles[static_cast<size_t>(i)]);
+      a->draw_ui(m_axis_handles[static_cast<size_t>(i)]);
     }
     ImGui::PopID();
   }

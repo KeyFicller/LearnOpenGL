@@ -1,7 +1,9 @@
 #include "box_feature.h"
 
 #include "tests/cad/instance.h"
-#include "tests/cad/renderer/viewport_datum.h"
+#include "tests/cad/interaction/doc_input_handler.h"
+#include "tests/cad/document/inspector_panel.h"
+#include "tests/cad/interaction/inspector_tree_node.h"
 #include "basic/shader.h"
 
 #include "imgui.h"
@@ -21,6 +23,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <string>
 
 namespace toy_cad {
 
@@ -102,7 +105,31 @@ void box_feature::draw_local() {
 }
 
 void box_feature::draw_ui(handle explorer_row) {
-  (void)explorer_row;
+  auto &doc = interaction::doc_input_handler::instance();
+
+  std::string leaf = tag();
+  if (leaf.empty()) {
+    leaf = "Box";
+  }
+  leaf += "###box_" + std::to_string(explorer_row.index);
+
+  [[maybe_unused]] const auto leaf_out =
+      interaction::tree_leaf(leaf.c_str(), 0, explorer_row, doc);
+
+  interaction::tree_item_context_menu menu;
+  if (menu) {
+    interaction::append_tree_inspector_menu_items(explorer_row);
+    ImGui::Separator();
+    ImGui::TextUnformatted(tag().empty() ? "Box" : tag().c_str());
+    ImGui::Spacing();
+    ImGui::Text("Min  (%.3f, %.3f, %.3f)", m_min.x, m_min.y, m_min.z);
+    ImGui::Text("Max  (%.3f, %.3f, %.3f)", m_max.x, m_max.y, m_max.z);
+    const float dx = m_max.x - m_min.x;
+    const float dy = m_max.y - m_min.y;
+    const float dz = m_max.z - m_min.z;
+    ImGui::Text("Size (%.3f, %.3f, %.3f)", dx, dy, dz);
+    ImGui::Text("Geometry: %s", m_shape_ok ? "valid" : "invalid");
+  }
 }
 
 void box_feature::inspect() const {

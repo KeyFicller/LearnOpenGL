@@ -1,6 +1,7 @@
 #pragma once
 
 #include "tests/cad/interaction/command_dispatcher.h"
+#include "tests/cad/interaction/point_input_handler.h"
 #include "tests/cad/database/handle.h"
 #include <glm/glm.hpp>
 #include <memory>
@@ -12,9 +13,9 @@ class box_feature;
 /**
  * Interactive command: create box by picking two diagonal corners.
  *
- * Step 1: Click to set corner point 1 (p1)
- * Step 2: Move mouse to preview box, click to set corner point 2 (p2)
- * Step 3: Command completes, box is created in history
+ * Uses point_input_handler for interaction:
+ *   - First handler ("p1") for picking corner point 1
+ *   - Second handler ("p2") for picking corner point 2
  */
 class box_command : public interaction::command {
 public:
@@ -28,8 +29,14 @@ public:
 
   void on_draw_ui() override;
   void on_draw() override;
-  bool on_mouse_moved(double xpos, double ypos) override;
-  bool on_mouse_button(int button, int action, int mods) override;
+
+  /**
+   * Called by point_input_handler when point input changes or confirms.
+   * @param flag "p1" or "p2" identifying which handler
+   * @param handler the point_input_handler (extract preview_point from it)
+   * @param confirmed true if this is a click confirmation, false for preview
+   */
+  void on_input_changed(const char *flag, interaction::input_handler *handler, bool confirmed) override;
 
 private:
   enum class step { pick_p1, pick_p2, done };
@@ -41,11 +48,13 @@ private:
 
   handle m_box_handle{}; // Handle to the box_feature being created
 
-  double m_mouse_x = 0.0; // Last mouse X for ray pick
-  double m_mouse_y = 0.0; // Last mouse Y for ray pick
+  std::unique_ptr<interaction::point_input_handler> m_p1_handler;
+  std::unique_ptr<interaction::point_input_handler> m_p2_handler;
 
-  void update_preview(double screen_x, double screen_y);
-  void commit_box();
+  void setup_p1_handler();
+  void setup_p2_handler();
+  void on_p1_confirmed(const glm::vec3 &point);
+  void on_p2_confirmed(const glm::vec3 &point);
 };
 
 } // namespace toy_cad

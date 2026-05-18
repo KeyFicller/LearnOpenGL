@@ -195,11 +195,7 @@ bool instance::on_mouse_moved(double xpos, double ypos) {
   const bool valid = picker.pick_at(xpos, ypos, m_disp, world_point);
   dbg.set_ray_pick_coordinate(world_point, valid);
 
-  // Forward to active command first (command takes priority)
-  if (interaction::command_dispatcher::instance().on_mouse_moved(xpos, ypos)) {
-    return true;
-  }
-
+  // Forward to input handler stack (commands push handlers to receive input)
   if (auto *top = top_input_handler()) {
     return top->on_mouse_moved(xpos, ypos);
   }
@@ -214,11 +210,7 @@ bool instance::on_mouse_scroll(double xoffset, double yoffset) {
 }
 
 bool instance::on_mouse_button(int button, int action, int mods) {
-  // Forward to active command first (command takes priority)
-  if (interaction::command_dispatcher::instance().on_mouse_button(button, action, mods)) {
-    return true;
-  }
-
+  // Forward to input handler stack (commands push handlers to receive input)
   if (auto *top = top_input_handler()) {
     return top->on_mouse_button(button, action, mods);
   }

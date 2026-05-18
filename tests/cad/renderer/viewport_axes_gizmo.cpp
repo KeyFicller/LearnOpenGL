@@ -97,7 +97,8 @@ bool try_compute_anchor_mini_rect(const glm::vec3 &world_anchor,
   const glm::vec4 clip =
       clip_from_world *
       glm::vec4(world_anchor.x, world_anchor.y, world_anchor.z, 1.f);
-  if (clip.w <= 0.f) {
+  // Perspective: points behind the eye have w <= 0; ortho does not use this test.
+  if (!instance::get().disp().orthographic && clip.w <= 0.f) {
     return false;
   }
 

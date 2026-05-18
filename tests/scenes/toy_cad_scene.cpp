@@ -6,6 +6,7 @@
 #include "tests/cad/instance.h"
 
 #include <glm/gtc/matrix_transform.hpp>
+#include <cmath>
 
 namespace {
 
@@ -34,9 +35,14 @@ toy_cad_scene::toy_cad_scene() : renderable_scene_base("Toy CAD") {}
 void toy_cad_scene::init(GLFWwindow *window) {
   renderable_scene_base::init(window);
 
-  m_camera.Position = {0.0f, 0.0f, 3.0f};
-  m_camera.Yaw = -90.0f;
-  m_camera.Pitch = 0.0f;
+  // CAD: Z up; on screen +Z up, +X toward lower-left, +Y toward lower-right.
+  // Camera in XY plane on diagonal (√2 along X,Y), distance 3 from origin.
+  constexpr float k_cam_r = 3.0f;
+  const float s_xy = k_cam_r / std::sqrt(2.0f);
+  m_camera.WorldUp = glm::vec3(0.f, 0.f, 1.f);
+  m_camera.Position = glm::vec3(s_xy, s_xy, 0.f);
+  m_camera.Yaw = 0.0f;
+  m_camera.Pitch = -135.0f;
   m_camera.update_view_matrix();
 
   toy_cad::instance::get().init(window);
@@ -49,6 +55,7 @@ void toy_cad_scene::update(float delta_time) {
   disp.camera_world_position = m_camera.Position;
   disp.view_matrix = m_camera.ViewMatrix;
   disp.projection_matrix = m_camera.ProjectionMatrix;
+  disp.orthographic = m_camera.Orthographic;
 }
 
 void toy_cad_scene::render() {
@@ -59,6 +66,7 @@ void toy_cad_scene::render() {
   disp.render_height = vp[3];
   disp.view_matrix = m_camera.ViewMatrix;
   disp.projection_matrix = projection_for_render_target(m_camera, vp[2], vp[3]);
+  disp.orthographic = m_camera.Orthographic;
 
   toy_cad::instance::get().render();
 }

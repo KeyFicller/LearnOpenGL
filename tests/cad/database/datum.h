@@ -20,8 +20,7 @@ public:
 
   void draw_global() override;
   void draw_local() override;
-  /** ImGui leaf inside coordinate subtree (explicit label incl. ### id). */
-  void draw_explorer_leaf(const char *leaf_label, handle row);
+  void draw_ui(handle explorer_row) override;
 
   void inspect() const override;
 

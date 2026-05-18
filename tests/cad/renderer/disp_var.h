@@ -16,6 +16,9 @@ public:
   int render_width = 0;
   int render_height = 0;
 
+  /** True when the scene camera uses orthographic projection (see toy_cad_scene). */
+  bool orthographic = false;
+
   /** Clip = P×V; vertex shader uses `uMVP * vec4(world_pos,1)` with world-space geometry. */
   [[nodiscard]] glm::mat4 clip_from_world() const {
     return projection_matrix * view_matrix;

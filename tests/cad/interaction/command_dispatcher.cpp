@@ -64,22 +64,4 @@ void command_dispatcher::draw() {
   }
 }
 
-bool command_dispatcher::on_mouse_moved(double xpos, double ypos) {
-  return m_command_stack.empty()
-             ? false
-             : m_command_stack.back()->on_mouse_moved(xpos, ypos);
-}
-
-bool command_dispatcher::on_mouse_button(int button, int action, int mods) {
-  return m_command_stack.empty()
-             ? false
-             : m_command_stack.back()->on_mouse_button(button, action, mods);
-}
-
-bool command_dispatcher::on_key(int key, int action, int mods) {
-  return m_command_stack.empty()
-             ? false
-             : m_command_stack.back()->on_key(key, action, mods);
-}
-
 } // namespace toy_cad::interaction

@@ -2,12 +2,11 @@
 
 #include "box_feature.h"
 #include "tests/cad/instance.h"
-#include "tests/cad/interaction/ray_pick.h"
 #include "tests/cad/interaction/command_dispatcher.h"
 #include "tests/cad/database/database.h"
 #include "imgui.h"
 
-#include <GLFW/glfw3.h>
+#include <cstring>
 
 namespace toy_cad {
 
@@ -17,14 +16,18 @@ void box_command::on_activate() {
   m_p2 = glm::vec3(0.0f);
   m_preview_p2 = glm::vec3(0.0f);
   m_box_handle = {};
+
+  // Push first point handler
+  setup_p1_handler();
 }
 
 void box_command::on_cancel() {
-  // Clean up preview box if cancelled (not yet in history)
+  // Clean up preview box if cancelled
   if (m_box_handle.valid()) {
     instance::get().db().destroy(m_box_handle);
     m_box_handle = {};
   }
+  // Note: handlers are popped by instance's input stack management
 }
 
 void box_command::on_complete() {
@@ -58,100 +61,100 @@ void box_command::on_draw() {
   // Draw preview box during step 2
   if (m_step == step::pick_p2 && m_box_handle.valid()) {
     if (auto *box = instance::get().db().try_get_as<box_feature>(m_box_handle)) {
-      // Call regen() to ensure topology is up to date, then draw
       box->regen();
       box->draw_global();
     }
   }
 }
 
-bool box_command::on_mouse_moved(double xpos, double ypos) {
-  if (m_step == step::pick_p2) {
-    update_preview(xpos, ypos);
-    return true;
+void box_command::on_input_changed(const char *flag, interaction::input_handler *handler, bool confirmed) {
+  auto *point_handler = dynamic_cast<interaction::point_input_handler *>(handler);
+  if (!point_handler) {
+    return;
   }
-  return false;
+
+  if (!point_handler->has_valid_preview()) {
+    return;
+  }
+
+  glm::vec3 point = point_handler->preview_point();
+
+  if (std::strcmp(flag, "p1") == 0) {
+    if (confirmed && m_step == step::pick_p1) {
+      // Click confirmed p1
+      on_p1_confirmed(point);
+    }
+  } else if (std::strcmp(flag, "p2") == 0) {
+    if (m_step == step::pick_p2) {
+      if (confirmed) {
+        // Click confirmed p2
+        on_p2_confirmed(point);
+      } else {
+        // Preview update
+        m_preview_p2 = point;
+        if (m_box_handle.valid()) {
+          if (auto *box = instance::get().db().try_get_as<box_feature>(m_box_handle)) {
+            box->set_corners(m_p1, m_preview_p2);
+          }
+        }
+      }
+    }
+  }
 }
 
-bool box_command::on_mouse_button(int button, int action, int mods) {
-  (void)mods;
+void box_command::setup_p1_handler() {
+  m_p1_handler = std::make_unique<interaction::point_input_handler>();
+  m_p1_handler->set_owner(this, "p1");
+  instance::get().push_input_handler(m_p1_handler.get());
+}
 
-  if (button != GLFW_MOUSE_BUTTON_LEFT || action != GLFW_PRESS) {
-    return false;
+void box_command::setup_p2_handler() {
+  m_p2_handler = std::make_unique<interaction::point_input_handler>();
+  m_p2_handler->set_owner(this, "p2");
+  instance::get().push_input_handler(m_p2_handler.get());
+}
+
+void box_command::on_p1_confirmed(const glm::vec3 &point) {
+  m_p1 = point;
+  m_preview_p2 = point;
+
+  // Create preview box feature
+  m_box_handle = instance::get().db().emplace<box_feature>();
+  if (auto *box = instance::get().db().try_get_as<box_feature>(m_box_handle)) {
+    box->set_corners(m_p1, m_preview_p2);
+    box->regen();
   }
 
-  switch (m_step) {
-  case step::pick_p1: {
-    // Get world point at mouse position
-    auto &picker = interaction::ray_pick::instance();
-    glm::vec3 world_point;
-    if (!picker.pick_at(m_mouse_x, m_mouse_y, instance::get().disp(), world_point)) {
-      return false; // No valid intersection
-    }
+  // Pop p1 handler and push p2 handler
+  instance::get().pop_input_handler();
+  m_p1_handler.reset();
 
-    m_p1 = world_point;
-    m_preview_p2 = world_point;
+  m_step = step::pick_p2;
+  setup_p2_handler();
+}
 
-    // Create preview box feature (NOT added to history yet)
-    m_box_handle = instance::get().db().emplace<box_feature>();
+void box_command::on_p2_confirmed(const glm::vec3 &point) {
+  m_p2 = point;
+
+  // Finalize box
+  if (m_box_handle.valid()) {
     if (auto *box = instance::get().db().try_get_as<box_feature>(m_box_handle)) {
-      box->set_corners(m_p1, m_preview_p2);
-      box->regen(); // Generate initial topology
+      box->set_corners(m_p1, m_p2);
+      box->regen();
     }
 
-    m_step = step::pick_p2;
-    return true;
+    // Add to history
+    instance::get().history().push_back(m_box_handle);
   }
 
-  case step::pick_p2: {
-    m_p2 = m_preview_p2;
+  // Pop p2 handler
+  instance::get().pop_input_handler();
+  m_p2_handler.reset();
 
-    // Finalize box geometry
-    if (m_box_handle.valid()) {
-      if (auto *box = instance::get().db().try_get_as<box_feature>(m_box_handle)) {
-        box->set_corners(m_p1, m_p2);
-        box->regen(); // Final topology generation
-      }
+  m_step = step::done;
 
-      // NOW add to history (confirmed)
-      instance::get().history().push_back(m_box_handle);
-    }
-
-    m_step = step::done;
-
-    // Complete command
-    interaction::command_dispatcher::instance().complete_current();
-    return true;
-  }
-
-  case step::done:
-    return false;
-  }
-
-  return false;
-}
-
-void box_command::update_preview(double screen_x, double screen_y) {
-  m_mouse_x = screen_x;
-  m_mouse_y = screen_y;
-
-  auto &picker = interaction::ray_pick::instance();
-  glm::vec3 world_point;
-  if (picker.pick_at(screen_x, screen_y, instance::get().disp(), world_point)) {
-    m_preview_p2 = world_point;
-
-    // Update preview box corners (topology will be regenerated in on_draw)
-    if (m_box_handle.valid()) {
-      if (auto *box = instance::get().db().try_get_as<box_feature>(m_box_handle)) {
-        box->set_corners(m_p1, m_preview_p2);
-      }
-    }
-  }
-}
-
-void box_command::commit_box() {
-  // Box is already created and updated during interaction
-  // Final confirmation happens in pick_p2 when we push to history
+  // Complete command
+  interaction::command_dispatcher::instance().complete_current();
 }
 
 } // namespace toy_cad

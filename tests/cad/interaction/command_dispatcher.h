@@ -36,27 +36,16 @@ public:
   /** Called for 3D scene rendering during command (e.g., preview geometry). */
   virtual void on_draw() {}
 
-  /** Handle mouse move during command. Return true if consumed. */
-  virtual bool on_mouse_moved(double xpos, double ypos) {
-    (void)xpos;
-    (void)ypos;
-    return false;
-  }
-
-  /** Handle mouse button during command. Return true if consumed. */
-  virtual bool on_mouse_button(int button, int action, int mods) {
-    (void)button;
-    (void)action;
-    (void)mods;
-    return false;
-  }
-
-  /** Handle keyboard input during command. Return true if consumed. */
-  virtual bool on_key(int key, int action, int mods) {
-    (void)key;
-    (void)action;
-    (void)mods;
-    return false;
+  /**
+   * Called when an owned InputHandler reports input changed or confirmed.
+   * @param flag Identifier for which input handler (e.g., "p1", "p2" for box command)
+   * @param handler The InputHandler that triggered this call (extract data from it)
+   * @param confirmed True if this is a confirmation (e.g., mouse click), false for preview
+   */
+  virtual void on_input_changed(const char *flag, class input_handler *handler, bool confirmed) {
+    (void)flag;
+    (void)handler;
+    (void)confirmed;
   }
 };
 
@@ -101,11 +90,6 @@ public:
 
   /** Draw 3D preview for active command (called during render phase). */
   void draw();
-
-  /** Input forwarding to active command. Return true if consumed. */
-  bool on_mouse_moved(double xpos, double ypos);
-  bool on_mouse_button(int button, int action, int mods);
-  bool on_key(int key, int action, int mods);
 
 private:
   command_dispatcher() = default;

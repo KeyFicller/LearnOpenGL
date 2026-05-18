@@ -315,6 +315,7 @@ if(LEARNOPENGL_OCCT_BUILD_DIR AND EXISTS "${LEARNOPENGL_OCCT_BUILD_DIR}/OpenCASC
       tests/cad/document/inspector_panel.cpp
       tests/cad/interaction/command_dispatcher.cpp
       tests/cad/interaction/doc_input_handler.cpp
+      tests/cad/interaction/point_input_handler.cpp
       tests/cad/interaction/ray_pick.cpp
       tests/cad/instance.cpp)
   target_include_directories(LearnOpenGL PRIVATE
