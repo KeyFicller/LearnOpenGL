@@ -5,9 +5,23 @@
 #include "glm/fwd.hpp"
 #include "glm/gtc/type_ptr.hpp"
 #include "glm/trigonometric.hpp"
+#include "imgui.h"
 #include "spline_movement_scene.h"
 #include "tests/component/mesh_manager.h"
 #include "tests/scenes/soft_body_dirver.h"
+#include <fstream>
+#include <iostream>
+
+static std::string script_dll_path() {
+  const char *candidates[] = {"runtime/Scripts.dll",
+                              "scripts/csharp/bin/Scripts.dll"};
+  for (const char *p : candidates) {
+    std::ifstream f(p);
+    if (f.good())
+      return p;
+  }
+  return "runtime/Scripts.dll";
+}
 
 spline_movement_snake_sub_scene::spline_movement_snake_sub_scene(
     spline_movement_scene *_parent)
@@ -33,6 +47,10 @@ spline_movement_snake_sub_scene::spline_movement_snake_sub_scene(
       new shader("shaders/spline_movement_test/snake/head_vertex.shader",
                  "shaders/spline_movement_test/snake/head_fragment.shader",
                  "shaders/spline_movement_test/snake/head_geometry.shader");
+
+#ifdef LEARNOPENGL_USE_MONO
+  m_invoker.load(script_dll_path());
+#endif
 }
 
 spline_movement_snake_sub_scene::~spline_movement_snake_sub_scene() {
@@ -150,40 +168,86 @@ void spline_movement_snake_sub_scene::render_ui() {
   }
 
   ImGui::Checkbox("Draw Control Points", &m_draw_control_points);
+
+#ifdef LEARNOPENGL_USE_MONO
+  ImGui::Checkbox("Driven by Script", &m_driven_by_script);
+  if (ImGui::SliderFloat("Path Radius", &m_path_radius, 0.1f, 1.0f)) {
+    if (m_invoker.is_ready()) {
+      m_invoker.invoke(mono_invoker::script_ncm("Scripts"_ns,
+                                                "MoveController"_cls,
+                                                "setPathRadius"_md),
+                       m_path_radius);
+    }
+  }
+#endif
 }
 
 void spline_movement_snake_sub_scene::update(float _delta_time) {
+#ifdef LEARNOPENGL_USE_MONO
+  if (m_driven_by_script) {
+    float time = glfwGetTime();
+    float x = 0.0;
+    float y = 0.0;
+    if (m_invoker.is_ready()) {
+      if (!m_invoker.invoke_r(mono_invoker::script_ncm("Scripts"_ns,
+                                                       "MoveController"_cls,
+                                                       "MoveX"_md),
+                              x, time)) {
+        std::cerr
+            << "[Snake Mono] invoke MoveX failed (see [Mono] lines above).\n";
+      }
+      if (!m_invoker.invoke_r(mono_invoker::script_ncm("Scripts"_ns,
+                                                       "MoveController"_cls,
+                                                       "MoveY"_md),
+                              y, time)) {
+        std::cerr
+            << "[Snake Mono] invoke MoveY failed (see [Mono] lines above).\n";
+      }
+
+      glm::vec3 new_pos = {x, y, 0.0};
+      if (!m_snake_spline.m_points.empty()) {
+        m_snake_spline.update_position(new_pos);
+      }
+      update_mesh_data();
+    }
+  }
+#endif
+
   m_snake_spline.update_position(m_snake_spline.m_points[0]);
 }
 
 bool spline_movement_snake_sub_scene::on_mouse_moved(double _xpos,
                                                      double _ypos) {
-  GLint viewport[4];
-  glGetIntegerv(GL_VIEWPORT, viewport);
-  float viewport_width = static_cast<float>(viewport[2]);
-  float viewport_height = static_cast<float>(viewport[3]);
+  if (!m_driven_by_script) {
+    GLint viewport[4];
+    glGetIntegerv(GL_VIEWPORT, viewport);
+    float viewport_width = static_cast<float>(viewport[2]);
+    float viewport_height = static_cast<float>(viewport[3]);
 
-  if (viewport_width <= 0 || viewport_height <= 0) {
-    return false;
+    if (viewport_width <= 0 || viewport_height <= 0) {
+      return false;
+    }
+
+    float x_screen =
+        static_cast<float>(_xpos) - static_cast<float>(viewport[0]);
+    float y_screen =
+        static_cast<float>(_ypos) - static_cast<float>(viewport[1]);
+
+    float x_norm = x_screen / viewport_width;
+    float y_norm = y_screen / viewport_height;
+
+    float x_clip = 2.0f * x_norm - 1.0f;
+    float y_clip = 1.0f - 2.0f * y_norm;
+
+    glm::vec3 clip_pos(x_clip, y_clip, 0.0f);
+
+    if (!m_snake_spline.m_points.empty()) {
+      m_snake_spline.update_position(clip_pos);
+    }
+
+    // Update mesh data
+    update_mesh_data();
   }
-
-  float x_screen = static_cast<float>(_xpos) - static_cast<float>(viewport[0]);
-  float y_screen = static_cast<float>(_ypos) - static_cast<float>(viewport[1]);
-
-  float x_norm = x_screen / viewport_width;
-  float y_norm = y_screen / viewport_height;
-
-  float x_clip = 2.0f * x_norm - 1.0f;
-  float y_clip = 1.0f - 2.0f * y_norm;
-
-  glm::vec3 clip_pos(x_clip, y_clip, 0.0f);
-
-  if (!m_snake_spline.m_points.empty()) {
-    m_snake_spline.update_position(clip_pos);
-  }
-
-  // Update mesh data
-  update_mesh_data();
 
   return true;
 }

@@ -39,21 +39,17 @@ struct script_ncm {
  */
 enum class invoke_result { k_integer, k_float, k_string };
 
-template <typename tT>
-struct invoke_result_helper;
+template <typename tT> struct invoke_result_helper;
 
-template <>
-struct invoke_result_helper<int> {
+template <> struct invoke_result_helper<int> {
   static constexpr invoke_result value = invoke_result::k_integer;
 };
 
-template <>
-struct invoke_result_helper<float> {
+template <> struct invoke_result_helper<float> {
   static constexpr invoke_result value = invoke_result::k_float;
 };
 
-template <>
-struct invoke_result_helper<std::string> {
+template <> struct invoke_result_helper<std::string> {
   static constexpr invoke_result value = invoke_result::k_string;
 };
 
@@ -93,12 +89,17 @@ public:
 
   template <typename tT, typename... tRests>
   void collect_params(std::vector<void *> &_params, tT &&_arg,
-                      tRests &&..._args) {
+                      tRests &&..._args) const {
     _params.push_back(static_cast<void *>(&_arg));
     collect_params(_params, std::forward<tRests>(_args)...);
   }
 
-  void collect_params(std::vector<void *> &_params) {}
+  template <typename tT>
+  void collect_params(std::vector<void *> &_params, tT &&_arg) const {
+    _params.push_back(static_cast<void *>(&_arg));
+  }
+
+  void collect_params(std::vector<void *> &_params) const {}
 
   template <typename... tArgs>
   bool invoke(const script_ncm &_ncm, tArgs... _args) const {
@@ -120,8 +121,7 @@ private:
   bool invoke_impl(const script_ncm &_ncm,
                    const std::vector<void *> &_params) const;
 
-  bool invoke_impl(const script_ncm &_ncm,
-                   const std::vector<void *> &_params,
+  bool invoke_impl(const script_ncm &_ncm, const std::vector<void *> &_params,
                    invoke_result _result_type, void *_result) const;
 
 private:

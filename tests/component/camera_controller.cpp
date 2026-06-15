@@ -176,6 +176,7 @@ void camera_controller::on_mouse_moved(double _xpos, double _ypos) {
 
 void camera_controller::on_mouse_scroll(double /*_xoffset*/, double _yoffset) {
   if (m_camera.Orthographic) {
+    // Exponential zoom for smooth scaling
     const float zoom =
         std::exp(-static_cast<float>(_yoffset) * 0.08f * m_scroll_sensitivity);
     const float cx = (m_camera.Left + m_camera.Right) * 0.5f;
@@ -191,13 +192,32 @@ void camera_controller::on_mouse_scroll(double /*_xoffset*/, double _yoffset) {
     m_camera.Bottom = cy - hh;
     m_camera.Top = cy + hh;
   } else {
-    m_camera.FOV -= static_cast<float>(_yoffset) * m_scroll_sensitivity;
-    if (m_camera.FOV < m_min_fov) {
-      m_camera.FOV = m_min_fov;
+    // Smooth dolly zoom: move camera along view direction
+    // Use exponential scaling for distance-based zoom
+    const float zoom_factor =
+        std::exp(-static_cast<float>(_yoffset) * 0.1f * m_scroll_sensitivity);
+
+    // Get current distance from origin (or use a default if at origin)
+    const float current_dist = glm::length(m_camera.Position);
+    const float min_dist = 0.1f;
+    const float max_dist = 1000.0f;
+
+    // Calculate new distance with exponential scaling
+    float new_dist = current_dist * zoom_factor;
+    new_dist = std::clamp(new_dist, min_dist, max_dist);
+
+    // Move camera along its view direction to maintain orientation
+    const glm::vec3 view_dir =
+        safe_normalize(-m_camera.Position, m_camera.front());
+    if (current_dist > 1e-6f) {
+      // Scale position proportionally to maintain direction
+      m_camera.Position = m_camera.Position * (new_dist / current_dist);
+    } else {
+      // If at origin, move along front direction
+      m_camera.Position -= m_camera.front() * (new_dist - current_dist);
     }
-    if (m_camera.FOV > m_max_fov) {
-      m_camera.FOV = m_max_fov;
-    }
+
+    m_camera.update_view_matrix();
   }
   m_camera.update_projection_matrix();
 }
