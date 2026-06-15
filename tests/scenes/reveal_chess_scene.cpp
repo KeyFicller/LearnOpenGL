@@ -5,8 +5,13 @@
 #include "imgui.h"
 #include <GLFW/glfw3.h>
 #include <algorithm>
+#ifdef _WIN32
+#include <winsock2.h>
+#else
 #include <arpa/inet.h>
+#endif
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <glm/glm.hpp>
@@ -470,7 +475,7 @@ void reveal_chess_scene::send_board_sync() {
     return;
   char buf[k_board_sync_size];
   pack_board_sync(buf, m_board);
-  if (m_server->send(buf, sizeof(buf)) == static_cast<ssize_t>(sizeof(buf)))
+  if (m_server->send(buf, sizeof(buf)) == static_cast<std::ptrdiff_t>(sizeof(buf)))
     m_board_sync_sent = true;
 }
 
@@ -501,7 +506,7 @@ void reveal_chess_scene::poll_network() {
   if (m_connect_mode == connect_mode::none)
     return;
   char tmp[512];
-  ssize_t n = -1;
+  std::ptrdiff_t n = -1;
   if (m_server)
     n = m_server->recv(tmp, sizeof(tmp));
   else if (m_client && m_client->is_connected())

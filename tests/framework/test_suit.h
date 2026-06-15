@@ -1,7 +1,6 @@
 #pragma once
 
 #include "basic/framebuffer.h"
-#include "periscope.h"
 #include "tests/scenes/scene_base.h"
 #include <map>
 
@@ -31,10 +30,14 @@ enum class test_scene {
   k_basic_test_count,
   k_spline_movement_test,
   k_shader_editor_test,
+#if LEARNOPENGL_USE_MONO
   k_script_editor_test,
+#endif
   k_reveal_chess_test,
   k_soft_body_frog_test,
+#if LEARNOPENGL_USE_OCCT
   k_occt_demo_test,
+#endif
   k_advanced_test_count,
   k_count
 };

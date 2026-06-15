@@ -56,7 +56,7 @@ void soft_body_frog_scene::init_frog_loop() {
 
   const int base = static_cast<int>(m_driver.get_points().size());
   for (int i = 0; i < n; i++) {
-    float t = i * 2.0f * static_cast<float>(M_PI) / n;
+    float t = i * 2.0f * glm::pi<float>() / n;
     soft_body_point p = center;
     p.position = glm::vec2(a * std::cos(t), b * std::sin(t));
     m_driver.add_point(p);

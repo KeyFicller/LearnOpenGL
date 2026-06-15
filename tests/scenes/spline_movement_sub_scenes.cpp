@@ -460,8 +460,8 @@ bool soft_body_sub_scene::on_mouse_button(int _button, int _action, int _mods) {
       for (int i = 0; i < point_count; i++) {
         soft_body_point point = center;
         glm::vec2 direction = glm::vec2(
-            glm::cos(i * 2.0f * static_cast<float>(M_PI) / point_count),
-            glm::sin(i * 2.0f * static_cast<float>(M_PI) / point_count));
+            glm::cos(i * 2.0f * static_cast<float>(glm::pi<float>()) / point_count),
+            glm::sin(i * 2.0f * static_cast<float>(glm::pi<float>()) / point_count));
         point.position = center.position + direction * 0.2f;
         m_soft_body_dirver.add_point(point);
       }

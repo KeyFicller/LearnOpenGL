@@ -1,63 +1,53 @@
 #include "resource_root.h"
-#include <cerrno>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <iostream>
 #include <string>
 
 #if defined(__APPLE__)
 #include <mach-o/dyld.h>
-#include <sys/stat.h>
 #include <unistd.h>
 #elif defined(__linux__)
 #include <limits.h>
-#include <sys/stat.h>
 #include <unistd.h>
+#elif defined(_WIN32)
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
 #endif
 
 #ifndef PATH_MAX
-#ifdef MAXPATHLEN
+#if defined(_WIN32) && defined(MAX_PATH)
+#define PATH_MAX MAX_PATH
+#elif defined(MAXPATHLEN)
 #define PATH_MAX MAXPATHLEN
 #else
 #define PATH_MAX 4096
 #endif
 #endif
 
+namespace fs = std::filesystem;
+
 namespace {
 
-static bool dir_contains(const std::string &dir, const char *sub) {
-  std::string path = dir;
-  if (!path.empty() && path.back() != '/')
-    path += '/';
-  path += sub;
-  struct stat st{};
-  return stat(path.c_str(), &st) == 0 && S_ISDIR(st.st_mode);
-}
-
-static bool is_resource_root(const std::string &dir) {
-  return dir_contains(dir, "shaders") && dir_contains(dir, "assets");
-}
-
-static std::string dirname(const std::string &path) {
-  std::string::size_type p = path.find_last_of("/\\");
-  if (p == std::string::npos)
-    return ".";
-  if (p == 0)
-    return "/";
-  return path.substr(0, p);
+static bool is_resource_root(const fs::path &dir) {
+  std::error_code ec;
+  return fs::is_directory(dir / "shaders", ec) &&
+         fs::is_directory(dir / "assets", ec);
 }
 
 static std::string get_executable_path() {
 #if defined(__APPLE__)
   uint32_t size = 0;
-  _NSGetExecutablePath(
-      nullptr, &size); // get required size (returns -1 when buffer too small)
+  _NSGetExecutablePath(nullptr, &size);
   if (size == 0)
     return {};
   std::string buf(size + 1, '\0');
   if (_NSGetExecutablePath(&buf[0], &size) != 0)
     return {};
-  buf.resize(strlen(buf.c_str()));
+  buf.resize(std::strlen(buf.c_str()));
   char resolved[PATH_MAX];
   if (realpath(buf.c_str(), resolved))
     return resolved;
@@ -69,8 +59,15 @@ static std::string get_executable_path() {
     return {};
   buf[n] = '\0';
   return buf;
+#elif defined(_WIN32)
+  std::string buf(static_cast<size_t>(32768), '\0');
+  DWORD n = GetModuleFileNameA(nullptr, buf.data(),
+                               static_cast<DWORD>(buf.size()));
+  if (n == 0)
+    return {};
+  buf.resize(n);
+  return buf;
 #else
-  (void)0;
   return {};
 #endif
 }
@@ -79,23 +76,22 @@ static std::string get_executable_path() {
 
 bool set_resource_root_as_cwd() {
   const int max_ancestors = 8;
-  std::string candidates[max_ancestors];
+  fs::path candidates[max_ancestors];
   int n = 0;
 
-  // 1) Current working directory
-  char cwd[PATH_MAX];
-  if (getcwd(cwd, sizeof(cwd)))
+  std::error_code ec;
+  fs::path cwd = fs::current_path(ec);
+  if (!ec)
     candidates[n++] = cwd;
 
-  // 2) Executable directory and its parent directories (for build/Debug)
   std::string exe = get_executable_path();
   if (!exe.empty()) {
-    std::string dir = dirname(exe);
+    fs::path dir = fs::path(exe).lexically_normal().parent_path();
     for (int i = 0; i < max_ancestors && n < max_ancestors; ++i) {
-      if (dir.empty() || dir == ".")
+      if (dir.empty() || dir == fs::path("."))
         break;
       candidates[n++] = dir;
-      std::string parent = dirname(dir);
+      fs::path parent = dir.parent_path();
       if (parent == dir)
         break;
       dir = parent;
@@ -103,15 +99,18 @@ bool set_resource_root_as_cwd() {
   }
 
   for (int i = 0; i < n; ++i) {
-    if (is_resource_root(candidates[i])) {
-      if (chdir(candidates[i].c_str()) == 0) {
-        std::cout << "Resource root: " << candidates[i] << std::endl;
-        return true;
-      }
-      std::cerr << "Resource root found but chdir failed: " << candidates[i]
-                << " (" << strerror(errno) << ")" << std::endl;
-      return false;
+    if (!is_resource_root(candidates[i]))
+      continue;
+    std::error_code ch_ec;
+    fs::current_path(candidates[i], ch_ec);
+    if (!ch_ec) {
+      std::cout << "Resource root: " << candidates[i].string() << std::endl;
+      return true;
     }
+    std::cerr << "Resource root found but chdir failed: "
+              << candidates[i].string() << " (" << ch_ec.message() << ")"
+              << std::endl;
+    return false;
   }
 
   std::cerr << "Resource root not found (no directory containing both "
