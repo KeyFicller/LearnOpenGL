@@ -1,6 +1,8 @@
 #include "callbacks.h"
 
 #include "tests/framework/test_suit.h"
+
+#include <GLFW/glfw3.h>
 #include <iostream>
 
 // Is called whenever a key is pressed/released via GLFW
@@ -36,7 +38,10 @@ void mouse_callback(GLFWwindow *window, double xpos, double ypos) {
   test_suit *test_suit_ptr =
       static_cast<test_suit *>(glfwGetWindowUserPointer(window));
   if (test_suit_ptr) {
-    if (!test_suit_ptr->m_viewport_hovered) {
+    const bool left_down =
+        glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
+    if (!test_suit_ptr->m_viewport_hovered && !left_down &&
+        !test_suit_ptr->m_viewport_pointer_active) {
       return;
     }
     auto real_xpos = xpos - test_suit_ptr->m_viewport_x;
@@ -64,10 +69,20 @@ void mouse_button_callback(GLFWwindow *window, int button, int action,
   test_suit *test_suit_ptr =
       static_cast<test_suit *>(glfwGetWindowUserPointer(window));
   if (test_suit_ptr) {
-    if (!test_suit_ptr->m_viewport_hovered) {
+    const bool in_viewport = test_suit_ptr->m_viewport_hovered;
+    if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS && in_viewport) {
+      test_suit_ptr->m_viewport_pointer_active = true;
+    }
+
+    if (!in_viewport && !test_suit_ptr->m_viewport_pointer_active) {
       return;
     }
+
     test_suit_ptr->on_mouse_button(button, action, mods);
+
+    if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE) {
+      test_suit_ptr->m_viewport_pointer_active = false;
+    }
   }
 }
 

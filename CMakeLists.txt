@@ -62,8 +62,15 @@ file(COPY "${GLAD_SOURCES_DIR}/glad/files/gl.xml" DESTINATION "${GLAD_SOURCES_DI
 file(MAKE_DIRECTORY "${GLAD_SOURCES_DIR}/KHR")
 file(COPY "${GLAD_SOURCES_DIR}/glad/files/khrplatform.h" DESTINATION "${GLAD_SOURCES_DIR}/KHR")
 
+# Get Python site-packages path for dependencies
 execute_process(
-    COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH="${GLAD_SOURCES_DIR}" ${Python3_EXECUTABLE} -m glad --out-path "${GLAD_DIR}" --api gl:core=3.3 c --loader
+    COMMAND ${Python3_EXECUTABLE} -c "import site; print(site.getsitepackages()[0])"
+    OUTPUT_VARIABLE Python3_SITE_PACKAGES
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
+execute_process(
+    COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH="${GLAD_SOURCES_DIR}:${Python3_SITE_PACKAGES}" ${Python3_EXECUTABLE} -m glad --out-path "${GLAD_DIR}" --api gl:core=3.3 c --loader
     WORKING_DIRECTORY "${GLAD_SOURCES_DIR}"
     RESULT_VARIABLE GLAD_GEN_RESULT
     OUTPUT_VARIABLE GLAD_GEN_OUTPUT
@@ -298,6 +305,7 @@ if(LEARNOPENGL_OCCT_BUILD_DIR AND EXISTS "${LEARNOPENGL_OCCT_BUILD_DIR}/OpenCASC
       tests/cad/renderer/viewport_axes_gizmo.cpp
       tests/cad/renderer/viewport_axis.cpp
       tests/cad/renderer/viewport_datum.cpp
+      tests/cad/renderer/highlight_renderer.cpp
       tests/cad/database/database.cpp
       tests/cad/database/object.cpp
       tests/cad/database/datum.cpp
@@ -310,6 +318,9 @@ if(LEARNOPENGL_OCCT_BUILD_DIR AND EXISTS "${LEARNOPENGL_OCCT_BUILD_DIR}/OpenCASC
       tests/cad/history/box_command.cpp
       tests/cad/history/history_tree.cpp
       tests/cad/history/coordinate.cpp
+      tests/cad/geometry/subshape_handle.cpp
+      tests/cad/geometry/occt_mesh_utils.cpp
+      tests/cad/geometry/bvh_tree.cpp
       tests/cad/document/command_panel.cpp
       tests/cad/document/debug_panel.cpp
       tests/cad/document/inspector_panel.cpp
@@ -317,6 +328,7 @@ if(LEARNOPENGL_OCCT_BUILD_DIR AND EXISTS "${LEARNOPENGL_OCCT_BUILD_DIR}/OpenCASC
       tests/cad/interaction/doc_input_handler.cpp
       tests/cad/interaction/point_input_handler.cpp
       tests/cad/interaction/ray_pick.cpp
+      tests/cad/interaction/selection_manager.cpp
       tests/cad/instance.cpp)
   target_include_directories(LearnOpenGL PRIVATE
       "${LEARNOPENGL_OCCT_BUILD_DIR}/include/opencascade")

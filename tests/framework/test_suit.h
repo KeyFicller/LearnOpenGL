@@ -61,6 +61,9 @@ public:
   // Render current test scene
   void render_scene();
 
+  /** Overlay on the scene viewport image (must be called inside that ImGui window). */
+  void render_viewport_overlay();
+
   // Get current scene name
   const char *get_scene_name(test_scene _scene);
 
@@ -79,6 +82,8 @@ public:
   float m_viewport_height = 0.0f;
   framebuffer *m_scene_framebuffer = nullptr;
   bool m_viewport_hovered = false;
+  /** True after left press in viewport until left release (keeps drag alive outside viewport). */
+  bool m_viewport_pointer_active = false;
 
 private:
   // Current active test scene

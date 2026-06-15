@@ -159,6 +159,13 @@ void test_suit::render_scene() {
   }
 }
 
+void test_suit::render_viewport_overlay() {
+  test_scene_base *scene = get_scene(m_current_scene);
+  if (scene) {
+    scene->render_viewport_overlay();
+  }
+}
+
 const char *test_suit::get_scene_name(test_scene _scene) {
   test_scene_base *s = get_scene(_scene);
   return s ? s->get_name() : "";

@@ -1,5 +1,6 @@
 #include "box_feature.h"
 
+#include "tests/cad/geometry/occt_mesh_utils.h"
 #include "tests/cad/instance.h"
 #include "tests/cad/interaction/doc_input_handler.h"
 #include "tests/cad/document/inspector_panel.h"
@@ -60,6 +61,9 @@ void box_feature::regen() {
     std::printf("[box_feature::regen] Degenerate box rejected (dims too small)\n");
     m_shape_ok = false;
     m_mesh.dirty = true;
+    m_faces.clear();
+    m_edges.clear();
+    m_bvh.clear();
     return;
   }
 
@@ -75,13 +79,42 @@ void box_feature::regen() {
       // Mesh the shape for rendering (linear deflection = 0.5)
       BRepMesh_IncrementalMesh mesh(m_shape, 0.5);
       std::printf("[box_feature::regen] Mesh generated\n");
+
+      // Build subshape data and BVH for selection
+      build_subshape_data();
     }
   } catch (...) {
     std::printf("[box_feature::regen] Exception caught during box creation\n");
     m_shape_ok = false;
+    m_faces.clear();
+    m_edges.clear();
+    m_bvh.clear();
   }
 
   m_mesh.dirty = true;
+}
+
+void box_feature::build_subshape_data() {
+  // Clear existing data
+  m_faces.clear();
+  m_edges.clear();
+
+  if (m_shape.IsNull()) {
+    m_bvh.clear();
+    return;
+  }
+
+  // Extract faces and edges using geometry utilities
+  geometry::extract_subshapes(m_shape, m_faces, m_edges);
+
+  std::printf("[box_feature::build_subshape_data] Extracted %zu faces, %zu edges\n",
+              m_faces.size(), m_edges.size());
+
+  // Build BVH tree for fast intersection queries
+  m_bvh.build(m_faces, m_edges);
+
+  std::printf("[box_feature::build_subshape_data] BVH built%s\n",
+              m_bvh.empty() ? " (empty)" : "");
 }
 
 void box_feature::draw_global() {
@@ -138,6 +171,9 @@ void box_feature::inspect() const {
   ImGui::BulletText("Min: (%.3f, %.3f, %.3f)", m_min.x, m_min.y, m_min.z);
   ImGui::BulletText("Max: (%.3f, %.3f, %.3f)", m_max.x, m_max.y, m_max.z);
   ImGui::BulletText("Geometry: %s", m_shape_ok ? "valid" : "invalid");
+  ImGui::BulletText("Faces: %zu", m_faces.size());
+  ImGui::BulletText("Edges: %zu", m_edges.size());
+  ImGui::BulletText("BVH: %s", m_bvh.empty() ? "empty" : "built");
 }
 
 void box_feature::triangulate_shape() const {
@@ -164,36 +200,8 @@ void box_feature::triangulate_shape() const {
     // Get transformation matrix
     gp_Trsf trsf = loc.Transformation();
 
-    // Get face normal from the surface plane
-    // For a box face (planar), we can compute normal from first 3 points of the triangulation
-    float nx = 0.0f, ny = 0.0f, nz = 1.0f; // Default Z-up normal
-
-    if (tri->NbTriangles() > 0) {
-      Poly_Triangle first_tri = tri->Triangle(1);
-      int n1 = 0, n2 = 0, n3 = 0;
-      first_tri.Get(n1, n2, n3);
-
-      gp_Pnt p1 = tri->Node(n1);
-      gp_Pnt p2 = tri->Node(n2);
-      gp_Pnt p3 = tri->Node(n3);
-
-      // Transform points
-      p1.Transform(trsf);
-      p2.Transform(trsf);
-      p3.Transform(trsf);
-
-      // Compute face normal from two edges
-      gp_Vec edge1(p1, p2);
-      gp_Vec edge2(p1, p3);
-      gp_Vec normal = edge1.Crossed(edge2);
-
-      if (normal.Magnitude() > 1e-10) {
-        normal.Normalize();
-        nx = static_cast<float>(normal.X());
-        ny = static_cast<float>(normal.Y());
-        nz = static_cast<float>(normal.Z());
-      }
-    }
+    // Outward normal from BRep surface (matches OCCT face orientation)
+    const glm::vec3 face_normal = geometry::face_outward_normal(face);
 
     // Base vertex index for this face
     unsigned int base_idx = static_cast<unsigned int>(m_mesh.vertices.size() / 3);
@@ -206,20 +214,27 @@ void box_feature::triangulate_shape() const {
       m_mesh.vertices.push_back(static_cast<float>(p.X()));
       m_mesh.vertices.push_back(static_cast<float>(p.Y()));
       m_mesh.vertices.push_back(static_cast<float>(p.Z()));
-      // Use face normal for each vertex (flat shading for box faces)
-      m_mesh.normals.push_back(nx);
-      m_mesh.normals.push_back(ny);
-      m_mesh.normals.push_back(nz);
+      m_mesh.normals.push_back(face_normal.x);
+      m_mesh.normals.push_back(face_normal.y);
+      m_mesh.normals.push_back(face_normal.z);
     }
 
-    // Add triangle indices
+    // Triangle indices: align winding to outward normal (OpenGL CCW front face)
     int n_triangles = tri->NbTriangles();
     for (int i = 1; i <= n_triangles; ++i) {
       Poly_Triangle triangle = tri->Triangle(i);
       int n1 = 0, n2 = 0, n3 = 0;
       triangle.Get(n1, n2, n3);
 
-      // OCCT indices are 1-based, subtract 1 and add base_idx
+      auto to_glm = [&](int idx) {
+        gp_Pnt p = tri->Node(idx);
+        p.Transform(trsf);
+        return glm::vec3(static_cast<float>(p.X()), static_cast<float>(p.Y()),
+                         static_cast<float>(p.Z()));
+      };
+      geometry::align_triangle_winding_to_outward(
+          to_glm(n1), to_glm(n2), to_glm(n3), n2, n3, face_normal);
+
       m_mesh.indices.push_back(base_idx + static_cast<unsigned int>(n1 - 1));
       m_mesh.indices.push_back(base_idx + static_cast<unsigned int>(n2 - 1));
       m_mesh.indices.push_back(base_idx + static_cast<unsigned int>(n3 - 1));
@@ -305,6 +320,145 @@ void box_feature::draw_mesh() const {
   glBindVertexArray(m_mesh.vao);
   glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(m_mesh.indices.size()), GL_UNSIGNED_INT, nullptr);
   glBindVertexArray(0);
+}
+
+std::optional<geometry::ray_hit> box_feature::intersect_ray(
+    const glm::vec3 &ray_origin, const glm::vec3 &ray_dir) const {
+  if (!has_bvh()) {
+    return std::nullopt;
+  }
+  return m_bvh.intersect_ray(ray_origin, ray_dir);
+}
+
+void box_feature::intersect_frustum(
+    const glm::vec4 frustum_planes[6],
+    std::vector<const geometry::subshape_handle *> &out_hits) const {
+  if (!has_bvh()) {
+    out_hits.clear();
+    return;
+  }
+  m_bvh.intersect_frustum(frustum_planes, out_hits);
+}
+
+void box_feature::draw_single_face(const geometry::subshape_handle &face_handle,
+                                   const glm::vec3 &color) const {
+  if (!face_handle.is_face()) return;
+
+  const geometry::face_geometry &geom = face_handle.face_geom();
+  if (geom.vertices.empty() || geom.indices.empty()) return;
+
+  // Create temporary VAO for this face
+  GLuint vao = 0, vbo = 0, nbo = 0, ibo = 0;
+  glGenVertexArrays(1, &vao);
+  glGenBuffers(1, &vbo);
+  glGenBuffers(1, &nbo);
+  glGenBuffers(1, &ibo);
+
+  glBindVertexArray(vao);
+
+  // Upload vertices (location 0)
+  glBindBuffer(GL_ARRAY_BUFFER, vbo);
+  glBufferData(GL_ARRAY_BUFFER,
+               geom.vertices.size() * sizeof(glm::vec3),
+               geom.vertices.data(),
+               GL_STATIC_DRAW);
+  glEnableVertexAttribArray(0);
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
+
+  // Upload normals (location 1) - required by shader
+  glBindBuffer(GL_ARRAY_BUFFER, nbo);
+  glBufferData(GL_ARRAY_BUFFER,
+               geom.normals.size() * sizeof(glm::vec3),
+               geom.normals.data(),
+               GL_STATIC_DRAW);
+  glEnableVertexAttribArray(1);
+  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
+
+  // Upload indices
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER,
+               geom.indices.size() * sizeof(uint32_t),
+               geom.indices.data(),
+               GL_STATIC_DRAW);
+
+  // Use normal lighting with highlight color as base color
+  // This ensures the highlighted face has proper shading like the original
+  shader &sh = instance::get().global_shader();
+  sh.use();
+  sh.set_uniform("uMVP", instance::get().disp().clip_from_world());
+  sh.set_uniform("uModel", glm::mat4(1.0f));
+  sh.set_uniform("uCameraPos", instance::get().disp().camera_world_position);
+  sh.set_uniform("uLightDir", glm::vec3(0.5f, -1.0f, -0.5f));
+  sh.set_uniform("uAmbientColor", glm::vec3(0.3f, 0.3f, 0.35f));
+  sh.set_uniform("uDiffuseColor", glm::vec3(0.8f, 0.8f, 0.75f));
+  sh.set_uniform("uBaseColor", color);
+
+  glBindVertexArray(vao);
+  glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(geom.indices.size()), GL_UNSIGNED_INT, nullptr);
+  glBindVertexArray(0);
+
+  // Cleanup
+  glDeleteVertexArrays(1, &vao);
+  glDeleteBuffers(1, &vbo);
+  glDeleteBuffers(1, &nbo);
+  glDeleteBuffers(1, &ibo);
+}
+
+void box_feature::draw_single_edge(const geometry::subshape_handle &edge_handle,
+                                   const glm::vec3 &color) const {
+  if (!edge_handle.is_edge()) return;
+
+  const geometry::edge_geometry &geom = edge_handle.edge_geom();
+  if (geom.vertices.size() < 2) return;
+
+  // Create temporary VAO for this edge
+  GLuint vao = 0, vbo = 0;
+  glGenVertexArrays(1, &vao);
+  glGenBuffers(1, &vbo);
+
+  glBindVertexArray(vao);
+
+  // Upload vertices
+  glBindBuffer(GL_ARRAY_BUFFER, vbo);
+  glBufferData(GL_ARRAY_BUFFER,
+               geom.vertices.size() * sizeof(glm::vec3),
+               geom.vertices.data(),
+               GL_STATIC_DRAW);
+  glEnableVertexAttribArray(0);
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
+
+  // Use viewport shader for unlit lines
+  shader &sh = instance::get().viewport_shader();
+  sh.use();
+  sh.set_uniform("uMVP", instance::get().disp().clip_from_world());
+  sh.set_uniform("uColor", glm::vec4(color, 1.0f));
+
+  glBindVertexArray(vao);
+  glDrawArrays(GL_LINE_STRIP, 0, static_cast<GLsizei>(geom.vertices.size()));
+  glBindVertexArray(0);
+
+  // Cleanup
+  glDeleteVertexArrays(1, &vao);
+  glDeleteBuffers(1, &vbo);
+}
+
+void box_feature::draw_subshape_highlighted(const geometry::subshape_handle &handle,
+                                           const glm::vec3 &color) const {
+  if (handle.is_face()) {
+    draw_single_face(handle, color);
+  } else if (handle.is_edge()) {
+    draw_single_edge(handle, color);
+  }
+}
+
+void box_feature::draw_subshapes_highlighted(
+    const std::vector<const geometry::subshape_handle *> &handles,
+    const glm::vec3 &color) const {
+  for (const auto *handle : handles) {
+    if (handle) {
+      draw_subshape_highlighted(*handle, color);
+    }
+  }
 }
 
 } // namespace toy_cad

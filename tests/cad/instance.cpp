@@ -10,6 +10,8 @@
 #include "tests/cad/interaction/command_dispatcher.h"
 #include "tests/cad/interaction/doc_input_handler.h"
 #include "tests/cad/interaction/ray_pick.h"
+#include "tests/cad/interaction/selection_manager.h"
+#include "tests/cad/renderer/highlight_renderer.h"
 #include "tests/cad/renderer/viewport_axis.h"
 #include "tests/cad/renderer/viewport_datum.h"
 
@@ -152,12 +154,23 @@ void instance::init(GLFWwindow *window) {
   viewport_axis::instance();
   viewport_datum::instance();
 
+  // Initialize highlight renderer for selection visualization
+  renderer::highlight_renderer::instance().init();
+
   // Register commands in command panel
   interaction::command_panel::instance().register_button(
       "Create Box", "Create a box by picking two diagonal corners",
       []() {
         interaction::command_dispatcher::instance().push_command(
             std::make_unique<box_command>());
+      });
+
+  // Register clear selection command
+  interaction::command_panel::instance().register_button(
+      "Clear Selection", "Clear all subshape selections",
+      []() {
+        interaction::selection_manager::instance().clear_selection();
+        std::printf("[instance] Cleared all selections\n");
       });
 }
 
@@ -168,11 +181,19 @@ void instance::update(float delta_time) {
 }
 
 void instance::render() {
+  // Solid BRep: cull back faces with CCW front (matches OCCT mesh winding)
+  glEnable(GL_CULL_FACE);
+  glCullFace(GL_BACK);
+  glFrontFace(GL_CCW);
+
   m_history.draw_global();
   m_history.draw_local();
 
   // Draw command preview (e.g., box preview during creation)
   interaction::command_dispatcher::instance().draw();
+
+  // Draw selection highlights (hover and selected subshapes)
+  renderer::highlight_renderer::instance().render_highlights();
 
   m_viewport_axes.draw(m_disp.view_matrix);
 }

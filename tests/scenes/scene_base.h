@@ -23,6 +23,9 @@ public:
   // Render scene-specific UI controls
   virtual void render_ui() {}
 
+  /** Overlay drawn on top of the scene viewport image (e.g. box-select rect). */
+  virtual void render_viewport_overlay() {}
+
   // Get scene name
   const char *get_name() const { return m_name.c_str(); }
 

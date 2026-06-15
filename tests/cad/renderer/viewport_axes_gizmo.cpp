@@ -158,13 +158,30 @@ void viewport_axes_gizmo::draw_datum_planes_screen_fixed(
   instance &inst = instance::get();
   shader *const sh = &inst.viewport_shader();
   anchor_mini_rect ar{};
-  if (!try_compute_anchor_mini_rect(world_anchor, clip_from_world,
-                                    k_database_overlay_mini_side, ar)) {
-    return;
+  const bool anchored = try_compute_anchor_mini_rect(
+      world_anchor, clip_from_world, k_database_overlay_mini_side, ar);
+  if (!anchored) {
+    GLint vp[4]{};
+    glGetIntegerv(GL_VIEWPORT, vp);
+    if (vp[2] <= 0 || vp[3] <= 0) {
+      return;
+    }
+    ar.parent_vp[0] = vp[0];
+    ar.parent_vp[1] = vp[1];
+    ar.parent_vp[2] = vp[2];
+    ar.parent_vp[3] = vp[3];
+    ar.draw_vx = vp[0] + k_margin;
+    ar.draw_vy = vp[1] + k_margin;
+    ar.draw_w = k_database_overlay_mini_side;
+    ar.draw_h = k_database_overlay_mini_side;
+    ar.ndc_bias_x = 0.f;
+    ar.ndc_bias_y = 0.f;
   }
 
   GLboolean depth_was = GL_TRUE;
   glGetBooleanv(GL_DEPTH_TEST, &depth_was);
+  GLboolean cull_was = GL_TRUE;
+  glGetBooleanv(GL_CULL_FACE, &cull_was);
   GLboolean blend_was = GL_FALSE;
   glGetBooleanv(GL_BLEND, &blend_was);
   GLint blend_src = GL_ONE, blend_dst = GL_ZERO;
@@ -184,6 +201,7 @@ void viewport_axes_gizmo::draw_datum_planes_screen_fixed(
 
   sh->use();
   glDisable(GL_DEPTH_TEST);
+  glDisable(GL_CULL_FACE);
   glEnable(GL_BLEND);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
@@ -208,6 +226,12 @@ void viewport_axes_gizmo::draw_datum_planes_screen_fixed(
     glDisable(GL_DEPTH_TEST);
   }
 
+  if (cull_was) {
+    glEnable(GL_CULL_FACE);
+  } else {
+    glDisable(GL_CULL_FACE);
+  }
+
   if (blend_was) {
     glEnable(GL_BLEND);
     glBlendFunc(static_cast<GLenum>(blend_src), static_cast<GLenum>(blend_dst));
@@ -222,9 +246,24 @@ void viewport_axes_gizmo::draw_axes_screen_fixed(
   instance &inst = instance::get();
   shader *const sh = &inst.viewport_shader();
   anchor_mini_rect ar{};
-  if (!try_compute_anchor_mini_rect(world_anchor, clip_from_world,
-                                    k_database_overlay_mini_side, ar)) {
-    return;
+  const bool anchored = try_compute_anchor_mini_rect(
+      world_anchor, clip_from_world, k_database_overlay_mini_side, ar);
+  if (!anchored) {
+    GLint vp[4]{};
+    glGetIntegerv(GL_VIEWPORT, vp);
+    if (vp[2] <= 0 || vp[3] <= 0) {
+      return;
+    }
+    ar.parent_vp[0] = vp[0];
+    ar.parent_vp[1] = vp[1];
+    ar.parent_vp[2] = vp[2];
+    ar.parent_vp[3] = vp[3];
+    ar.draw_vx = vp[0] + k_margin;
+    ar.draw_vy = vp[1] + k_margin;
+    ar.draw_w = k_database_overlay_mini_side;
+    ar.draw_h = k_database_overlay_mini_side;
+    ar.ndc_bias_x = 0.f;
+    ar.ndc_bias_y = 0.f;
   }
 
   const int fbo_w = ar.parent_vp[2];
@@ -339,9 +378,13 @@ void viewport_axes_gizmo::draw(const glm::mat4 &view_matrix) {
 
   const gizmo_plane_pack gp = make_gizmo_plane_pack(view_matrix);
 
+  GLboolean cull_was = GL_TRUE;
+  glGetBooleanv(GL_CULL_FACE, &cull_was);
+
   sh->use();
 
   glDisable(GL_DEPTH_TEST);
+  glDisable(GL_CULL_FACE);
   glEnable(GL_BLEND);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
@@ -350,6 +393,12 @@ void viewport_axes_gizmo::draw(const glm::mat4 &view_matrix) {
   vd.draw(*sh, gp.mvp * gp.m_yz, glm::vec4(1.f, 0.28f, 0.25f, 0.22f));
 
   glDisable(GL_BLEND);
+
+  if (cull_was) {
+    glEnable(GL_CULL_FACE);
+  } else {
+    glDisable(GL_CULL_FACE);
+  }
 
   const float L = viewport_axis::k_axis_len;
   const glm::vec4 cx(1.f, 0.25f, 0.25f, 1.f);

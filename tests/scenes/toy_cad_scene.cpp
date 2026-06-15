@@ -4,6 +4,7 @@
 #include "glad/gl.h"
 #include "imgui.h"
 #include "tests/cad/instance.h"
+#include "tests/cad/renderer/highlight_renderer.h"
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <cmath>
@@ -79,6 +80,10 @@ void toy_cad_scene::render_ui() {
   ImGui::Spacing();
 
   render_camera_ui();
+}
+
+void toy_cad_scene::render_viewport_overlay() {
+  toy_cad::renderer::highlight_renderer::instance().render_drag_rect_in_viewport();
 }
 
 bool toy_cad_scene::on_mouse_moved(double xpos, double ypos) {

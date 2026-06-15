@@ -207,7 +207,8 @@ void camera_controller::on_mouse_scroll(double /*_xoffset*/, double _yoffset) {
     new_dist = std::clamp(new_dist, min_dist, max_dist);
 
     // Move camera along its view direction to maintain orientation
-    const glm::vec3 view_dir = safe_normalize(-m_camera.Position, m_camera.front());
+    const glm::vec3 view_dir =
+        safe_normalize(-m_camera.Position, m_camera.front());
     if (current_dist > 1e-6f) {
       // Scale position proportionally to maintain direction
       m_camera.Position = m_camera.Position * (new_dist / current_dist);

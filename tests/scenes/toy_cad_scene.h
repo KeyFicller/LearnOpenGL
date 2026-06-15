@@ -12,6 +12,7 @@ public:
   void update(float delta_time) override;
   void render() override;
   void render_ui() override;
+  void render_viewport_overlay() override;
 
   bool on_mouse_moved(double xpos, double ypos) override;
   bool on_mouse_scroll(double xoffset, double yoffset) override;
