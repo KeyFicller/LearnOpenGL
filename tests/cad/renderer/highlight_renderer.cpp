@@ -1,6 +1,6 @@
 #include "highlight_renderer.h"
 
-#include "tests/cad/history/box_feature.h"
+#include "tests/cad/database/brep/brep_query.h"
 #include "tests/cad/instance.h"
 #include "tests/cad/interaction/selection_manager.h"
 #include "tests/cad/renderer/disp_var.h"
@@ -148,11 +148,8 @@ void highlight_renderer::render_highlights() {
 
   // Render hover highlight (yellow)
   if (auto hover = sel_mgr.hover_target()) {
-    auto *feature = instance::get().db().try_get_as<box_feature>(hover->feature_handle);
-    if (feature && feature->has_geometry()) {
-      feature->draw_subshape_highlighted(hover->subshape,
-                                         interaction::selection_colors::hover);
-    }
+    draw_subshape_highlighted(instance::get().db(), hover->subshape,
+                              interaction::selection_colors::hover);
   }
 
   // Render selected subshapes (green)
@@ -160,26 +157,18 @@ void highlight_renderer::render_highlights() {
   sel_mgr.get_selection_vector(selection);
 
   for (const auto &ref : selection) {
-    auto *feature = instance::get().db().try_get_as<box_feature>(ref.feature_handle);
-    if (feature && feature->has_geometry()) {
-      // Check if this is also hovered (don't double-draw)
-      if (!sel_mgr.hover_target().has_value() ||
-          sel_mgr.hover_target().value() != ref) {
-        feature->draw_subshape_highlighted(ref.subshape,
-                                            interaction::selection_colors::selected);
-      }
+    if (!sel_mgr.hover_target().has_value() ||
+        sel_mgr.hover_target().value() != ref) {
+      draw_subshape_highlighted(instance::get().db(), ref.subshape,
+                                interaction::selection_colors::selected);
     }
   }
 
   // Render drag preview (light green)
   if (sel_mgr.is_drag_selecting()) {
     for (const auto &ref : sel_mgr.drag_preview()) {
-      auto *feature =
-          instance::get().db().try_get_as<box_feature>(ref.feature_handle);
-      if (feature && feature->has_geometry()) {
-        feature->draw_subshape_highlighted(ref.subshape,
-                                           interaction::selection_colors::preview);
-      }
+      draw_subshape_highlighted(instance::get().db(), ref.subshape,
+                                interaction::selection_colors::preview);
     }
   }
 
@@ -225,19 +214,6 @@ void highlight_renderer::render_drag_rect_in_viewport() {
     draw_list->AddRectFilled(p0, p1, IM_COL32(80, 140, 255, 40));
     draw_dashed_rect(draw_list, p0, p1, IM_COL32(80, 160, 255, 255), 2.0f);
   }
-}
-
-void highlight_renderer::render_subshape_highlight(const box_feature &feature,
-                                                     const geometry::subshape_handle &subshape,
-                                                     const glm::vec3 &color) {
-  // This is handled by box_feature::draw_subshape_highlighted
-  feature.draw_subshape_highlighted(subshape, color);
-}
-
-void highlight_renderer::render_subshapes_highlight(const box_feature &feature,
-                                                     const std::vector<const geometry::subshape_handle *> &subshapes,
-                                                     const glm::vec3 &color) {
-  feature.draw_subshapes_highlighted(subshapes, color);
 }
 
 void highlight_renderer::draw_screen_rect(const glm::vec2 &min_rect,

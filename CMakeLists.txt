@@ -310,6 +310,11 @@ if(LEARNOPENGL_OCCT_BUILD_DIR AND EXISTS "${LEARNOPENGL_OCCT_BUILD_DIR}/OpenCASC
       tests/cad/database/object.cpp
       tests/cad/database/datum.cpp
       tests/cad/database/axis.cpp
+      tests/cad/database/brep/brep.cpp
+      tests/cad/database/brep/brep_edge.cpp
+      tests/cad/database/brep/brep_face.cpp
+      tests/cad/database/brep/brep_query.cpp
+      tests/cad/database/brep/brep_shell.cpp
       tests/cad/renderer/drawable_object.cpp
       tests/cad/history/history_object.cpp
       tests/cad/history/feature.cpp

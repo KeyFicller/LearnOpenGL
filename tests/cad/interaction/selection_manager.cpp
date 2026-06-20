@@ -1,9 +1,8 @@
 #include "selection_manager.h"
 
-#include "tests/cad/history/box_feature.h"
-#include "tests/cad/history/history_tree.h"
+#include "tests/cad/database/brep/brep.h"
+#include "tests/cad/database/brep/brep_query.h"
 #include "tests/cad/instance.h"
-#include "tests/cad/interaction/ray_pick.h"
 
 #include <cstdio>
 #include <algorithm>
@@ -44,10 +43,8 @@ project_bounds_to_screen(const geometry::aabb &bounds,
     }
 
     const glm::vec3 ndc = glm::vec3(clip) / clip.w;
-    const float screen_x =
-        (ndc.x * 0.5f + 0.5f) * viewport_size.x;
-    const float screen_y =
-        (1.0f - (ndc.y * 0.5f + 0.5f)) * viewport_size.y;
+    const float screen_x = (ndc.x * 0.5f + 0.5f) * viewport_size.x;
+    const float screen_y = (1.0f - (ndc.y * 0.5f + 0.5f)) * viewport_size.y;
 
     screen_min = glm::min(screen_min, glm::vec2(screen_x, screen_y));
     screen_max = glm::max(screen_max, glm::vec2(screen_x, screen_y));
@@ -128,7 +125,6 @@ bool selection_manager::is_selected(const subshape_ref &ref) const {
 
 bool selection_manager::toggle_select(const subshape_ref &ref, bool multi) {
   if (!multi) {
-    // Replace selection
     const bool already_selected = (m_selection.size() == 1) && is_selected(ref);
     m_selection.clear();
 
@@ -138,17 +134,16 @@ bool selection_manager::toggle_select(const subshape_ref &ref, bool multi) {
 
     on_selection_changed();
     return true;
-  } else {
-    // Toggle in multi-select mode
-    if (is_selected(ref)) {
-      m_selection.erase(ref);
-    } else {
-      m_selection.insert(ref);
-    }
-
-    on_selection_changed();
-    return true;
   }
+
+  if (is_selected(ref)) {
+    m_selection.erase(ref);
+  } else {
+    m_selection.insert(ref);
+  }
+
+  on_selection_changed();
+  return true;
 }
 
 void selection_manager::select(const subshape_ref &ref) {
@@ -232,7 +227,6 @@ void selection_manager::end_drag_select(bool multi) {
     return;
   }
 
-  // Apply preview selection to actual selection
   if (!multi) {
     m_selection.clear();
   }
@@ -263,26 +257,22 @@ selection_manager::drag_rect() const {
 
 std::optional<subshape_ref> selection_manager::ray_cast(
     const glm::vec3 &ray_origin, const glm::vec3 &ray_dir) const {
-  // Iterate through all box_features in the history tree
   auto &db = instance::get().db();
-  auto &hist = instance::get().history();
 
   float closest_t = std::numeric_limits<float>::max();
   std::optional<subshape_ref> closest_hit;
 
-  for (const auto &h : hist) {
-    auto *feature = db.try_get_as<box_feature>(h);
-    if (!feature || !feature->has_geometry() || !feature->has_bvh()) {
-      continue;
+  for_each_scene_brep([&](handle /*brep_h*/, brep &brep_obj) {
+    if (!brep_obj.has_bvh()) {
+      return;
     }
 
-    // Test ray against this feature's BVH
-    const auto hit = feature->intersect_ray(ray_origin, ray_dir);
+    const auto hit = brep_obj.intersect_ray(db, ray_origin, ray_dir);
     if (hit.has_value() && hit->t < closest_t && hit->t > 0.0f) {
       closest_t = hit->t;
-      closest_hit = subshape_ref{h, *hit->handle};
+      closest_hit = subshape_ref{hit->subshape};
     }
-  }
+  });
 
   return closest_hit;
 }
@@ -290,25 +280,19 @@ std::optional<subshape_ref> selection_manager::ray_cast(
 void selection_manager::frustum_select(const glm::vec4 frustum_planes[6],
                                        std::vector<subshape_ref> &out_hits) const {
   out_hits.clear();
-
   auto &db = instance::get().db();
-  auto &hist = instance::get().history();
 
-  for (const auto &h : hist) {
-    auto *feature = db.try_get_as<box_feature>(h);
-    if (!feature || !feature->has_geometry() || !feature->has_bvh()) {
-      continue;
+  for_each_scene_brep([&](handle /*brep_h*/, brep &brep_obj) {
+    if (!brep_obj.has_bvh()) {
+      return;
     }
 
-    std::vector<const geometry::subshape_handle *> hits;
-    feature->intersect_frustum(frustum_planes, hits);
-
-    for (const auto *subshape : hits) {
-      if (subshape) {
-        out_hits.push_back(subshape_ref{h, *subshape});
-      }
+    std::vector<handle> hits;
+    brep_obj.intersect_frustum(db, frustum_planes, hits);
+    for (const handle sub_h : hits) {
+      out_hits.push_back(subshape_ref{sub_h});
     }
-  }
+  });
 }
 
 void selection_manager::screen_rect_select(
@@ -318,18 +302,16 @@ void selection_manager::screen_rect_select(
   out_hits.clear();
 
   auto &db = instance::get().db();
-  auto &hist = instance::get().history();
 
-  for (const auto &h : hist) {
-    auto *feature = db.try_get_as<box_feature>(h);
-    if (!feature || !feature->has_geometry()) {
-      continue;
-    }
+  for_each_scene_brep([&](handle /*brep_h*/, brep &brep_obj) {
+    brep_obj.for_each_subshape_handle(db, [&](handle sub_h) {
+      const auto bounds = subshape_bounds(db, sub_h);
+      if (!bounds.has_value()) {
+        return;
+      }
 
-    auto test_subshape = [&](const geometry::subshape_handle &subshape) {
       const auto screen_bounds =
-          project_bounds_to_screen(subshape.bounds(), clip_from_world,
-                                   viewport_size);
+          project_bounds_to_screen(*bounds, clip_from_world, viewport_size);
       if (!screen_bounds.has_value()) {
         return;
       }
@@ -341,21 +323,13 @@ void selection_manager::screen_rect_select(
                                            box_max)
               : screen_rect_overlaps(screen_min, screen_max, box_min, box_max);
       if (match) {
-        out_hits.push_back(subshape_ref{h, subshape});
+        out_hits.push_back(subshape_ref{sub_h});
       }
-    };
-
-    for (const auto &face : feature->faces()) {
-      test_subshape(face);
-    }
-    for (const auto &edge : feature->edges()) {
-      test_subshape(edge);
-    }
-  }
+    });
+  });
 }
 
 void selection_manager::on_selection_changed() {
-  // Debug output
   std::printf("[selection_manager] Selection changed: %zu items\n",
               m_selection.size());
 }

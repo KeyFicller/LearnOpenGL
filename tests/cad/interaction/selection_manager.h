@@ -1,6 +1,5 @@
 #pragma once
 
-#include "tests/cad/geometry/subshape_handle.h"
 #include "tests/cad/database/handle.h"
 
 #include <glm/glm.hpp>
@@ -8,42 +7,25 @@
 #include <unordered_set>
 #include <vector>
 
-namespace toy_cad {
-class box_feature;
-}
-
 namespace toy_cad::interaction {
 
-/**
- * Combined subshape reference: feature handle + subshape handle.
- * Used to uniquely identify a face or edge within the scene.
- */
+/** Reference to a brep_face or brep_edge db object. */
 struct subshape_ref {
-  handle feature_handle;  // Handle to the box_feature (or other primitive)
-  geometry::subshape_handle subshape;
+  handle subshape{};
 
-  [[nodiscard]] bool valid() const {
-    return feature_handle.valid() && subshape.valid();
-  }
+  [[nodiscard]] bool valid() const { return subshape.valid(); }
 
   friend bool operator==(const subshape_ref &a, const subshape_ref &b) {
-    return a.feature_handle == b.feature_handle &&
-           a.subshape.id() == b.subshape.id();
+    return a.subshape == b.subshape;
   }
   friend bool operator!=(const subshape_ref &a, const subshape_ref &b) {
     return !(a == b);
   }
 };
 
-/**
- * Hash function for subshape_ref.
- */
 struct subshape_ref_hash {
   [[nodiscard]] std::size_t operator()(const subshape_ref &ref) const noexcept {
-    // Combine feature handle hash with subshape id hash
-    std::size_t h1 = handle_hash{}(ref.feature_handle);
-    std::size_t h2 = geometry::subshape_handle_hash{}(ref.subshape);
-    return h1 ^ (h2 << 1);
+    return handle_hash{}(ref.subshape);
   }
 };
 

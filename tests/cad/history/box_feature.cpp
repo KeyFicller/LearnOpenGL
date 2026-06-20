@@ -1,5 +1,7 @@
 #include "box_feature.h"
 
+#include "tests/cad/database/brep/brep.h"
+#include "tests/cad/database/database.h"
 #include "tests/cad/geometry/occt_mesh_utils.h"
 #include "tests/cad/instance.h"
 #include "tests/cad/interaction/doc_input_handler.h"
@@ -57,13 +59,10 @@ void box_feature::regen() {
               p1.X(), p1.Y(), p1.Z(), p2.X(), p2.Y(), p2.Z(), dx, dy, dz);
 
   if (dx < min_dim || dy < min_dim || dz < min_dim) {
-    // Degenerate box - dimensions too small
     std::printf("[box_feature::regen] Degenerate box rejected (dims too small)\n");
     m_shape_ok = false;
     m_mesh.dirty = true;
-    m_faces.clear();
-    m_edges.clear();
-    m_bvh.clear();
+    clear_brep_topology();
     return;
   }
 
@@ -80,41 +79,34 @@ void box_feature::regen() {
       BRepMesh_IncrementalMesh mesh(m_shape, 0.5);
       std::printf("[box_feature::regen] Mesh generated\n");
 
-      // Build subshape data and BVH for selection
-      build_subshape_data();
+      rebuild_brep_topology();
     }
   } catch (...) {
     std::printf("[box_feature::regen] Exception caught during box creation\n");
     m_shape_ok = false;
-    m_faces.clear();
-    m_edges.clear();
-    m_bvh.clear();
+    clear_brep_topology();
   }
 
   m_mesh.dirty = true;
 }
 
-void box_feature::build_subshape_data() {
-  // Clear existing data
-  m_faces.clear();
-  m_edges.clear();
-
-  if (m_shape.IsNull()) {
-    m_bvh.clear();
-    return;
+void box_feature::clear_brep_topology() {
+  auto &db = instance::get().db();
+  if (m_brep.valid()) {
+    if (auto *brep_obj = db.try_get_as<brep>(m_brep)) {
+      brep_obj->clear(db);
+    }
   }
+}
 
-  // Extract faces and edges using geometry utilities
-  geometry::extract_subshapes(m_shape, m_faces, m_edges);
-
-  std::printf("[box_feature::build_subshape_data] Extracted %zu faces, %zu edges\n",
-              m_faces.size(), m_edges.size());
-
-  // Build BVH tree for fast intersection queries
-  m_bvh.build(m_faces, m_edges);
-
-  std::printf("[box_feature::build_subshape_data] BVH built%s\n",
-              m_bvh.empty() ? " (empty)" : "");
+void box_feature::rebuild_brep_topology() {
+  auto &db = instance::get().db();
+  if (!m_brep.valid()) {
+    m_brep = db.emplace<brep>();
+  }
+  if (auto *brep_obj = db.try_get_as<brep>(m_brep)) {
+    brep_obj->rebuild(db, m_brep, m_shape);
+  }
 }
 
 void box_feature::draw_global() {
@@ -171,9 +163,14 @@ void box_feature::inspect() const {
   ImGui::BulletText("Min: (%.3f, %.3f, %.3f)", m_min.x, m_min.y, m_min.z);
   ImGui::BulletText("Max: (%.3f, %.3f, %.3f)", m_max.x, m_max.y, m_max.z);
   ImGui::BulletText("Geometry: %s", m_shape_ok ? "valid" : "invalid");
-  ImGui::BulletText("Faces: %zu", m_faces.size());
-  ImGui::BulletText("Edges: %zu", m_edges.size());
-  ImGui::BulletText("BVH: %s", m_bvh.empty() ? "empty" : "built");
+  if (m_brep.valid()) {
+    auto &db = instance::get().db();
+    if (auto *brep_obj = db.try_get_as<brep>(m_brep)) {
+      ImGui::BulletText("Faces: %zu", brep_obj->face_count(db));
+      ImGui::BulletText("Edges: %zu", brep_obj->edge_count(db));
+      ImGui::BulletText("BVH: %s", brep_obj->has_bvh() ? "built" : "empty");
+    }
+  }
 }
 
 void box_feature::triangulate_shape() const {
@@ -320,145 +317,6 @@ void box_feature::draw_mesh() const {
   glBindVertexArray(m_mesh.vao);
   glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(m_mesh.indices.size()), GL_UNSIGNED_INT, nullptr);
   glBindVertexArray(0);
-}
-
-std::optional<geometry::ray_hit> box_feature::intersect_ray(
-    const glm::vec3 &ray_origin, const glm::vec3 &ray_dir) const {
-  if (!has_bvh()) {
-    return std::nullopt;
-  }
-  return m_bvh.intersect_ray(ray_origin, ray_dir);
-}
-
-void box_feature::intersect_frustum(
-    const glm::vec4 frustum_planes[6],
-    std::vector<const geometry::subshape_handle *> &out_hits) const {
-  if (!has_bvh()) {
-    out_hits.clear();
-    return;
-  }
-  m_bvh.intersect_frustum(frustum_planes, out_hits);
-}
-
-void box_feature::draw_single_face(const geometry::subshape_handle &face_handle,
-                                   const glm::vec3 &color) const {
-  if (!face_handle.is_face()) return;
-
-  const geometry::face_geometry &geom = face_handle.face_geom();
-  if (geom.vertices.empty() || geom.indices.empty()) return;
-
-  // Create temporary VAO for this face
-  GLuint vao = 0, vbo = 0, nbo = 0, ibo = 0;
-  glGenVertexArrays(1, &vao);
-  glGenBuffers(1, &vbo);
-  glGenBuffers(1, &nbo);
-  glGenBuffers(1, &ibo);
-
-  glBindVertexArray(vao);
-
-  // Upload vertices (location 0)
-  glBindBuffer(GL_ARRAY_BUFFER, vbo);
-  glBufferData(GL_ARRAY_BUFFER,
-               geom.vertices.size() * sizeof(glm::vec3),
-               geom.vertices.data(),
-               GL_STATIC_DRAW);
-  glEnableVertexAttribArray(0);
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
-
-  // Upload normals (location 1) - required by shader
-  glBindBuffer(GL_ARRAY_BUFFER, nbo);
-  glBufferData(GL_ARRAY_BUFFER,
-               geom.normals.size() * sizeof(glm::vec3),
-               geom.normals.data(),
-               GL_STATIC_DRAW);
-  glEnableVertexAttribArray(1);
-  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
-
-  // Upload indices
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER,
-               geom.indices.size() * sizeof(uint32_t),
-               geom.indices.data(),
-               GL_STATIC_DRAW);
-
-  // Use normal lighting with highlight color as base color
-  // This ensures the highlighted face has proper shading like the original
-  shader &sh = instance::get().global_shader();
-  sh.use();
-  sh.set_uniform("uMVP", instance::get().disp().clip_from_world());
-  sh.set_uniform("uModel", glm::mat4(1.0f));
-  sh.set_uniform("uCameraPos", instance::get().disp().camera_world_position);
-  sh.set_uniform("uLightDir", glm::vec3(0.5f, -1.0f, -0.5f));
-  sh.set_uniform("uAmbientColor", glm::vec3(0.3f, 0.3f, 0.35f));
-  sh.set_uniform("uDiffuseColor", glm::vec3(0.8f, 0.8f, 0.75f));
-  sh.set_uniform("uBaseColor", color);
-
-  glBindVertexArray(vao);
-  glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(geom.indices.size()), GL_UNSIGNED_INT, nullptr);
-  glBindVertexArray(0);
-
-  // Cleanup
-  glDeleteVertexArrays(1, &vao);
-  glDeleteBuffers(1, &vbo);
-  glDeleteBuffers(1, &nbo);
-  glDeleteBuffers(1, &ibo);
-}
-
-void box_feature::draw_single_edge(const geometry::subshape_handle &edge_handle,
-                                   const glm::vec3 &color) const {
-  if (!edge_handle.is_edge()) return;
-
-  const geometry::edge_geometry &geom = edge_handle.edge_geom();
-  if (geom.vertices.size() < 2) return;
-
-  // Create temporary VAO for this edge
-  GLuint vao = 0, vbo = 0;
-  glGenVertexArrays(1, &vao);
-  glGenBuffers(1, &vbo);
-
-  glBindVertexArray(vao);
-
-  // Upload vertices
-  glBindBuffer(GL_ARRAY_BUFFER, vbo);
-  glBufferData(GL_ARRAY_BUFFER,
-               geom.vertices.size() * sizeof(glm::vec3),
-               geom.vertices.data(),
-               GL_STATIC_DRAW);
-  glEnableVertexAttribArray(0);
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
-
-  // Use viewport shader for unlit lines
-  shader &sh = instance::get().viewport_shader();
-  sh.use();
-  sh.set_uniform("uMVP", instance::get().disp().clip_from_world());
-  sh.set_uniform("uColor", glm::vec4(color, 1.0f));
-
-  glBindVertexArray(vao);
-  glDrawArrays(GL_LINE_STRIP, 0, static_cast<GLsizei>(geom.vertices.size()));
-  glBindVertexArray(0);
-
-  // Cleanup
-  glDeleteVertexArrays(1, &vao);
-  glDeleteBuffers(1, &vbo);
-}
-
-void box_feature::draw_subshape_highlighted(const geometry::subshape_handle &handle,
-                                           const glm::vec3 &color) const {
-  if (handle.is_face()) {
-    draw_single_face(handle, color);
-  } else if (handle.is_edge()) {
-    draw_single_edge(handle, color);
-  }
-}
-
-void box_feature::draw_subshapes_highlighted(
-    const std::vector<const geometry::subshape_handle *> &handles,
-    const glm::vec3 &color) const {
-  for (const auto *handle : handles) {
-    if (handle) {
-      draw_subshape_highlighted(*handle, color);
-    }
-  }
 }
 
 } // namespace toy_cad

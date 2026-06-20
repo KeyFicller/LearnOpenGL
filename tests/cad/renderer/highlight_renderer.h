@@ -4,11 +4,6 @@
 #include "tests/cad/interaction/selection_manager.h"
 
 #include <glm/glm.hpp>
-#include <vector>
-
-namespace toy_cad {
-class box_feature;
-}
 
 namespace toy_cad::renderer {
 
@@ -47,32 +42,6 @@ public:
    */
   void render_drag_rect_in_viewport();
 
-  /**
-   * Render a single subshape highlight.
-   * @param feature The parent feature containing the subshape
-   * @param subshape The subshape to highlight
-   * @param color Highlight color
-   */
-  void render_subshape_highlight(const box_feature &feature,
-                                  const geometry::subshape_handle &subshape,
-                                  const glm::vec3 &color);
-
-  /**
-   * Render multiple subshape highlights.
-   * @param feature The parent feature
-   * @param subshapes Vector of subshape pointers
-   * @param color Highlight color
-   */
-  void render_subshapes_highlight(const box_feature &feature,
-                                   const std::vector<const geometry::subshape_handle *> &subshapes,
-                                   const glm::vec3 &color);
-
-  /**
-   * Draw a 2D rectangle overlay for drag selection.
-   * @param min_rect Top-left corner in screen pixels
-   * @param max_rect Bottom-right corner in screen pixels
-   * @param color Rectangle color
-   */
   void draw_screen_rect(const glm::vec2 &min_rect,
                        const glm::vec2 &max_rect,
                        const glm::vec4 &color);

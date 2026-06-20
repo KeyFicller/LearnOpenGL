@@ -1,6 +1,7 @@
 #pragma once
 
 #include "feature.h"
+#include "tests/cad/database/handle.h"
 
 namespace toy_cad {
 
@@ -13,6 +14,9 @@ public:
   primitive_feature &operator=(primitive_feature &&) noexcept = default;
 
   void inspect() const override;
+
+  [[nodiscard]] virtual handle brep_handle() const = 0;
+  [[nodiscard]] virtual bool has_brep() const { return brep_handle().valid(); }
 
 protected:
   primitive_feature() = default;

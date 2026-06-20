@@ -1,5 +1,6 @@
 #include "doc_input_handler.h"
 
+#include "tests/cad/database/brep/brep_query.h"
 #include "tests/cad/instance.h"
 #include "tests/cad/interaction/ray_pick.h"
 #include "tests/cad/interaction/selection_manager.h"
@@ -157,10 +158,12 @@ void doc_input_handler::handle_click_selection(double xpos, double ypos,
     sel_mgr.toggle_select(hit.value(), multi);
 
     // Debug output
-    std::printf("[doc_input_handler] Selected subshape (type=%s, idx=%u) from feature %u\n",
-                hit->subshape.is_face() ? "face" : "edge",
-                hit->subshape.id().index,
-                hit->feature_handle.index);
+    std::printf("[doc_input_handler] Selected subshape (type=%s, handle=%u)\n",
+                subshape_kind(instance::get().db(), hit->subshape) ==
+                        brep_subshape_kind::face
+                    ? "face"
+                    : "edge",
+                hit->subshape.index);
   } else {
     // Clicked on empty space - clear selection if not multi
     if (!multi) {

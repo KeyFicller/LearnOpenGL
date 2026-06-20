@@ -134,8 +134,9 @@ struct edge_geometry {
 };
 
 /**
- * Handle for a subshape (face or edge) within a BRep feature.
- * Stores the OCCT topology reference and cached geometric data.
+ * Geometric data types and legacy subshape_handle value object.
+ * New topology is stored in brep_face / brep_edge db objects; this class remains
+ * for shared geometry structs (aabb, face_geometry, edge_geometry).
  */
 class subshape_handle {
 public:
