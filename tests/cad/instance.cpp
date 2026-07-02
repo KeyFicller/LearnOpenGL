@@ -3,6 +3,7 @@
 #include "tests/cad/database/axis.h"
 #include "tests/cad/database/datum.h"
 #include "tests/cad/history/box_command.h"
+#include "tests/cad/history/extrude_command.h"
 #include "tests/cad/history/coordinate.h"
 #include "tests/cad/document/command_panel.h"
 #include "tests/cad/document/debug_panel.h"
@@ -163,6 +164,13 @@ void instance::init(GLFWwindow *window) {
       []() {
         interaction::command_dispatcher::instance().push_command(
             std::make_unique<box_command>());
+      });
+
+  interaction::command_panel::instance().register_button(
+      "Extrude", "Pick a face and drag to set extrusion height",
+      []() {
+        interaction::command_dispatcher::instance().push_command(
+            std::make_unique<extrude_command>());
       });
 
   // Register clear selection command

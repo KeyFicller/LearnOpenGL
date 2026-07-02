@@ -321,6 +321,8 @@ if(LEARNOPENGL_OCCT_BUILD_DIR AND EXISTS "${LEARNOPENGL_OCCT_BUILD_DIR}/OpenCASC
       tests/cad/history/primitive_feature.cpp
       tests/cad/history/box_feature.cpp
       tests/cad/history/box_command.cpp
+      tests/cad/history/extrude_feature.cpp
+      tests/cad/history/extrude_command.cpp
       tests/cad/history/history_tree.cpp
       tests/cad/history/coordinate.cpp
       tests/cad/geometry/subshape_handle.cpp
@@ -332,6 +334,8 @@ if(LEARNOPENGL_OCCT_BUILD_DIR AND EXISTS "${LEARNOPENGL_OCCT_BUILD_DIR}/OpenCASC
       tests/cad/interaction/command_dispatcher.cpp
       tests/cad/interaction/doc_input_handler.cpp
       tests/cad/interaction/point_input_handler.cpp
+      tests/cad/interaction/face_input_handler.cpp
+      tests/cad/interaction/extrude_depth_input_handler.cpp
       tests/cad/interaction/ray_pick.cpp
       tests/cad/interaction/selection_manager.cpp
       tests/cad/instance.cpp)
