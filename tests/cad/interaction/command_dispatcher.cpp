@@ -15,6 +15,16 @@ command *command_dispatcher::active_command() const {
   return m_command_stack.empty() ? nullptr : m_command_stack.back().get();
 }
 
+command *command_dispatcher::find_command(
+    const std::function<bool(const command *)> &pred) const {
+  for (const auto &cmd : m_command_stack) {
+    if (pred(cmd.get())) {
+      return cmd.get();
+    }
+  }
+  return nullptr;
+}
+
 void command_dispatcher::push_command(std::unique_ptr<command> cmd) {
   if (cmd) {
     m_command_stack.push_back(std::move(cmd));

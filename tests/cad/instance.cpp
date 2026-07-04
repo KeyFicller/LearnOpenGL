@@ -2,15 +2,14 @@
 
 #include "tests/cad/database/axis.h"
 #include "tests/cad/database/datum.h"
-#include "tests/cad/history/box_command.h"
-#include "tests/cad/history/extrude_command.h"
-#include "tests/cad/history/sketch_command.h"
 #include "tests/cad/history/coordinate.h"
 #include "tests/cad/document/command_panel.h"
 #include "tests/cad/document/ui_icons.h"
 #include "tests/cad/document/debug_panel.h"
 #include "tests/cad/document/inspector_panel.h"
 #include "tests/cad/interaction/command_dispatcher.h"
+#include "tests/cad/interaction/command_impl_registration.h"
+#include "tests/cad/interaction/command_registry.h"
 #include "tests/cad/interaction/doc_input_handler.h"
 #include "tests/cad/interaction/ray_pick.h"
 #include "tests/cad/renderer/highlight_renderer.h"
@@ -160,30 +159,13 @@ void instance::init(GLFWwindow *window) {
   renderer::highlight_renderer::instance().init();
   interaction::ui_icons::instance().init();
 
-  // Register commands in command panel
-  interaction::command_panel::instance().register_button(
-      "Create Box", "Create a box by picking two diagonal corners",
-      []() {
-        interaction::command_dispatcher::instance().push_command(
-            std::make_unique<box_command>());
-      },
-      interaction::ui_icon_id::box);
-
-  interaction::command_panel::instance().register_button(
-      "Extrude", "Pick a face and drag to set extrusion height",
-      []() {
-        interaction::command_dispatcher::instance().push_command(
-            std::make_unique<extrude_command>());
-      },
-      interaction::ui_icon_id::extrude);
-
-  interaction::command_panel::instance().register_button(
-      "Sketch", "Pick a plane or face, draw a profile, exit to extrude",
-      []() {
-        interaction::command_dispatcher::instance().push_command(
-            std::make_unique<sketch_command>());
-      },
-      interaction::ui_icon_id::sketch);
+  interaction::register_command_impl_factories();
+  std::string registry_error;
+  if (!interaction::command_registry::instance().load_and_register(
+          &registry_error)) {
+    std::cerr << "[instance] command registry failed: " << registry_error
+              << '\n';
+  }
 }
 
 void instance::update(float delta_time) {

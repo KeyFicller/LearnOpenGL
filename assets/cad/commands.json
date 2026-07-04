@@ -1,0 +1,262 @@
+{
+  "version": 1,
+  "handlers": {
+    "point": "point_input_handler",
+    "face": "face_input_handler",
+    "extrude_depth": "extrude_depth_input_handler",
+    "sketch_plane": "sketch_plane_input_handler",
+    "sketch_point": "sketch_point_input_handler"
+  },
+  "contexts": [
+    {
+      "id": "sketch",
+      "name": "Sketch",
+      "enter_on_command": "sketch",
+      "enter_on_step": "editing",
+      "buttons": [
+        {
+          "label": "Exit Sketch",
+          "tooltip": "Finish sketch and keep profile for extrusion",
+          "icon": "none",
+          "action": "sketch.request_exit"
+        },
+        {
+          "label": "Line",
+          "tooltip": "Draw a line segment on the sketch plane",
+          "icon": "none",
+          "command": "sketch.line"
+        },
+        {
+          "label": "Circle",
+          "tooltip": "Draw a circle on the sketch plane",
+          "icon": "none",
+          "command": "sketch.circle"
+        }
+      ]
+    }
+  ],
+  "commands": [
+    {
+      "id": "box",
+      "name": "Create Box",
+      "tooltip": "Create a box by picking two diagonal corners",
+      "icon": "box",
+      "scope": "global",
+      "impl": "box",
+      "completion": "explicit",
+      "steps": [
+        {
+          "id": "pick_p1",
+          "handler": "point",
+          "flag": "p1",
+          "prompt": "Step 1: Click to set first corner point",
+          "transitions": {
+            "confirm": {
+              "advance": "pick_p2",
+              "mode": "deferred",
+              "actions": ["box.on_p1_confirmed"]
+            }
+          }
+        },
+        {
+          "id": "pick_p2",
+          "handler": "point",
+          "flag": "p2",
+          "prompt": "Step 2: Click to set opposite corner",
+          "transitions": {
+            "preview": {
+              "actions": ["box.on_p2_preview"]
+            },
+            "confirm": {
+              "advance": "done",
+              "mode": "deferred",
+              "actions": ["box.on_p2_confirmed"],
+              "complete": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "extrude",
+      "name": "Extrude",
+      "tooltip": "Pick a face and drag to set extrusion height",
+      "icon": "extrude",
+      "scope": "global",
+      "impl": "extrude",
+      "completion": "explicit",
+      "steps": [
+        {
+          "id": "pick_face",
+          "handler": "face",
+          "flag": "face",
+          "prompt": "Step 1: Click a face to extrude",
+          "transitions": {
+            "confirm": {
+              "advance": "pick_depth",
+              "mode": "deferred",
+              "actions": ["extrude.on_face_confirmed"]
+            }
+          }
+        },
+        {
+          "id": "pick_depth",
+          "handler": "extrude_depth",
+          "flag": "depth",
+          "prompt": "Step 2: Move mouse to set height, click to confirm",
+          "sync_cursor": true,
+          "transitions": {
+            "preview": {
+              "actions": ["extrude.on_depth_preview"]
+            },
+            "confirm": {
+              "advance": "done",
+              "mode": "deferred",
+              "actions": ["extrude.on_depth_confirmed"],
+              "complete": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "sketch",
+      "name": "Sketch",
+      "tooltip": "Pick a plane or face, draw a profile, exit to extrude",
+      "icon": "sketch",
+      "scope": "global",
+      "impl": "sketch",
+      "completion": "auto_update",
+      "steps": [
+        {
+          "id": "pick_plane",
+          "handler": "sketch_plane",
+          "flag": "plane",
+          "prompt": "Step 1: Click a datum plane or face",
+          "transitions": {
+            "confirm": {
+              "advance": "editing",
+              "mode": "deferred",
+              "actions": ["sketch.on_plane_confirmed"]
+            }
+          }
+        },
+        {
+          "id": "editing",
+          "handler": null,
+          "flag": "",
+          "prompt": "Sketch mode: use command panel to draw curves",
+          "transitions": {
+            "enter": {
+              "actions": ["sketch.enter_editing"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "sketch.line",
+      "name": "Sketch Line",
+      "tooltip": "Draw a line segment on the sketch plane",
+      "icon": "none",
+      "scope": "context",
+      "context": "sketch",
+      "impl": "sketch_line",
+      "completion": "auto_update",
+      "requires": "sketch_context.active",
+      "steps": [
+        {
+          "id": "pick_p1",
+          "handler": "sketch_point",
+          "flag": "p1",
+          "prompt": "Click start point",
+          "sync_cursor": true,
+          "transitions": {
+            "preview": {
+              "actions": ["sketch_line.on_preview"]
+            },
+            "confirm": {
+              "advance": "pick_p2",
+              "mode": "deferred",
+              "actions": ["sketch_line.on_p1_confirmed"],
+              "same_frame_fallback": {
+                "when_step": "pick_p2",
+                "from_flag": "p1"
+              }
+            }
+          }
+        },
+        {
+          "id": "pick_p2",
+          "handler": "sketch_point",
+          "flag": "p2",
+          "prompt": "Click end point",
+          "sync_cursor": true,
+          "transitions": {
+            "preview": {
+              "actions": ["sketch_line.on_preview"]
+            },
+            "confirm": {
+              "advance": "done",
+              "mode": "deferred",
+              "actions": ["sketch_line.on_p2_confirmed"],
+              "complete": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "sketch.circle",
+      "name": "Sketch Circle",
+      "tooltip": "Draw a circle on the sketch plane",
+      "icon": "none",
+      "scope": "context",
+      "context": "sketch",
+      "impl": "sketch_circle",
+      "completion": "auto_update",
+      "requires": "sketch_context.active",
+      "steps": [
+        {
+          "id": "pick_center",
+          "handler": "sketch_point",
+          "flag": "center",
+          "prompt": "Click circle center",
+          "sync_cursor": true,
+          "transitions": {
+            "preview": {
+              "actions": ["sketch_circle.on_preview"]
+            },
+            "confirm": {
+              "advance": "pick_radius",
+              "mode": "deferred",
+              "actions": ["sketch_circle.on_center_confirmed"],
+              "same_frame_fallback": {
+                "when_step": "pick_radius",
+                "from_flag": "center"
+              }
+            }
+          }
+        },
+        {
+          "id": "pick_radius",
+          "handler": "sketch_point",
+          "flag": "radius",
+          "prompt": "Click radius point",
+          "sync_cursor": true,
+          "transitions": {
+            "preview": {
+              "actions": ["sketch_circle.on_preview"]
+            },
+            "confirm": {
+              "advance": "done",
+              "mode": "deferred",
+              "actions": ["sketch_circle.on_radius_confirmed"],
+              "complete": true
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

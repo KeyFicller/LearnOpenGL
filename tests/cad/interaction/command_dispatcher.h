@@ -70,6 +70,10 @@ public:
   /** Get the currently active command (top of stack), or nullptr. */
   [[nodiscard]] command *active_command() const;
 
+  /** Find first command in stack matching predicate (bottom to top). */
+  [[nodiscard]] command *
+  find_command(const std::function<bool(const command *)> &pred) const;
+
   /** Push a new command onto the stack (becomes active). */
   void push_command(std::unique_ptr<command> cmd);
 

@@ -112,6 +112,15 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(stb_image)
 # ---------------------------------------------------------------
 
+# ------------------------ Vendor:  nlohmann_json ------------------------
+FetchContent_Declare(
+  nlohmann_json
+  GIT_REPOSITORY https://github.com/nlohmann/json.git
+  GIT_TAG        v3.11.3
+)
+FetchContent_MakeAvailable(nlohmann_json)
+# ---------------------------------------------------------------
+
 # ------------------------ Vendor:  imgui ------------------------
 FetchContent_Declare(
   imgui
@@ -341,6 +350,12 @@ tests/cad/document/ui_icons.cpp
       tests/cad/document/debug_panel.cpp
       tests/cad/document/inspector_panel.cpp
       tests/cad/interaction/command_dispatcher.cpp
+tests/cad/interaction/command_document.cpp
+      tests/cad/interaction/command_registry.cpp
+      tests/cad/interaction/command_actions.cpp
+      tests/cad/interaction/command_impl_registration.cpp
+      tests/cad/interaction/flow_command.cpp
+      tests/cad/interaction/handler_registry.cpp
       tests/cad/interaction/doc_input_handler.cpp
       tests/cad/interaction/point_input_handler.cpp
       tests/cad/interaction/face_input_handler.cpp
@@ -353,7 +368,7 @@ tests/cad/interaction/sketch_context.cpp
       tests/cad/instance.cpp)
   target_include_directories(LearnOpenGL PRIVATE
       "${LEARNOPENGL_OCCT_BUILD_DIR}/include/opencascade")
-  target_link_libraries(LearnOpenGL PRIVATE TKPrim TKMesh TKBO)
+  target_link_libraries(LearnOpenGL PRIVATE TKPrim TKMesh TKBO nlohmann_json::nlohmann_json)
   # Locate OCCT shared libraries for runtime (macOS build tree layout)
   set(LEARNOPENGL_OCCT_LIBDIR "")
   file(GLOB LEARNOPENGL_OCCT_LIBDIRS "${LEARNOPENGL_OCCT_BUILD_DIR}/mac64/*/libi")
