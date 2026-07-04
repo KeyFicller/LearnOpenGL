@@ -24,6 +24,8 @@ public:
   ~extrude_depth_input_handler() override = default;
 
   void set_extrude_frame(const glm::vec3 &anchor, const glm::vec3 &direction);
+  /** Recompute depth from current viewport cursor (e.g. right after face pick). */
+  void sync_from_viewport_cursor();
 
   bool on_mouse_moved(double xpos, double ypos) override;
   bool on_mouse_button(int button, int action, int mods) override;

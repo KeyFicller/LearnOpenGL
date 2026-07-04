@@ -19,4 +19,7 @@ public:
   bool on_mouse_button(int button, int action, int mods) override;
   void on_framebuffer_resized(int width, int height) override;
   void on_object_hovered(int object_id) override;
+
+private:
+  void fit_view_to_scene();
 };

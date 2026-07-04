@@ -1,5 +1,7 @@
 #pragma once
 
+#include "tests/cad/document/ui_icons.h"
+
 #include <functional>
 #include <vector>
 
@@ -28,7 +30,7 @@ public:
 
   /** Register a command button. Called during init to populate the panel. */
   void register_button(const char *label, const char *tooltip,
-                       command_factory factory);
+                       command_factory factory, ui_icon_id icon);
 
   /** Clear all registered buttons (e.g., for plugin reload). */
   void clear_buttons();
@@ -41,6 +43,7 @@ private:
     const char *label;
     const char *tooltip;
     command_factory factory;
+    ui_icon_id icon;
   };
 
   std::vector<button_entry> m_buttons;

@@ -25,6 +25,9 @@ public:
   // Subclasses should call this in their render_ui() implementation
   void render_camera_ui();
 
+  /** Set world-space pivot for scroll dolly and Alt-orbit (e.g. model center). */
+  void set_navigation_focus(const glm::vec3 &point);
+
 protected:
   camera m_camera;
   camera_controller *m_camera_controller = nullptr;

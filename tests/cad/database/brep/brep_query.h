@@ -38,4 +38,7 @@ void draw_subshape_highlighted(database &db, handle h, const glm::vec3 &color);
 /** Iterate every brep owned by primitive features in the history tree. */
 void for_each_scene_brep(const std::function<void(handle, brep &)> &fn);
 
+/** Merged world-space bounds of all scene brep geometry; nullopt if empty. */
+[[nodiscard]] std::optional<geometry::aabb> scene_bounds();
+
 } // namespace toy_cad

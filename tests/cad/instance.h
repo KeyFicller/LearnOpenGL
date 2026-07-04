@@ -4,6 +4,7 @@
 #include "tests/cad/database/database.h"
 #include "tests/cad/history/history_tree.h"
 #include "tests/cad/renderer/disp_var.h"
+#include "tests/cad/renderer/display_mode.h"
 #include "tests/cad/renderer/viewport_axes_gizmo.h"
 
 #include <memory>
@@ -68,6 +69,9 @@ public:
     return m_viewport_axes;
   }
 
+  [[nodiscard]] mesh_display_mode display_mode() const { return m_display_mode; }
+  void set_display_mode(mesh_display_mode mode) { m_display_mode = mode; }
+
 private:
   instance() = default;
 
@@ -80,6 +84,7 @@ private:
   std::unique_ptr<shader> m_vp_shader{};
   std::unique_ptr<shader> m_global_shader{};
   viewport_axes_gizmo m_viewport_axes{};
+  mesh_display_mode m_display_mode = mesh_display_mode::solid;
 };
 
 } // namespace toy_cad

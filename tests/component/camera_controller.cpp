@@ -50,32 +50,59 @@ int camera_controller::navigation_mod_mode() const {
   return 0;
 }
 
+void camera_controller::set_navigation_focus(const glm::vec3 &point) {
+  const glm::vec3 forward = m_camera.front();
+  const float dist = glm::dot(point - m_camera.Position, forward);
+  m_dolly_distance = std::max(0.1f, dist);
+  m_dolly_distance_valid = true;
+  m_orbit_pivot = point;
+  m_orbit_pivot_valid = true;
+}
+
+void camera_controller::clear_navigation_focus() {
+  m_dolly_distance_valid = false;
+  m_orbit_pivot_valid = false;
+}
+
+glm::vec3 camera_controller::navigation_pivot() const {
+  const glm::vec3 forward = m_camera.front();
+  if (m_dolly_distance_valid) {
+    return m_camera.Position + forward * m_dolly_distance;
+  }
+  return m_camera.Position + forward * m_orbit_radius;
+}
+
 void camera_controller::update(float _delta_time) {
   if (!m_mouse_captured) {
     return;
   }
 
   float speed = m_movement_speed * _delta_time;
+  glm::vec3 delta{0.0f};
 
   if (glfwGetKey(m_window, GLFW_KEY_W) == GLFW_PRESS) {
-    m_camera.Position += m_camera.front() * speed;
+    delta += m_camera.front() * speed;
   }
   if (glfwGetKey(m_window, GLFW_KEY_S) == GLFW_PRESS) {
-    m_camera.Position -= m_camera.front() * speed;
+    delta -= m_camera.front() * speed;
   }
   if (glfwGetKey(m_window, GLFW_KEY_A) == GLFW_PRESS) {
-    m_camera.Position -= m_camera.right() * speed;
+    delta -= m_camera.right() * speed;
   }
   if (glfwGetKey(m_window, GLFW_KEY_D) == GLFW_PRESS) {
-    m_camera.Position += m_camera.right() * speed;
+    delta += m_camera.right() * speed;
   }
   if (glfwGetKey(m_window, GLFW_KEY_Q) == GLFW_PRESS ||
       glfwGetKey(m_window, GLFW_KEY_SPACE) == GLFW_PRESS) {
-    m_camera.Position += m_camera.WorldUp * speed;
+    delta += m_camera.WorldUp * speed;
   }
   if (glfwGetKey(m_window, GLFW_KEY_E) == GLFW_PRESS ||
       glfwGetKey(m_window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) {
-    m_camera.Position -= m_camera.WorldUp * speed;
+    delta -= m_camera.WorldUp * speed;
+  }
+
+  if (glm::dot(delta, delta) > 0.0f) {
+    m_camera.Position += delta;
   }
 
   m_camera.update_view_matrix();
@@ -114,7 +141,8 @@ void camera_controller::on_mouse_moved(double _xpos, double _ypos) {
   m_last_ypos = _ypos;
 
   if (nav_mode == 1) {
-    // Ctrl: pan in view plane (right / up)
+    // Ctrl: pan in view plane (right / up). Dolly distance stays fixed so the
+    // pivot moves with the camera and remains the zoom center on screen.
     if (m_camera.Orthographic) {
       constexpr float pan_sensitivity_ref = 0.006f;
       const float world_w = m_camera.Right - m_camera.Left;
@@ -127,7 +155,10 @@ void camera_controller::on_mouse_moved(double _xpos, double _ypos) {
       m_camera.Position += m_camera.right() * (xrel * px_to_world_x * scale) +
                            m_camera.up() * (yrel * px_to_world_y * scale);
     } else {
-      const float depth = std::max(0.5f, glm::length(m_camera.Position));
+      const float depth =
+          m_dolly_distance_valid
+              ? m_dolly_distance
+              : std::max(0.5f, glm::length(m_camera.Position));
       const float k = m_pan_sensitivity * depth;
       m_camera.Position +=
           m_camera.right() * (xrel * k) + m_camera.up() * (yrel * k);
@@ -137,9 +168,8 @@ void camera_controller::on_mouse_moved(double _xpos, double _ypos) {
   }
 
   if (nav_mode == 2) {
-    // Alt: orbit around pivot on the view ray at m_orbit_radius
     if (!m_orbit_pivot_valid) {
-      m_orbit_pivot = m_camera.Position + m_camera.front() * m_orbit_radius;
+      m_orbit_pivot = navigation_pivot();
       m_orbit_pivot_valid = true;
     }
 
@@ -165,6 +195,12 @@ void camera_controller::on_mouse_moved(double _xpos, double _ypos) {
         safe_normalize(m_orbit_pivot - m_camera.Position, -m_camera.front());
     sync_yaw_pitch_from_direction(m_camera, to_target);
     m_camera.update_view_matrix();
+
+    if (m_dolly_distance_valid) {
+      m_dolly_distance =
+          std::max(0.1f, glm::dot(m_orbit_pivot - m_camera.Position,
+                                  m_camera.front()));
+    }
     return;
   }
 
@@ -176,7 +212,6 @@ void camera_controller::on_mouse_moved(double _xpos, double _ypos) {
 
 void camera_controller::on_mouse_scroll(double /*_xoffset*/, double _yoffset) {
   if (m_camera.Orthographic) {
-    // Exponential zoom for smooth scaling
     const float zoom =
         std::exp(-static_cast<float>(_yoffset) * 0.08f * m_scroll_sensitivity);
     const float cx = (m_camera.Left + m_camera.Right) * 0.5f;
@@ -192,31 +227,23 @@ void camera_controller::on_mouse_scroll(double /*_xoffset*/, double _yoffset) {
     m_camera.Bottom = cy - hh;
     m_camera.Top = cy + hh;
   } else {
-    // Smooth dolly zoom: move camera along view direction
-    // Use exponential scaling for distance-based zoom
     const float zoom_factor =
         std::exp(-static_cast<float>(_yoffset) * 0.1f * m_scroll_sensitivity);
 
-    // Get current distance from origin (or use a default if at origin)
-    const float current_dist = glm::length(m_camera.Position);
-    const float min_dist = 0.1f;
-    const float max_dist = 1000.0f;
+    const glm::vec3 forward = m_camera.front();
+    const glm::vec3 pivot = navigation_pivot();
 
-    // Calculate new distance with exponential scaling
-    float new_dist = current_dist * zoom_factor;
-    new_dist = std::clamp(new_dist, min_dist, max_dist);
+    constexpr float k_min_dist = 0.1f;
+    constexpr float k_max_dist = 1000.0f;
+    const float dist_to_pivot =
+        std::max(k_min_dist, glm::dot(pivot - m_camera.Position, forward));
+    const float new_dist =
+        std::clamp(dist_to_pivot * zoom_factor, k_min_dist, k_max_dist);
 
-    // Move camera along its view direction to maintain orientation
-    const glm::vec3 view_dir =
-        safe_normalize(-m_camera.Position, m_camera.front());
-    if (current_dist > 1e-6f) {
-      // Scale position proportionally to maintain direction
-      m_camera.Position = m_camera.Position * (new_dist / current_dist);
-    } else {
-      // If at origin, move along front direction
-      m_camera.Position -= m_camera.front() * (new_dist - current_dist);
+    m_camera.Position = pivot - forward * new_dist;
+    if (m_dolly_distance_valid) {
+      m_dolly_distance = new_dist;
     }
-
     m_camera.update_view_matrix();
   }
   m_camera.update_projection_matrix();

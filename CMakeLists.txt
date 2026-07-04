@@ -328,7 +328,10 @@ if(LEARNOPENGL_OCCT_BUILD_DIR AND EXISTS "${LEARNOPENGL_OCCT_BUILD_DIR}/OpenCASC
       tests/cad/geometry/subshape_handle.cpp
       tests/cad/geometry/occt_mesh_utils.cpp
       tests/cad/geometry/bvh_tree.cpp
+tests/cad/camera/fit_view.cpp
       tests/cad/document/command_panel.cpp
+tests/cad/document/ui_icons.cpp
+      tests/cad/document/viewport_toolbar.cpp
       tests/cad/document/debug_panel.cpp
       tests/cad/document/inspector_panel.cpp
       tests/cad/interaction/command_dispatcher.cpp

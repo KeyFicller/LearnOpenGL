@@ -21,7 +21,7 @@ public:
   void set_depth(float depth);
   void set_preview_mode(bool preview);
 
-  [[nodiscard]] bool preview_mode() const { return m_preview_mode; }
+  //[[nodiscard]] bool preview_mode() const { return m_preview_mode; }
   [[nodiscard]] glm::vec3 direction() const { return m_direction; }
   [[nodiscard]] glm::vec3 anchor() const { return m_anchor; }
   [[nodiscard]] bool has_geometry() const { return m_shape_ok; }

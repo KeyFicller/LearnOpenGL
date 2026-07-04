@@ -3,11 +3,15 @@
 #include "basic/camera.h"
 #include "glad/gl.h"
 #include "imgui.h"
+#include "tests/cad/camera/fit_view.h"
+#include "tests/cad/database/brep/brep_query.h"
 #include "tests/cad/instance.h"
+#include "tests/cad/document/viewport_toolbar.h"
 #include "tests/cad/renderer/highlight_renderer.h"
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <cmath>
+#include <cstdio>
 
 namespace {
 
@@ -49,6 +53,28 @@ void toy_cad_scene::init(GLFWwindow *window) {
   toy_cad::instance::get().init(window);
 }
 
+void toy_cad_scene::fit_view_to_scene() {
+  const std::optional<toy_cad::geometry::aabb> bounds = toy_cad::scene_bounds();
+  if (!bounds.has_value()) {
+    std::printf("[toy_cad_scene] Fit View: no model geometry to frame\n");
+    return;
+  }
+
+  const float aspect =
+      m_camera.AspectRatio > 1e-6f
+          ? m_camera.AspectRatio
+          : (toy_cad::instance::get().disp().render_height > 0
+                 ? static_cast<float>(toy_cad::instance::get().disp().render_width) /
+                       static_cast<float>(
+                           toy_cad::instance::get().disp().render_height)
+                 : 1.0f);
+
+  toy_cad::fit_camera_to_bounds(m_camera, *bounds, aspect);
+  set_navigation_focus(bounds->center());
+  std::printf("[toy_cad_scene] Fit View: framed bounds center (%.3f, %.3f, %.3f)\n",
+              bounds->center().x, bounds->center().y, bounds->center().z);
+}
+
 void toy_cad_scene::update(float delta_time) {
   toy_cad::instance::get().update(delta_time);
   renderable_scene_base::update(delta_time);
@@ -83,6 +109,8 @@ void toy_cad_scene::render_ui() {
 }
 
 void toy_cad_scene::render_viewport_overlay() {
+  toy_cad::interaction::viewport_toolbar::instance().draw_in_viewport(
+      [this]() { fit_view_to_scene(); });
   toy_cad::renderer::highlight_renderer::instance().render_drag_rect_in_viewport();
 }
 

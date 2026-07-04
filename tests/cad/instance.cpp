@@ -6,12 +6,12 @@
 #include "tests/cad/history/extrude_command.h"
 #include "tests/cad/history/coordinate.h"
 #include "tests/cad/document/command_panel.h"
+#include "tests/cad/document/ui_icons.h"
 #include "tests/cad/document/debug_panel.h"
 #include "tests/cad/document/inspector_panel.h"
 #include "tests/cad/interaction/command_dispatcher.h"
 #include "tests/cad/interaction/doc_input_handler.h"
 #include "tests/cad/interaction/ray_pick.h"
-#include "tests/cad/interaction/selection_manager.h"
 #include "tests/cad/renderer/highlight_renderer.h"
 #include "tests/cad/renderer/viewport_axis.h"
 #include "tests/cad/renderer/viewport_datum.h"
@@ -157,6 +157,7 @@ void instance::init(GLFWwindow *window) {
 
   // Initialize highlight renderer for selection visualization
   renderer::highlight_renderer::instance().init();
+  interaction::ui_icons::instance().init();
 
   // Register commands in command panel
   interaction::command_panel::instance().register_button(
@@ -164,22 +165,16 @@ void instance::init(GLFWwindow *window) {
       []() {
         interaction::command_dispatcher::instance().push_command(
             std::make_unique<box_command>());
-      });
+      },
+      interaction::ui_icon_id::box);
 
   interaction::command_panel::instance().register_button(
       "Extrude", "Pick a face and drag to set extrusion height",
       []() {
         interaction::command_dispatcher::instance().push_command(
             std::make_unique<extrude_command>());
-      });
-
-  // Register clear selection command
-  interaction::command_panel::instance().register_button(
-      "Clear Selection", "Clear all subshape selections",
-      []() {
-        interaction::selection_manager::instance().clear_selection();
-        std::printf("[instance] Cleared all selections\n");
-      });
+      },
+      interaction::ui_icon_id::extrude);
 }
 
 void instance::update(float delta_time) {
@@ -189,10 +184,19 @@ void instance::update(float delta_time) {
 }
 
 void instance::render() {
-  // Solid BRep: cull back faces with CCW front (matches OCCT mesh winding)
-  glEnable(GL_CULL_FACE);
-  glCullFace(GL_BACK);
-  glFrontFace(GL_CCW);
+  GLint prev_polygon_mode = GL_FILL;
+  glGetIntegerv(GL_POLYGON_MODE, &prev_polygon_mode);
+  GLboolean cull_was = GL_TRUE;
+  glGetBooleanv(GL_CULL_FACE, &cull_was);
+
+  if (m_display_mode == mesh_display_mode::wireframe) {
+    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    glDisable(GL_CULL_FACE);
+  } else {
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
+    glFrontFace(GL_CCW);
+  }
 
   m_history.draw_global();
   m_history.draw_local();
@@ -202,6 +206,13 @@ void instance::render() {
 
   // Draw selection highlights (hover and selected subshapes)
   renderer::highlight_renderer::instance().render_highlights();
+
+  if (cull_was) {
+    glEnable(GL_CULL_FACE);
+  } else {
+    glDisable(GL_CULL_FACE);
+  }
+  glPolygonMode(GL_FRONT_AND_BACK, prev_polygon_mode);
 
   m_viewport_axes.draw(m_disp.view_matrix);
 }

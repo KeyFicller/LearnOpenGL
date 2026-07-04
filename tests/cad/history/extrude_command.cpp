@@ -149,6 +149,7 @@ void extrude_command::on_face_confirmed(handle face_h,
 
   m_step = step::pick_depth;
   setup_depth_handler();
+  m_depth_handler->sync_from_viewport_cursor();
 }
 
 void extrude_command::update_preview_depth(float depth) {

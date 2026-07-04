@@ -7,3 +7,5 @@
 ![Shader inTime Editor](doc/shader_editor_demo.png)
 ## Reveal chess
 ![Reveal Chess](doc/reveal_chess.png)
+## Toy CAD
+![Toy CAD](doc/toy_cad_demo.png)

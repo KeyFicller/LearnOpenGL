@@ -70,4 +70,25 @@ void for_each_scene_brep(const std::function<void(handle, brep &)> &fn) {
   }
 }
 
+std::optional<geometry::aabb> scene_bounds() {
+  auto &db = instance::get().db();
+  std::optional<geometry::aabb> merged;
+
+  for_each_scene_brep([&](handle /*brep_h*/, brep &brep_obj) {
+    brep_obj.for_each_subshape_handle(db, [&](handle sub_h) {
+      const std::optional<geometry::aabb> bounds = subshape_bounds(db, sub_h);
+      if (!bounds.has_value()) {
+        return;
+      }
+      if (!merged.has_value()) {
+        merged = *bounds;
+      } else {
+        merged->expand(*bounds);
+      }
+    });
+  });
+
+  return merged;
+}
+
 } // namespace toy_cad
