@@ -10,6 +10,9 @@
 #include <memory>
 #include <random>
 #include <string>
+#ifdef LEARNOPENGL_USE_MONO
+#include "scripts/mono_invoker.h"
+#endif
 
 // Forward declaration
 class spline_movement_scene;
@@ -40,6 +43,11 @@ public:
   virtual void update_mesh_data();
 
 protected:
+  bool m_driven_by_script = false;
+#ifdef LEARNOPENGL_USE_MONO
+  mono_invoker::invoker m_invoker;
+  float m_path_radius = 0.8f;
+#endif
   mesh_manager m_points_mesh_manager;
   mesh_manager m_line_strip_mesh_manager;
   std::map<spline_shader_type, shader *> m_shaders;

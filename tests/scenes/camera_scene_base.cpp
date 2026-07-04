@@ -45,6 +45,12 @@ void camera_scene_base::on_framebuffer_resized(int _width, int _height) {
   }
 }
 
+void camera_scene_base::set_navigation_focus(const glm::vec3 &point) {
+  if (m_camera_controller) {
+    m_camera_controller->set_navigation_focus(point);
+  }
+}
+
 void camera_scene_base::render_camera_ui() {
   if (ImGui::Checkbox("Camera Controller", &m_camera_controller_enabled))
     m_camera_controller->set_mouse_captured(m_camera_controller_enabled);

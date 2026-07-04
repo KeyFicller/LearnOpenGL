@@ -6,4 +6,5 @@ build/*
 imgui.ini
 scripts/csharp/bin_staging/
 runtime/
+*cursor/*
 .editorconfig
