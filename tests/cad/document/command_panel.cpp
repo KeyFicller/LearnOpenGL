@@ -21,13 +21,22 @@ void command_panel::draw_ui() {
       ImGui::Separator();
     }
 
-    if (!m_buttons.empty()) {
+    const context_entry *ctx =
+        m_context_stack.empty() ? nullptr : &m_context_stack.back();
+    if (ctx && ctx->name) {
+      ImGui::TextDisabled("Mode: %s", ctx->name);
+    }
+
+    const std::vector<button_entry> &buttons =
+        (ctx && !ctx->buttons.empty()) ? ctx->buttons : m_buttons;
+
+    if (!buttons.empty()) {
       auto &icons = ui_icons::instance();
       constexpr float k_icon_size = 32.0f;
       constexpr float k_gap = 6.0f;
 
-      for (std::size_t i = 0; i < m_buttons.size(); ++i) {
-        const auto &btn = m_buttons[i];
+      for (std::size_t i = 0; i < buttons.size(); ++i) {
+        const auto &btn = buttons[i];
         if (i > 0) {
           ImGui::SameLine(0.0f, k_gap);
         }
@@ -49,7 +58,7 @@ void command_panel::draw_ui() {
       }
     }
 
-    if (m_buttons.empty()) {
+    if (buttons.empty()) {
       ImGui::TextDisabled("No commands registered");
     }
   }
@@ -64,5 +73,26 @@ void command_panel::register_button(const char *label, const char *tooltip,
 }
 
 void command_panel::clear_buttons() { m_buttons.clear(); }
+
+void command_panel::push_context(const char *name) {
+  m_context_stack.push_back({name, {}});
+}
+
+void command_panel::pop_context() {
+  if (!m_context_stack.empty()) {
+    m_context_stack.pop_back();
+  }
+}
+
+void command_panel::register_context_button(const char *label,
+                                            const char *tooltip,
+                                            command_factory factory,
+                                            ui_icon_id icon) {
+  if (m_context_stack.empty() || !label || !factory) {
+    return;
+  }
+  m_context_stack.back().buttons.push_back({label, tooltip, std::move(factory),
+                                            icon});
+}
 
 } // namespace toy_cad::interaction

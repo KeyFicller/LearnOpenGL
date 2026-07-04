@@ -1,5 +1,6 @@
 #pragma once
 
+#include "basic/camera.h"
 #include "basic/shader.h"
 #include "tests/cad/database/database.h"
 #include "tests/cad/history/history_tree.h"
@@ -72,6 +73,10 @@ public:
   [[nodiscard]] mesh_display_mode display_mode() const { return m_display_mode; }
   void set_display_mode(mesh_display_mode mode) { m_display_mode = mode; }
 
+  /** Scene-owned camera (set by toy_cad_scene). Used for sketch view alignment. */
+  void set_scene_camera(camera *cam) { m_scene_camera = cam; }
+  [[nodiscard]] camera *scene_camera() const { return m_scene_camera; }
+
 private:
   instance() = default;
 
@@ -85,6 +90,7 @@ private:
   std::unique_ptr<shader> m_global_shader{};
   viewport_axes_gizmo m_viewport_axes{};
   mesh_display_mode m_display_mode = mesh_display_mode::solid;
+  camera *m_scene_camera = nullptr;
 };
 
 } // namespace toy_cad

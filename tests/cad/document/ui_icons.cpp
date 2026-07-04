@@ -15,6 +15,7 @@ struct icon_spec {
 
 constexpr icon_spec k_icon_specs[] = {
     {ui_icon_id::box, "assets/images/ui/box.png"},
+    {ui_icon_id::sketch, "assets/images/ui/sketch.png"},
     {ui_icon_id::extrude, "assets/images/ui/extrude.png"},
     {ui_icon_id::fit_view, "assets/images/ui/fit_view.png"},
     {ui_icon_id::solid, "assets/images/ui/solid.png"},
@@ -63,6 +64,9 @@ void ui_icons::shutdown() {
 }
 
 bool ui_icons::loaded(ui_icon_id id) const {
+  if (id == ui_icon_id::none) {
+    return false;
+  }
   const auto *entry = find(id);
   return entry && entry->texture;
 }

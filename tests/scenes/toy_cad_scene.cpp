@@ -7,7 +7,9 @@
 #include "tests/cad/database/brep/brep_query.h"
 #include "tests/cad/instance.h"
 #include "tests/cad/document/viewport_toolbar.h"
+#include "tests/cad/interaction/sketch_context.h"
 #include "tests/cad/renderer/highlight_renderer.h"
+#include "tests/cad/renderer/sketch_overlay.h"
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <cmath>
@@ -51,6 +53,7 @@ void toy_cad_scene::init(GLFWwindow *window) {
   m_camera.update_view_matrix();
 
   toy_cad::instance::get().init(window);
+  toy_cad::instance::get().set_scene_camera(&m_camera);
 }
 
 void toy_cad_scene::fit_view_to_scene() {
@@ -77,6 +80,12 @@ void toy_cad_scene::fit_view_to_scene() {
 
 void toy_cad_scene::update(float delta_time) {
   toy_cad::instance::get().update(delta_time);
+
+  if (toy_cad::sketch_context::instance().is_active()) {
+    m_camera_controller_enabled = false;
+    toy_cad::sketch_context::instance().apply_sketch_camera(m_camera);
+  }
+
   renderable_scene_base::update(delta_time);
   auto &disp = toy_cad::instance::get().disp();
   disp.camera_world_position = m_camera.Position;
@@ -112,6 +121,7 @@ void toy_cad_scene::render_viewport_overlay() {
   toy_cad::interaction::viewport_toolbar::instance().draw_in_viewport(
       [this]() { fit_view_to_scene(); });
   toy_cad::renderer::highlight_renderer::instance().render_drag_rect_in_viewport();
+  toy_cad::renderer::draw_sketch_viewport_overlay();
 }
 
 bool toy_cad_scene::on_mouse_moved(double xpos, double ypos) {

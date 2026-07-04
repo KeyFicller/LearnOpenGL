@@ -4,6 +4,7 @@
 #include "tests/cad/database/datum.h"
 #include "tests/cad/history/box_command.h"
 #include "tests/cad/history/extrude_command.h"
+#include "tests/cad/history/sketch_command.h"
 #include "tests/cad/history/coordinate.h"
 #include "tests/cad/document/command_panel.h"
 #include "tests/cad/document/ui_icons.h"
@@ -175,6 +176,14 @@ void instance::init(GLFWwindow *window) {
             std::make_unique<extrude_command>());
       },
       interaction::ui_icon_id::extrude);
+
+  interaction::command_panel::instance().register_button(
+      "Sketch", "Pick a plane or face, draw a profile, exit to extrude",
+      []() {
+        interaction::command_dispatcher::instance().push_command(
+            std::make_unique<sketch_command>());
+      },
+      interaction::ui_icon_id::sketch);
 }
 
 void instance::update(float delta_time) {

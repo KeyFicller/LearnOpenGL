@@ -10,7 +10,9 @@ class texture_2d;
 namespace toy_cad::interaction {
 
 enum class ui_icon_id {
+  none,
   box,
+  sketch,
   extrude,
   fit_view,
   solid,

@@ -306,6 +306,7 @@ if(LEARNOPENGL_OCCT_BUILD_DIR AND EXISTS "${LEARNOPENGL_OCCT_BUILD_DIR}/OpenCASC
       tests/cad/renderer/viewport_axis.cpp
       tests/cad/renderer/viewport_datum.cpp
       tests/cad/renderer/highlight_renderer.cpp
+tests/cad/renderer/sketch_overlay.cpp
       tests/cad/database/database.cpp
       tests/cad/database/object.cpp
       tests/cad/database/datum.cpp
@@ -323,12 +324,17 @@ if(LEARNOPENGL_OCCT_BUILD_DIR AND EXISTS "${LEARNOPENGL_OCCT_BUILD_DIR}/OpenCASC
       tests/cad/history/box_command.cpp
       tests/cad/history/extrude_feature.cpp
       tests/cad/history/extrude_command.cpp
+tests/cad/history/sketch_feature.cpp
+      tests/cad/history/sketch_command.cpp
+      tests/cad/history/sketch_line_command.cpp
+      tests/cad/history/sketch_circle_command.cpp
       tests/cad/history/history_tree.cpp
       tests/cad/history/coordinate.cpp
       tests/cad/geometry/subshape_handle.cpp
       tests/cad/geometry/occt_mesh_utils.cpp
       tests/cad/geometry/bvh_tree.cpp
 tests/cad/camera/fit_view.cpp
+tests/cad/camera/sketch_camera.cpp
       tests/cad/document/command_panel.cpp
 tests/cad/document/ui_icons.cpp
       tests/cad/document/viewport_toolbar.cpp
@@ -339,6 +345,9 @@ tests/cad/document/ui_icons.cpp
       tests/cad/interaction/point_input_handler.cpp
       tests/cad/interaction/face_input_handler.cpp
       tests/cad/interaction/extrude_depth_input_handler.cpp
+tests/cad/interaction/sketch_context.cpp
+      tests/cad/interaction/sketch_plane_input_handler.cpp
+      tests/cad/interaction/sketch_point_input_handler.cpp
       tests/cad/interaction/ray_pick.cpp
       tests/cad/interaction/selection_manager.cpp
       tests/cad/instance.cpp)
