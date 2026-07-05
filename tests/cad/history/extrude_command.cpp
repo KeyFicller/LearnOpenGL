@@ -1,12 +1,9 @@
 #include "extrude_command.h"
 
 #include "extrude_feature.h"
-#include "tests/cad/database/brep/brep_face.h"
-#include "tests/cad/database/brep/brep_query.h"
-#include "tests/cad/geometry/occt_mesh_utils.h"
 #include "tests/cad/instance.h"
 #include "tests/cad/interaction/extrude_depth_input_handler.h"
-#include "tests/cad/interaction/face_input_handler.h"
+#include "tests/cad/interaction/profile_input_handler.h"
 #include "tests/cad/interaction/selection_manager.h"
 
 #include "imgui.h"
@@ -70,26 +67,25 @@ void extrude_command::on_draw() {
 
 bool extrude_command::on_flow_action(const std::string &action,
                                       const interaction::flow_action_context &ctx) {
-  if (action == "extrude.on_face_confirmed") {
-    auto *face_handler =
-        dynamic_cast<interaction::face_input_handler *>(ctx.handler);
-    if (!face_handler || !face_handler->has_valid_hover()) {
+  if (action == "extrude.on_profile_confirmed") {
+    auto *profile_handler =
+        dynamic_cast<interaction::profile_input_handler *>(ctx.handler);
+    if (!profile_handler || !profile_handler->has_valid_hover()) {
       return true;
     }
 
-    auto &db = instance::get().db();
-    const handle face_h = *face_handler->hover_face();
-    const brep_face *face_obj = try_get_face(db, face_h);
-    if (!face_obj) {
+    const interaction::profile_pick pick = profile_handler->hover_pick();
+    if (pick.profile_face.IsNull()) {
       return true;
     }
 
-    m_profile_face = face_obj->face();
-    m_direction = geometry::face_outward_normal(m_profile_face);
-    m_anchor = *face_handler->hover_point();
+    m_profile_face = pick.profile_face;
+    m_direction = pick.direction;
+    m_anchor = pick.anchor;
 
-    m_extrude_handle = db.emplace<extrude_feature>();
-    if (auto *extrude = db.try_get_as<extrude_feature>(m_extrude_handle)) {
+    m_extrude_handle = instance::get().db().emplace<extrude_feature>();
+    if (auto *extrude = instance::get().db().try_get_as<extrude_feature>(
+            m_extrude_handle)) {
       extrude->set_profile(m_profile_face, m_direction, m_anchor);
       extrude->set_depth(0.0f);
     }

@@ -197,9 +197,6 @@ void box_feature::triangulate_shape() const {
     // Get transformation matrix
     gp_Trsf trsf = loc.Transformation();
 
-    // Outward normal from BRep surface (matches OCCT face orientation)
-    const glm::vec3 face_normal = geometry::face_outward_normal(face);
-
     // Base vertex index for this face
     unsigned int base_idx = static_cast<unsigned int>(m_mesh.vertices.size() / 3);
 
@@ -211,9 +208,11 @@ void box_feature::triangulate_shape() const {
       m_mesh.vertices.push_back(static_cast<float>(p.X()));
       m_mesh.vertices.push_back(static_cast<float>(p.Y()));
       m_mesh.vertices.push_back(static_cast<float>(p.Z()));
-      m_mesh.normals.push_back(face_normal.x);
-      m_mesh.normals.push_back(face_normal.y);
-      m_mesh.normals.push_back(face_normal.z);
+      const glm::vec3 node_normal =
+          geometry::mesh_node_outward_normal(face, tri, i);
+      m_mesh.normals.push_back(node_normal.x);
+      m_mesh.normals.push_back(node_normal.y);
+      m_mesh.normals.push_back(node_normal.z);
     }
 
     // Triangle indices: align winding to outward normal (OpenGL CCW front face)
@@ -229,8 +228,10 @@ void box_feature::triangulate_shape() const {
         return glm::vec3(static_cast<float>(p.X()), static_cast<float>(p.Y()),
                          static_cast<float>(p.Z()));
       };
+      const glm::vec3 winding_ref =
+          geometry::mesh_triangle_winding_reference(face, tri, n1, n2, n3);
       geometry::align_triangle_winding_to_outward(
-          to_glm(n1), to_glm(n2), to_glm(n3), n2, n3, face_normal);
+          to_glm(n1), to_glm(n2), to_glm(n3), n2, n3, winding_ref);
 
       m_mesh.indices.push_back(base_idx + static_cast<unsigned int>(n1 - 1));
       m_mesh.indices.push_back(base_idx + static_cast<unsigned int>(n2 - 1));

@@ -3,6 +3,9 @@
 #include "tests/cad/interaction/command_dispatcher.h"
 #include "imgui.h"
 
+#include <string>
+#include <utility>
+
 namespace toy_cad::interaction {
 
 command_panel &command_panel::instance() {
@@ -23,11 +26,12 @@ void command_panel::draw_ui() {
 
     const context_entry *ctx =
         m_context_stack.empty() ? nullptr : &m_context_stack.back();
-    if (ctx && ctx->name) {
-      ImGui::TextDisabled("Mode: %s", ctx->name);
+    if (ctx && !ctx->name.empty()) {
+      ImGui::TextDisabled("Mode: %s", ctx->name.c_str());
     }
 
-    const std::vector<button_entry> &buttons =
+    // Snapshot buttons so callbacks (e.g. Exit Sketch) can pop context safely.
+    const std::vector<button_entry> buttons =
         (ctx && !ctx->buttons.empty()) ? ctx->buttons : m_buttons;
 
     if (!buttons.empty()) {
@@ -41,19 +45,21 @@ void command_panel::draw_ui() {
           ImGui::SameLine(0.0f, k_gap);
         }
 
+        const char *tooltip =
+            btn.tooltip.empty() ? nullptr : btn.tooltip.c_str();
         const bool has_icon = icons.loaded(btn.icon);
         if (has_icon) {
           if (icons.icon_button(btn.icon, ImVec2(k_icon_size, k_icon_size),
-                                btn.tooltip)) {
+                                tooltip)) {
             btn.factory();
           }
-        } else if (ImGui::Button(btn.label, ImVec2(k_icon_size, k_icon_size))) {
+        } else if (ImGui::Button(btn.label.c_str(),
+                                 ImVec2(k_icon_size, k_icon_size))) {
           btn.factory();
-          if (btn.tooltip && ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("%s", btn.tooltip);
-          }
-        } else if (btn.tooltip && ImGui::IsItemHovered()) {
-          ImGui::SetTooltip("%s", btn.tooltip);
+        }
+
+        if (tooltip && ImGui::IsItemHovered()) {
+          ImGui::SetTooltip("%s", tooltip);
         }
       }
     }
@@ -68,14 +74,14 @@ void command_panel::draw_ui() {
 void command_panel::register_button(const char *label, const char *tooltip,
                                     command_factory factory, ui_icon_id icon) {
   if (label && factory) {
-    m_buttons.push_back({label, tooltip, std::move(factory), icon});
+    m_buttons.push_back({label, tooltip ? tooltip : "", std::move(factory), icon});
   }
 }
 
 void command_panel::clear_buttons() { m_buttons.clear(); }
 
 void command_panel::push_context(const char *name) {
-  m_context_stack.push_back({name, {}});
+  m_context_stack.push_back({name ? name : "", {}});
 }
 
 void command_panel::pop_context() {
@@ -91,8 +97,8 @@ void command_panel::register_context_button(const char *label,
   if (m_context_stack.empty() || !label || !factory) {
     return;
   }
-  m_context_stack.back().buttons.push_back({label, tooltip, std::move(factory),
-                                            icon});
+  m_context_stack.back().buttons.push_back(
+      {label, tooltip ? tooltip : "", std::move(factory), icon});
 }
 
 } // namespace toy_cad::interaction

@@ -92,11 +92,9 @@ void subshape_handle::extract_face_geometry(const TopoDS_Face &face) {
                                       static_cast<float>(p.Z()));
   }
 
-  const glm::vec3 face_normal = face_outward_normal(face);
-
-  // Fill normals (flat shading - same normal for all vertices)
-  for (int i = 0; i < n_nodes; ++i) {
-    m_face_geom.normals.push_back(face_normal);
+  for (int i = 1; i <= n_nodes; ++i) {
+    m_face_geom.normals.push_back(
+        mesh_node_outward_normal(face, triangulation, i));
   }
 
   // Extract indices with winding aligned to outward normal
@@ -109,7 +107,9 @@ void subshape_handle::extract_face_geometry(const TopoDS_Face &face) {
     const glm::vec3 p1 = m_face_geom.vertices[static_cast<size_t>(n1 - 1)];
     const glm::vec3 p2 = m_face_geom.vertices[static_cast<size_t>(n2 - 1)];
     const glm::vec3 p3 = m_face_geom.vertices[static_cast<size_t>(n3 - 1)];
-    align_triangle_winding_to_outward(p1, p2, p3, n2, n3, face_normal);
+    const glm::vec3 winding_ref =
+        mesh_triangle_winding_reference(face, triangulation, n1, n2, n3);
+    align_triangle_winding_to_outward(p1, p2, p3, n2, n3, winding_ref);
 
     m_face_geom.indices.push_back(base_idx + static_cast<uint32_t>(n1 - 1));
     m_face_geom.indices.push_back(base_idx + static_cast<uint32_t>(n2 - 1));

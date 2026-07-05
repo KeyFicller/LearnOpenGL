@@ -3,6 +3,7 @@
 #include "tests/cad/document/ui_icons.h"
 
 #include <functional>
+#include <string>
 #include <vector>
 
 namespace toy_cad::interaction {
@@ -48,14 +49,14 @@ private:
   ~command_panel() = default;
 
   struct button_entry {
-    const char *label;
-    const char *tooltip;
+    std::string label;
+    std::string tooltip;
     command_factory factory;
     ui_icon_id icon;
   };
 
   struct context_entry {
-    const char *name = nullptr;
+    std::string name;
     std::vector<button_entry> buttons;
   };
 

@@ -1,5 +1,7 @@
 #include "sketch_camera.h"
 
+#include "tests/cad/camera/fit_view.h"
+
 #include <gp_Dir.hxx>
 #include <gp_Pnt.hxx>
 
@@ -22,8 +24,9 @@ glm::vec3 to_glm(const gp_Dir &d) {
 
 } // namespace
 
-void align_camera_to_sketch_plane(camera &cam, const gp_Ax2 &plane,
-                                  float aspect_ratio) {
+void align_camera_to_sketch_plane(
+    camera &cam, const gp_Ax2 &plane, float aspect_ratio,
+    const std::optional<geometry::aabb> &fit_bounds) {
   const glm::vec3 origin = to_glm(plane.Location());
   const glm::vec3 normal = glm::normalize(to_glm(plane.Direction()));
   const glm::vec3 x_dir = glm::normalize(to_glm(plane.XDirection()));
@@ -33,13 +36,22 @@ void align_camera_to_sketch_plane(camera &cam, const gp_Ax2 &plane,
   constexpr float k_half_extent = 5.0f;
 
   cam.Orthographic = true;
-  cam.Position = origin + normal * k_view_distance;
   cam.WorldUp = y_dir;
-  cam.Front = -normal;
-  cam.Yaw =
-      std::atan2(cam.Front.y, cam.Front.x) * 180.0f / static_cast<float>(M_PI);
-  cam.Pitch = std::asin(std::clamp(cam.Front.z, -1.0f, 1.0f)) * 180.0f /
+
+  // Match camera::update_view_matrix (Pitch = asin(front.y), Yaw = atan2(front.z, front.x)).
+  const glm::vec3 look_dir = -normal;
+  cam.Pitch = std::asin(std::clamp(look_dir.y, -1.0f, 1.0f)) * 180.0f /
               static_cast<float>(M_PI);
+  cam.Yaw = std::atan2(look_dir.z, look_dir.x) * 180.0f /
+            static_cast<float>(M_PI);
+  cam.update_view_matrix();
+
+  if (fit_bounds.has_value() && fit_bounds->valid()) {
+    fit_camera_to_bounds(cam, *fit_bounds, aspect_ratio);
+    return;
+  }
+
+  cam.Position = origin + normal * k_view_distance;
 
   float half_w = k_half_extent;
   float half_h = k_half_extent;

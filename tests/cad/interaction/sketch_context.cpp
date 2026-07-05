@@ -1,6 +1,7 @@
 #include "sketch_context.h"
 
 #include "tests/cad/camera/sketch_camera.h"
+#include "tests/cad/database/brep/brep_query.h"
 #include "tests/cad/history/sketch_feature.h"
 #include "tests/cad/instance.h"
 
@@ -64,13 +65,18 @@ void sketch_context::apply_snapshot(camera &cam,
 }
 
 void sketch_context::begin(const gp_Ax2 &plane, handle sketch_handle,
-                           camera &cam) {
+                           camera &cam, handle fit_target) {
   m_plane = plane;
   m_sketch_handle = sketch_handle;
+  m_fit_target = fit_target;
   m_saved_camera = capture_camera(cam);
   m_active = true;
 
-  align_camera_to_sketch_plane(cam, m_plane, cam.AspectRatio);
+  std::optional<geometry::aabb> fit_bounds;
+  if (m_fit_target.valid()) {
+    fit_bounds = subshape_bounds(instance::get().db(), m_fit_target);
+  }
+  align_camera_to_sketch_plane(cam, m_plane, cam.AspectRatio, fit_bounds);
 
   if (auto *sketch_obj = sketch()) {
     sketch_obj->set_plane(m_plane);
@@ -89,6 +95,7 @@ void sketch_context::finish() {
 
   m_active = false;
   m_sketch_handle = {};
+  m_fit_target = {};
   m_live_preview = {};
   m_plane_hover.reset();
 }
@@ -104,6 +111,7 @@ void sketch_context::cancel() {
   }
 
   m_active = false;
+  m_fit_target = {};
   m_live_preview = {};
   m_plane_hover.reset();
   m_on_finish = {};
@@ -113,7 +121,11 @@ void sketch_context::apply_sketch_camera(camera &cam) const {
   if (!m_active) {
     return;
   }
-  align_camera_to_sketch_plane(cam, m_plane, cam.AspectRatio);
+  std::optional<geometry::aabb> fit_bounds;
+  if (m_fit_target.valid()) {
+    fit_bounds = subshape_bounds(instance::get().db(), m_fit_target);
+  }
+  align_camera_to_sketch_plane(cam, m_plane, cam.AspectRatio, fit_bounds);
 }
 
 void sketch_context::restore_camera(camera &cam) const {

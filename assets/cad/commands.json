@@ -3,6 +3,7 @@
   "handlers": {
     "point": "point_input_handler",
     "face": "face_input_handler",
+    "profile": "profile_input_handler",
     "extrude_depth": "extrude_depth_input_handler",
     "sketch_plane": "sketch_plane_input_handler",
     "sketch_point": "sketch_point_input_handler"
@@ -80,22 +81,22 @@
     {
       "id": "extrude",
       "name": "Extrude",
-      "tooltip": "Pick a face and drag to set extrusion height",
+      "tooltip": "Pick a face or sketch profile and drag to set extrusion height",
       "icon": "extrude",
       "scope": "global",
       "impl": "extrude",
       "completion": "explicit",
       "steps": [
         {
-          "id": "pick_face",
-          "handler": "face",
-          "flag": "face",
-          "prompt": "Step 1: Click a face to extrude",
+          "id": "pick_profile",
+          "handler": "profile",
+          "flag": "profile",
+          "prompt": "Step 1: Click a face or sketch profile to extrude",
           "transitions": {
             "confirm": {
               "advance": "pick_depth",
               "mode": "deferred",
-              "actions": ["extrude.on_face_confirmed"]
+              "actions": ["extrude.on_profile_confirmed"]
             }
           }
         },

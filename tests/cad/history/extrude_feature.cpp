@@ -188,7 +188,6 @@ void extrude_feature::triangulate_shape() const {
     }
 
     gp_Trsf trsf = loc.Transformation();
-    const glm::vec3 face_normal = geometry::face_outward_normal(face);
     const unsigned int base_idx =
         static_cast<unsigned int>(m_mesh.vertices.size() / 3);
 
@@ -199,9 +198,11 @@ void extrude_feature::triangulate_shape() const {
       m_mesh.vertices.push_back(static_cast<float>(p.X()));
       m_mesh.vertices.push_back(static_cast<float>(p.Y()));
       m_mesh.vertices.push_back(static_cast<float>(p.Z()));
-      m_mesh.normals.push_back(face_normal.x);
-      m_mesh.normals.push_back(face_normal.y);
-      m_mesh.normals.push_back(face_normal.z);
+      const glm::vec3 node_normal =
+          geometry::mesh_node_outward_normal(face, tri, i);
+      m_mesh.normals.push_back(node_normal.x);
+      m_mesh.normals.push_back(node_normal.y);
+      m_mesh.normals.push_back(node_normal.z);
     }
 
     const int n_triangles = tri->NbTriangles();
@@ -216,8 +217,10 @@ void extrude_feature::triangulate_shape() const {
         return glm::vec3(static_cast<float>(p.X()), static_cast<float>(p.Y()),
                          static_cast<float>(p.Z()));
       };
+      const glm::vec3 winding_ref =
+          geometry::mesh_triangle_winding_reference(face, tri, n1, n2, n3);
       geometry::align_triangle_winding_to_outward(
-          to_glm(n1), to_glm(n2), to_glm(n3), n2, n3, face_normal);
+          to_glm(n1), to_glm(n2), to_glm(n3), n2, n3, winding_ref);
 
       m_mesh.indices.push_back(base_idx + static_cast<unsigned int>(n1 - 1));
       m_mesh.indices.push_back(base_idx + static_cast<unsigned int>(n2 - 1));

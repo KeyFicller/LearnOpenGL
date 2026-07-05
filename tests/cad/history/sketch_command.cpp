@@ -27,7 +27,7 @@ void sketch_command::cancel_nested_sketch_tools() {
 void sketch_command::on_activate() {
   m_plane = gp_Ax2();
   m_sketch_handle = {};
-  m_pending_sketch_exit = false;
+  m_plane_source_handle = {};
   flow_command::on_activate();
 }
 
@@ -55,18 +55,7 @@ void sketch_command::on_complete() {
   flow_command::on_complete();
 }
 
-bool sketch_command::on_update() {
-  if (m_pending_sketch_exit) {
-    m_pending_sketch_exit = false;
-    cancel_nested_sketch_tools();
-    if (camera *cam = instance::get().scene_camera()) {
-      sketch_context::instance().restore_camera(*cam);
-    }
-    sketch_context::instance().finish();
-    return false;
-  }
-  return flow_command::on_update();
-}
+bool sketch_command::on_update() { return flow_command::on_update(); }
 
 void sketch_command::on_draw_ui() {
   flow_command::on_draw_ui();
@@ -78,7 +67,8 @@ void sketch_command::on_draw_ui() {
 void sketch_command::on_step_entered(const interaction::step_def &step) {
   if (step.id == "editing") {
     if (camera *cam = instance::get().scene_camera()) {
-      sketch_context::instance().begin(m_plane, m_sketch_handle, *cam);
+      sketch_context::instance().begin(m_plane, m_sketch_handle, *cam,
+                                       m_plane_source_handle);
     }
   }
 }
@@ -101,6 +91,7 @@ bool sketch_command::on_flow_action(const std::string &action,
 
     const interaction::sketch_plane_pick pick = plane_handler->hover_pick();
     m_plane = pick.ax2;
+    m_plane_source_handle = pick.source_handle;
     m_sketch_handle = instance::get().db().emplace<sketch_feature>();
     if (auto *sketch =
             instance::get().db().try_get_as<sketch_feature>(m_sketch_handle)) {
@@ -116,7 +107,18 @@ void sketch_command::request_exit() {
   if (current_step_id() != "editing") {
     return;
   }
-  m_pending_sketch_exit = true;
+
+  cancel_nested_sketch_tools();
+
+  if (camera *cam = instance::get().scene_camera()) {
+    sketch_context::instance().restore_camera(*cam);
+  }
+  sketch_context::instance().finish();
+
+  auto &dispatcher = interaction::command_dispatcher::instance();
+  if (dispatcher.active_command() == this) {
+    dispatcher.complete_current();
+  }
 }
 
 } // namespace toy_cad

@@ -4,6 +4,7 @@
 #include "command_registry.h"
 #include "extrude_depth_input_handler.h"
 #include "face_input_handler.h"
+#include "profile_input_handler.h"
 #include "handler_registry.h"
 #include "point_input_handler.h"
 #include "sketch_plane_input_handler.h"
@@ -37,6 +38,12 @@ bool handler_has_valid_input(input_handler *handler, const step_def &step) {
   if (*step.handler == "face") {
     if (auto *face = dynamic_cast<face_input_handler *>(handler)) {
       return face->has_valid_hover();
+    }
+    return false;
+  }
+  if (*step.handler == "profile") {
+    if (auto *profile = dynamic_cast<profile_input_handler *>(handler)) {
+      return profile->has_valid_hover();
     }
     return false;
   }

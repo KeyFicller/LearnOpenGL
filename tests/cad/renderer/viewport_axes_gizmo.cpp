@@ -72,6 +72,9 @@ glm::mat4 mvp_with_anchor_bias(const glm::mat4 &mvp, const anchor_mini_rect &ar)
 }
 
 void begin_anchor_mini_gl_state(const anchor_mini_rect &ar) {
+  if (ar.draw_w <= 0 || ar.draw_h <= 0) {
+    return;
+  }
   glViewport(ar.draw_vx, ar.draw_vy, ar.draw_w, ar.draw_h);
   glEnable(GL_SCISSOR_TEST);
   glScissor(ar.draw_vx, ar.draw_vy, ar.draw_w, ar.draw_h);

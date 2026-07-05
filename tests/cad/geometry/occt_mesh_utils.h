@@ -4,6 +4,7 @@
 
 #include <TopoDS_Face.hxx>
 #include <TopAbs_Orientation.hxx>
+#include <Poly_Triangulation.hxx>
 #include <gp_Pnt.hxx>
 #include <gp_Vec.hxx>
 
@@ -45,5 +46,18 @@ inline void align_triangle_winding_to_outward(const glm::vec3 &p1,
 
 /** Outward-pointing unit normal for a planar or curved BRep face. */
 glm::vec3 face_outward_normal(const TopoDS_Face &face);
+
+/** Outward normal at parametric (u, v) on a BRep face surface. */
+glm::vec3 face_outward_normal_at_uv(const TopoDS_Face &face, double u, double v);
+
+/** Per-vertex outward normal from OCCT face triangulation UV. */
+glm::vec3 mesh_node_outward_normal(const TopoDS_Face &face,
+                                   const Handle(Poly_Triangulation) &tri,
+                                   int node_index);
+
+/** Outward reference for aligning one mesh triangle (UV centroid when available). */
+glm::vec3 mesh_triangle_winding_reference(const TopoDS_Face &face,
+                                          const Handle(Poly_Triangulation) &tri,
+                                          int n1, int n2, int n3);
 
 } // namespace toy_cad::geometry

@@ -54,11 +54,6 @@ public:
 
   [[nodiscard]] handle brep_handle() const override { return m_brep; }
 
-  /** Draw a preview segment (world-space endpoints). */
-  void draw_preview_segment(const gp_Pnt &p1, const gp_Pnt &p2) const;
-  void draw_preview_circle(const gp_Pnt &center, double radius) const;
-  void draw_preview_point(const gp_Pnt &point) const;
-
 private:
   gp_Ax2 m_plane{};
   std::vector<line_segment> m_lines;
@@ -71,7 +66,6 @@ private:
 
   void clear_brep_topology();
   void rebuild_brep_topology();
-  void draw_curves() const;
 };
 
 } // namespace toy_cad

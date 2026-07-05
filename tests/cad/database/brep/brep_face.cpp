@@ -96,9 +96,10 @@ void brep_face::build_geometry() {
                                  static_cast<float>(p.Z()));
   }
 
-  const glm::vec3 face_normal = geometry::face_outward_normal(m_face);
-  for (int i = 0; i < n_nodes; ++i) {
-    m_geom.normals.push_back(face_normal);
+  for (int i = 1; i <= n_nodes; ++i) {
+    const glm::vec3 node_normal =
+        geometry::mesh_node_outward_normal(m_face, triangulation, i);
+    m_geom.normals.push_back(node_normal);
   }
 
   const unsigned int base_idx = 0;
@@ -110,7 +111,9 @@ void brep_face::build_geometry() {
     const glm::vec3 p1 = m_geom.vertices[static_cast<size_t>(n1 - 1)];
     const glm::vec3 p2 = m_geom.vertices[static_cast<size_t>(n2 - 1)];
     const glm::vec3 p3 = m_geom.vertices[static_cast<size_t>(n3 - 1)];
-    geometry::align_triangle_winding_to_outward(p1, p2, p3, n2, n3, face_normal);
+    const glm::vec3 winding_ref = geometry::mesh_triangle_winding_reference(
+        m_face, triangulation, n1, n2, n3);
+    geometry::align_triangle_winding_to_outward(p1, p2, p3, n2, n3, winding_ref);
 
     m_geom.indices.push_back(base_idx + static_cast<uint32_t>(n1 - 1));
     m_geom.indices.push_back(base_idx + static_cast<uint32_t>(n2 - 1));

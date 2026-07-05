@@ -30,7 +30,7 @@ public:
 private:
   gp_Ax2 m_plane{};
   handle m_sketch_handle{};
-  bool m_pending_sketch_exit = false;
+  handle m_plane_source_handle{};
 };
 
 } // namespace toy_cad
