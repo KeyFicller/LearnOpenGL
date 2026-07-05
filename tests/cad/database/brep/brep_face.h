@@ -14,16 +14,16 @@ public:
   brep_face() = default;
   brep_face(const TopoDS_Face &face, handle owner_brep, handle owner_shell);
 
-  [[nodiscard]] const TopoDS_Face &face() const { return m_face; }
-  [[nodiscard]] const geometry::face_geometry &geom() const { return m_geom; }
-  [[nodiscard]] const geometry::aabb &bounds() const { return m_geom.bounds; }
-  [[nodiscard]] handle owner_brep() const { return m_owner_brep; }
-  [[nodiscard]] handle owner_shell() const { return m_owner_shell; }
+  const TopoDS_Face &face() const { return m_face; }
+  const geometry::face_geometry &geom() const { return m_geom; }
+  const geometry::aabb &bounds() const { return m_geom.bounds; }
+  handle owner_brep() const { return m_owner_brep; }
+  handle owner_shell() const { return m_owner_shell; }
 
   void set_topology(const TopoDS_Face &face, handle owner_brep,
                     handle owner_shell);
 
-  [[nodiscard]] float intersect_ray(const glm::vec3 &ray_origin,
+  float intersect_ray(const glm::vec3 &ray_origin,
                                     const glm::vec3 &ray_dir) const;
 
   void draw_highlighted(const glm::vec3 &color) const;

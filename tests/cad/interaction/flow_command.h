@@ -28,10 +28,10 @@ public:
   flow_command(const flow_command &) = delete;
   flow_command &operator=(const flow_command &) = delete;
 
-  [[nodiscard]] const char *name() const override;
-  [[nodiscard]] const std::string &command_id() const { return m_command_id; }
-  [[nodiscard]] const command_def *def() const { return m_def; }
-  [[nodiscard]] const std::string &current_step_id() const {
+  const char *name() const override;
+  const std::string &command_id() const { return m_command_id; }
+  const command_def *def() const { return m_def; }
+  const std::string &current_step_id() const {
     return m_current_step_id;
   }
 
@@ -68,8 +68,8 @@ protected:
                        input_handler *handler, bool confirmed,
                        const step_def *step);
   void pop_active_handler();
-  [[nodiscard]] input_handler *active_handler() const;
-  [[nodiscard]] step_def *current_step();
+  input_handler *active_handler() const;
+  step_def *current_step();
 
   std::string m_command_id;
   const command_def *m_def = nullptr;

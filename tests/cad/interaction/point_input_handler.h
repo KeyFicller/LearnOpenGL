@@ -30,8 +30,8 @@ public:
   bool on_mouse_button(int button, int action, int mods) override;
 
   /** Get last preview point (may be invalid if ray parallel to plane). */
-  [[nodiscard]] glm::vec3 preview_point() const { return m_preview_point; }
-  [[nodiscard]] bool has_valid_preview() const { return m_preview_valid; }
+  glm::vec3 preview_point() const { return m_preview_point; }
+  bool has_valid_preview() const { return m_preview_valid; }
 
 private:
   glm::vec3 m_preview_point{0.0f};

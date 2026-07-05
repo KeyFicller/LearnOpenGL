@@ -19,12 +19,12 @@ class brep final : public object {
 public:
   brep() = default;
 
-  [[nodiscard]] const std::vector<handle> &shell_handles() const {
+  const std::vector<handle> &shell_handles() const {
     return m_shell_handles;
   }
-  [[nodiscard]] const geometry::bvh_tree &bvh() const { return m_bvh; }
-  [[nodiscard]] bool has_bvh() const { return !m_bvh.empty(); }
-  [[nodiscard]] bool empty() const { return m_shell_handles.empty(); }
+  const geometry::bvh_tree &bvh() const { return m_bvh; }
+  bool has_bvh() const { return !m_bvh.empty(); }
+  bool empty() const { return m_shell_handles.empty(); }
 
   /** Destroy child shell/face/edge objects and clear BVH. */
   void clear(database &db);
@@ -46,8 +46,8 @@ public:
   void draw_subshape_highlighted(database &db, handle subshape,
                                  const glm::vec3 &color) const;
 
-  [[nodiscard]] size_t face_count(database &db) const;
-  [[nodiscard]] size_t edge_count(database &db) const;
+  size_t face_count(database &db) const;
+  size_t edge_count(database &db) const;
 
   void inspect() const override;
 

@@ -28,20 +28,20 @@ public:
   sketch_feature() = default;
 
   void set_plane(const gp_Ax2 &plane);
-  [[nodiscard]] const gp_Ax2 &plane() const { return m_plane; }
+  const gp_Ax2 &plane() const { return m_plane; }
 
   void add_line(const gp_Pnt &p1, const gp_Pnt &p2);
   void add_circle(const gp_Pnt &center, double radius);
 
-  [[nodiscard]] const std::vector<line_segment> &lines() const {
+  const std::vector<line_segment> &lines() const {
     return m_lines;
   }
-  [[nodiscard]] const std::vector<circle_curve> &circles() const {
+  const std::vector<circle_curve> &circles() const {
     return m_circles;
   }
 
-  [[nodiscard]] bool has_profile() const { return m_has_profile; }
-  [[nodiscard]] const TopoDS_Face &profile_face() const {
+  bool has_profile() const { return m_has_profile; }
+  const TopoDS_Face &profile_face() const {
     return m_profile_face;
   }
 
@@ -52,7 +52,7 @@ public:
   void draw_ui(handle explorer_row) override;
   void inspect() const override;
 
-  [[nodiscard]] handle brep_handle() const override { return m_brep; }
+  handle brep_handle() const override { return m_brep; }
 
 private:
   gp_Ax2 m_plane{};

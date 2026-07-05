@@ -37,10 +37,10 @@ public:
   bool on_mouse_moved(double xpos, double ypos) override;
   bool on_mouse_button(int button, int action, int mods) override;
 
-  [[nodiscard]] bool has_valid_hover() const {
+  bool has_valid_hover() const {
     return m_hover_pick.source != sketch_plane_source::none;
   }
-  [[nodiscard]] const sketch_plane_pick &hover_pick() const {
+  const sketch_plane_pick &hover_pick() const {
     return m_hover_pick;
   }
 

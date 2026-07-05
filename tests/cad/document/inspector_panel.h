@@ -15,7 +15,7 @@ public:
   void set_target(handle h);
   void clear_target();
 
-  [[nodiscard]] handle target() const noexcept { return m_target; }
+  handle target() const noexcept { return m_target; }
 
   void draw_ui();
 

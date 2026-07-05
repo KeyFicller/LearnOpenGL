@@ -27,9 +27,9 @@ struct subshape_id {
   subshape_type type;
   uint32_t index;
 
-  [[nodiscard]] bool valid() const { return index != 0xffffffffu; }
+  bool valid() const { return index != 0xffffffffu; }
 
-  [[nodiscard]] uint64_t key() const {
+  uint64_t key() const {
     return (static_cast<uint64_t>(static_cast<uint8_t>(type)) << 32u) | index;
   }
 
@@ -46,7 +46,7 @@ struct subshape_id {
  * Hash function for subshape_id.
  */
 struct subshape_id_hash {
-  [[nodiscard]] std::size_t operator()(subshape_id id) const noexcept {
+  std::size_t operator()(subshape_id id) const noexcept {
     return static_cast<std::size_t>(id.key());
   }
 };
@@ -63,13 +63,13 @@ struct aabb {
   glm::vec3 min{0.0f};
   glm::vec3 max{0.0f};
 
-  [[nodiscard]] bool valid() const {
+  bool valid() const {
     return min.x <= max.x && min.y <= max.y && min.z <= max.z;
   }
 
-  [[nodiscard]] glm::vec3 center() const { return (min + max) * 0.5f; }
-  [[nodiscard]] glm::vec3 extent() const { return max - min; }
-  [[nodiscard]] float surface_area() const;
+  glm::vec3 center() const { return (min + max) * 0.5f; }
+  glm::vec3 extent() const { return max - min; }
+  float surface_area() const;
 
   /**
    * Expand the AABB to include a point.
@@ -90,7 +90,7 @@ struct aabb {
   /**
    * Check if this AABB intersects with another.
    */
-  [[nodiscard]] bool intersects(const aabb &other) const {
+  bool intersects(const aabb &other) const {
     return min.x <= other.max.x && max.x >= other.min.x &&
            min.y <= other.max.y && max.y >= other.min.y &&
            min.z <= other.max.z && max.z >= other.min.z;
@@ -99,7 +99,7 @@ struct aabb {
   /**
    * Check if a point is inside this AABB.
    */
-  [[nodiscard]] bool contains(const glm::vec3 &p) const {
+  bool contains(const glm::vec3 &p) const {
     return p.x >= min.x && p.x <= max.x && p.y >= min.y && p.y <= max.y &&
            p.z >= min.z && p.z <= max.z;
   }
@@ -117,7 +117,7 @@ struct face_geometry {
   /**
    * Compute face centroid from vertices.
    */
-  [[nodiscard]] glm::vec3 centroid() const;
+  glm::vec3 centroid() const;
 };
 
 /**
@@ -130,7 +130,7 @@ struct edge_geometry {
   /**
    * Compute edge midpoint.
    */
-  [[nodiscard]] glm::vec3 midpoint() const;
+  glm::vec3 midpoint() const;
 };
 
 /**
@@ -152,37 +152,37 @@ public:
    */
   static subshape_handle create_edge(subshape_id id, const TopoDS_Edge &edge);
 
-  [[nodiscard]] subshape_id id() const { return m_id; }
-  [[nodiscard]] subshape_type type() const { return m_id.type; }
-  [[nodiscard]] bool valid() const { return m_id.valid(); }
+  subshape_id id() const { return m_id; }
+  subshape_type type() const { return m_id.type; }
+  bool valid() const { return m_id.valid(); }
 
-  [[nodiscard]] bool is_face() const { return m_id.type == subshape_type::face; }
-  [[nodiscard]] bool is_edge() const { return m_id.type == subshape_type::edge; }
+  bool is_face() const { return m_id.type == subshape_type::face; }
+  bool is_edge() const { return m_id.type == subshape_type::edge; }
 
   /**
    * Get the OCCT face (valid only if is_face() is true).
    */
-  [[nodiscard]] const TopoDS_Face &face() const { return m_face; }
+  const TopoDS_Face &face() const { return m_face; }
 
   /**
    * Get the OCCT edge (valid only if is_edge() is true).
    */
-  [[nodiscard]] const TopoDS_Edge &edge() const { return m_edge; }
+  const TopoDS_Edge &edge() const { return m_edge; }
 
   /**
    * Get the cached geometry for faces.
    */
-  [[nodiscard]] const face_geometry &face_geom() const { return m_face_geom; }
+  const face_geometry &face_geom() const { return m_face_geom; }
 
   /**
    * Get the cached geometry for edges.
    */
-  [[nodiscard]] const edge_geometry &edge_geom() const { return m_edge_geom; }
+  const edge_geometry &edge_geom() const { return m_edge_geom; }
 
   /**
    * Get the world-space bounding box.
    */
-  [[nodiscard]] const aabb &bounds() const {
+  const aabb &bounds() const {
     return is_face() ? m_face_geom.bounds : m_edge_geom.bounds;
   }
 
@@ -190,7 +190,7 @@ public:
    * Ray-triangle intersection for face types.
    * @return t value (distance along ray) if hit, -1.0f if miss
    */
-  [[nodiscard]] float intersect_ray(const glm::vec3 &ray_origin,
+  float intersect_ray(const glm::vec3 &ray_origin,
                                     const glm::vec3 &ray_dir) const;
 
   friend bool operator==(const subshape_handle &a, const subshape_handle &b) {
@@ -219,7 +219,7 @@ private:
  * Hash function for subshape_handle.
  */
 struct subshape_handle_hash {
-  [[nodiscard]] std::size_t operator()(const subshape_handle &h) const noexcept {
+  std::size_t operator()(const subshape_handle &h) const noexcept {
     return subshape_id_hash{}(h.id());
   }
 };

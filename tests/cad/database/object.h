@@ -15,7 +15,7 @@ public:
 
   virtual ~object() = default;
 
-  [[nodiscard]] const std::string &tag() const noexcept { return m_tag; }
+  const std::string &tag() const noexcept { return m_tag; }
 
   /** ImGui property panel sections; overrides call superclass first, then emit own fields. */
   virtual void inspect() const;

@@ -39,10 +39,10 @@ public:
   bool on_mouse_moved(double xpos, double ypos) override;
   bool on_mouse_button(int button, int action, int mods) override;
 
-  [[nodiscard]] bool has_valid_hover() const {
+  bool has_valid_hover() const {
     return m_hover_pick.source != profile_source_kind::none;
   }
-  [[nodiscard]] const profile_pick &hover_pick() const { return m_hover_pick; }
+  const profile_pick &hover_pick() const { return m_hover_pick; }
 
 private:
   profile_pick m_hover_pick{};

@@ -50,32 +50,32 @@ public:
   void pop_input_handler();
   interaction::input_handler *top_input_handler();
 
-  [[nodiscard]] database &db() { return m_database; }
-  [[nodiscard]] const database &db() const { return m_database; }
+  database &db() { return m_database; }
+  const database &db() const { return m_database; }
 
-  [[nodiscard]] disp_var &disp() { return m_disp; }
-  [[nodiscard]] const disp_var &disp() const { return m_disp; }
+  disp_var &disp() { return m_disp; }
+  const disp_var &disp() const { return m_disp; }
 
-  [[nodiscard]] history_tree &history() { return m_history; }
-  [[nodiscard]] const history_tree &history() const { return m_history; }
+  history_tree &history() { return m_history; }
+  const history_tree &history() const { return m_history; }
 
-  [[nodiscard]] GLFWwindow *window() const { return m_window; }
+  GLFWwindow *window() const { return m_window; }
 
-  [[nodiscard]] shader &viewport_shader() { return *m_vp_shader; }
+  shader &viewport_shader() { return *m_vp_shader; }
 
-  [[nodiscard]] shader &global_shader() { return *m_global_shader; }
+  shader &global_shader() { return *m_global_shader; }
 
-  [[nodiscard]] viewport_axes_gizmo &viewport_axes() { return m_viewport_axes; }
-  [[nodiscard]] const viewport_axes_gizmo &viewport_axes() const {
+  viewport_axes_gizmo &viewport_axes() { return m_viewport_axes; }
+  const viewport_axes_gizmo &viewport_axes() const {
     return m_viewport_axes;
   }
 
-  [[nodiscard]] mesh_display_mode display_mode() const { return m_display_mode; }
+  mesh_display_mode display_mode() const { return m_display_mode; }
   void set_display_mode(mesh_display_mode mode) { m_display_mode = mode; }
 
   /** Scene-owned camera (set by toy_cad_scene). Used for sketch view alignment. */
   void set_scene_camera(camera *cam) { m_scene_camera = cam; }
-  [[nodiscard]] camera *scene_camera() const { return m_scene_camera; }
+  camera *scene_camera() const { return m_scene_camera; }
 
 private:
   instance() = default;

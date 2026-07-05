@@ -12,11 +12,11 @@ public:
   brep_shell() = default;
   explicit brep_shell(handle owner_brep);
 
-  [[nodiscard]] handle owner_brep() const { return m_owner_brep; }
-  [[nodiscard]] const std::vector<handle> &face_handles() const {
+  handle owner_brep() const { return m_owner_brep; }
+  const std::vector<handle> &face_handles() const {
     return m_face_handles;
   }
-  [[nodiscard]] const std::vector<handle> &edge_handles() const {
+  const std::vector<handle> &edge_handles() const {
     return m_edge_handles;
   }
 

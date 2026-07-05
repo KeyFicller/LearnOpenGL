@@ -130,7 +130,7 @@ void command_registry::push_context(const std::string &context_id) {
               return;
             }
             flow_action_context ctx;
-            command_actions::instance().invoke(action, *flow, ctx);
+            (void)command_actions::instance().invoke(action, *flow, ctx);
           },
           parse_icon(btn.icon));
     }

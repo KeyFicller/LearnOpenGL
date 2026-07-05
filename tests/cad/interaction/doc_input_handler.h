@@ -22,12 +22,12 @@ public:
   /** Legacy selection API - clears object-level selection */
   void clear_selection();
 
-  [[nodiscard]] bool is_selected(handle h) const;
+  bool is_selected(handle h) const;
 
   /** Call from explorer tree on left click (Ctrl = toggle in set, else replace). */
   void on_explorer_item_left_click(handle item);
 
-  [[nodiscard]] const std::unordered_set<handle, handle_hash> &selection()
+  const std::unordered_set<handle, handle_hash> &selection()
       const noexcept {
     return m_selection;
   }
@@ -39,12 +39,12 @@ public:
   /**
    * Check if currently dragging for box selection.
    */
-  [[nodiscard]] bool is_dragging() const { return m_is_dragging; }
+  bool is_dragging() const { return m_is_dragging; }
 
   /**
    * Get current drag selection rectangle (if active).
    */
-  [[nodiscard]] std::optional<std::pair<glm::vec2, glm::vec2>>
+  std::optional<std::pair<glm::vec2, glm::vec2>>
   drag_rect() const;
 
 private:

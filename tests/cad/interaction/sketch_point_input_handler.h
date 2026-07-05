@@ -22,8 +22,8 @@ public:
   bool on_mouse_moved(double xpos, double ypos) override;
   bool on_mouse_button(int button, int action, int mods) override;
 
-  [[nodiscard]] glm::vec3 preview_point() const { return m_preview_point; }
-  [[nodiscard]] bool has_valid_preview() const { return m_preview_valid; }
+  glm::vec3 preview_point() const { return m_preview_point; }
+  bool has_valid_preview() const { return m_preview_valid; }
 
   /** Refresh preview from current viewport cursor (call after pushing handler). */
   void sync_from_viewport_cursor();

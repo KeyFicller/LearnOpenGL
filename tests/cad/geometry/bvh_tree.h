@@ -18,7 +18,7 @@ struct bvh_node {
   uint32_t right_child = 0;
   uint32_t primitive_index = 0xffffffffu;
 
-  [[nodiscard]] bool is_leaf() const {
+  bool is_leaf() const {
     return left_child == 0 && right_child == 0;
   }
 };
@@ -27,7 +27,7 @@ struct ray_hit {
   handle subshape{};
   float t = -1.0f;
 
-  [[nodiscard]] bool valid() const { return subshape.valid() && t >= 0.0f; }
+  bool valid() const { return subshape.valid() && t >= 0.0f; }
 };
 
 using bvh_bounds_fn = std::function<const aabb *(handle)>;
@@ -49,7 +49,7 @@ public:
 
   void clear();
 
-  [[nodiscard]] bool empty() const { return m_nodes.empty(); }
+  bool empty() const { return m_nodes.empty(); }
 
   [[nodiscard]] std::optional<ray_hit>
   intersect_ray(const glm::vec3 &ray_origin, const glm::vec3 &ray_dir,
@@ -72,10 +72,10 @@ private:
   uint32_t build_recursive(std::vector<uint32_t> &primitive_indices,
                            uint32_t start, uint32_t end);
 
-  [[nodiscard]] aabb compute_bounds(const std::vector<uint32_t> &primitive_indices,
+  aabb compute_bounds(const std::vector<uint32_t> &primitive_indices,
                                     uint32_t start, uint32_t end) const;
 
-  [[nodiscard]] uint32_t choose_split_axis(const aabb &bounds) const;
+  uint32_t choose_split_axis(const aabb &bounds) const;
 
   [[nodiscard]] static bool ray_aabb_intersect(const aabb &box,
                                                const glm::vec3 &ray_origin,
@@ -85,8 +85,8 @@ private:
   [[nodiscard]] static bool aabb_frustum_intersect(const aabb &box,
                                                    const glm::vec4 frustum_planes[6]);
 
-  [[nodiscard]] handle get_primitive(uint32_t idx) const;
-  [[nodiscard]] const aabb *bounds_for(uint32_t primitive_idx) const;
+  handle get_primitive(uint32_t idx) const;
+  const aabb *bounds_for(uint32_t primitive_idx) const;
 };
 
 void frustum_from_screen_rect(const glm::vec2 &screen_min,

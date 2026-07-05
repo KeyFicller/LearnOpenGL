@@ -20,7 +20,7 @@ enum class brep_subshape_kind : uint8_t {
 };
 
 /** Resolve a db handle to face or edge subshape object. */
-[[nodiscard]] brep_subshape_kind subshape_kind(database &db, handle h);
+brep_subshape_kind subshape_kind(database &db, handle h);
 
 [[nodiscard]] brep_face *try_get_face(database &db, handle h);
 [[nodiscard]] brep_edge *try_get_edge(database &db, handle h);

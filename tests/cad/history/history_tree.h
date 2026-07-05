@@ -23,21 +23,21 @@ public:
 
   void clear() { m_handles.clear(); }
 
-  [[nodiscard]] size_t size() const { return m_handles.size(); }
+  size_t size() const { return m_handles.size(); }
 
-  [[nodiscard]] bool empty() const { return m_handles.empty(); }
+  bool empty() const { return m_handles.empty(); }
 
-  [[nodiscard]] iterator begin() { return m_handles.begin(); }
+  iterator begin() { return m_handles.begin(); }
 
-  [[nodiscard]] iterator end() { return m_handles.end(); }
+  iterator end() { return m_handles.end(); }
 
-  [[nodiscard]] const_iterator begin() const { return m_handles.begin(); }
+  const_iterator begin() const { return m_handles.begin(); }
 
-  [[nodiscard]] const_iterator end() const { return m_handles.end(); }
+  const_iterator end() const { return m_handles.end(); }
 
-  [[nodiscard]] const_iterator cbegin() const { return m_handles.cbegin(); }
+  const_iterator cbegin() const { return m_handles.cbegin(); }
 
-  [[nodiscard]] const_iterator cend() const { return m_handles.cend(); }
+  const_iterator cend() const { return m_handles.cend(); }
 
   void draw_global();
   void draw_local();

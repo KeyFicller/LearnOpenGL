@@ -15,8 +15,8 @@ public:
 
   void inspect() const override;
 
-  [[nodiscard]] virtual handle brep_handle() const = 0;
-  [[nodiscard]] virtual bool has_brep() const { return brep_handle().valid(); }
+  virtual handle brep_handle() const = 0;
+  virtual bool has_brep() const { return brep_handle().valid(); }
 
 protected:
   primitive_feature() = default;

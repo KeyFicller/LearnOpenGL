@@ -11,13 +11,13 @@ public:
   explicit coordinate(std::array<handle, 3> datum_handles,
                       std::array<handle, 3> axis_handles);
 
-  [[nodiscard]] std::array<handle, 3> &datum_handles() { return m_datum_handles; }
-  [[nodiscard]] const std::array<handle, 3> &datum_handles() const {
+  std::array<handle, 3> &datum_handles() { return m_datum_handles; }
+  const std::array<handle, 3> &datum_handles() const {
     return m_datum_handles;
   }
 
-  [[nodiscard]] std::array<handle, 3> &axis_handles() { return m_axis_handles; }
-  [[nodiscard]] const std::array<handle, 3> &axis_handles() const {
+  std::array<handle, 3> &axis_handles() { return m_axis_handles; }
+  const std::array<handle, 3> &axis_handles() const {
     return m_axis_handles;
   }
 

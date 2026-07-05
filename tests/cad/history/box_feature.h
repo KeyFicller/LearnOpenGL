@@ -18,9 +18,9 @@ public:
   box_feature() = default;
 
   void set_corners(const glm::vec3 &p1, const glm::vec3 &p2);
-  [[nodiscard]] glm::vec3 corner_min() const { return m_min; }
-  [[nodiscard]] glm::vec3 corner_max() const { return m_max; }
-  [[nodiscard]] bool has_geometry() const { return m_shape_ok; }
+  glm::vec3 corner_min() const { return m_min; }
+  glm::vec3 corner_max() const { return m_max; }
+  bool has_geometry() const { return m_shape_ok; }
 
   void regen() override;
 
@@ -29,7 +29,7 @@ public:
   void draw_ui(handle explorer_row) override;
   void inspect() const override;
 
-  [[nodiscard]] handle brep_handle() const override { return m_brep; }
+  handle brep_handle() const override { return m_brep; }
 
 private:
   glm::vec3 m_min{0.0f, 0.0f, 0.0f};

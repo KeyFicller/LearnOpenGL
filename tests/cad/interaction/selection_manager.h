@@ -13,7 +13,7 @@ namespace toy_cad::interaction {
 struct subshape_ref {
   handle subshape{};
 
-  [[nodiscard]] bool valid() const { return subshape.valid(); }
+  bool valid() const { return subshape.valid(); }
 
   friend bool operator==(const subshape_ref &a, const subshape_ref &b) {
     return a.subshape == b.subshape;
@@ -24,7 +24,7 @@ struct subshape_ref {
 };
 
 struct subshape_ref_hash {
-  [[nodiscard]] std::size_t operator()(const subshape_ref &ref) const noexcept {
+  std::size_t operator()(const subshape_ref &ref) const noexcept {
     return handle_hash{}(ref.subshape);
   }
 };
@@ -82,7 +82,7 @@ public:
   void clear_selection();
 
   /** Get current hover target (if any). */
-  [[nodiscard]] std::optional<subshape_ref> hover_target() const {
+  std::optional<subshape_ref> hover_target() const {
     return m_hover_target;
   }
 
@@ -106,10 +106,10 @@ public:
   void clear_hover_target();
 
   /** Check if a subshape is currently hovered. */
-  [[nodiscard]] bool is_hovered(const subshape_ref &ref) const;
+  bool is_hovered(const subshape_ref &ref) const;
 
   /** Check if a subshape is selected. */
-  [[nodiscard]] bool is_selected(const subshape_ref &ref) const;
+  bool is_selected(const subshape_ref &ref) const;
 
   /**
    * Toggle selection of a subshape.
@@ -152,7 +152,7 @@ public:
   /**
    * Get all currently selected subshapes.
    */
-  [[nodiscard]] const std::unordered_set<subshape_ref, subshape_ref_hash> &
+  const std::unordered_set<subshape_ref, subshape_ref_hash> &
   selection() const {
     return m_selection;
   }
@@ -189,15 +189,15 @@ public:
   /**
    * Check if currently in drag selection mode.
    */
-  [[nodiscard]] bool is_drag_selecting() const { return m_drag_active; }
+  bool is_drag_selecting() const { return m_drag_active; }
 
   /** Preview subshapes while box-selecting. */
-  [[nodiscard]] const std::vector<subshape_ref> &drag_preview() const {
+  const std::vector<subshape_ref> &drag_preview() const {
     return m_drag_preview;
   }
 
   /** Current box-select mode from drag direction (only meaningful while dragging). */
-  [[nodiscard]] box_select_mode drag_select_mode() const {
+  box_select_mode drag_select_mode() const {
     if (!m_drag_active) {
       return box_select_mode::window;
     }
@@ -209,7 +209,7 @@ public:
   /**
    * Get current drag selection rectangle (if active).
    */
-  [[nodiscard]] std::optional<std::pair<glm::vec2, glm::vec2>> drag_rect() const;
+  std::optional<std::pair<glm::vec2, glm::vec2>> drag_rect() const;
 
 private:
   selection_manager() = default;

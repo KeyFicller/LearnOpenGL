@@ -34,12 +34,12 @@ public:
   sketch_context(const sketch_context &) = delete;
   sketch_context &operator=(const sketch_context &) = delete;
 
-  [[nodiscard]] bool is_active() const { return m_active; }
-  [[nodiscard]] const gp_Ax2 &plane() const { return m_plane; }
-  [[nodiscard]] handle sketch_handle() const { return m_sketch_handle; }
+  bool is_active() const { return m_active; }
+  const gp_Ax2 &plane() const { return m_plane; }
+  handle sketch_handle() const { return m_sketch_handle; }
 
-  [[nodiscard]] sketch_feature *sketch();
-  [[nodiscard]] const sketch_feature *sketch() const;
+  sketch_feature *sketch();
+  const sketch_feature *sketch() const;
 
   void begin(const gp_Ax2 &plane, handle sketch_handle, camera &cam,
              handle fit_target = {});
@@ -55,14 +55,14 @@ public:
     m_live_preview = preview;
   }
   void clear_live_preview() { m_live_preview = {}; }
-  [[nodiscard]] const sketch_live_preview &live_preview() const {
+  const sketch_live_preview &live_preview() const {
     return m_live_preview;
   }
 
   void set_plane_hover(const std::optional<interaction::sketch_plane_pick> &pick) {
     m_plane_hover = pick;
   }
-  [[nodiscard]] const std::optional<interaction::sketch_plane_pick> &
+  const std::optional<interaction::sketch_plane_pick> &
   plane_hover() const {
     return m_plane_hover;
   }

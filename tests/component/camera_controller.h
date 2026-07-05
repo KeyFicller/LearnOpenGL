@@ -28,10 +28,10 @@ public:
   /** World point used as dolly/orbit pivot (e.g. after Fit View). */
   void set_navigation_focus(const glm::vec3 &point);
   void clear_navigation_focus();
-  [[nodiscard]] bool has_navigation_focus() const {
+  bool has_navigation_focus() const {
     return m_dolly_distance_valid;
   }
-  [[nodiscard]] glm::vec3 navigation_pivot() const;
+  glm::vec3 navigation_pivot() const;
 
   float get_movement_speed() const { return m_movement_speed; }
   float get_scroll_sensitivity() const { return m_scroll_sensitivity; }

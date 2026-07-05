@@ -30,8 +30,8 @@ public:
   bool on_mouse_moved(double xpos, double ypos) override;
   bool on_mouse_button(int button, int action, int mods) override;
 
-  [[nodiscard]] float preview_depth() const { return m_depth; }
-  [[nodiscard]] bool has_valid_preview() const { return m_valid; }
+  float preview_depth() const { return m_depth; }
+  bool has_valid_preview() const { return m_valid; }
 
 private:
   glm::vec3 m_anchor{0.0f};

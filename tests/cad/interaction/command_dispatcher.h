@@ -16,7 +16,7 @@ public:
   virtual ~command() = default;
 
   /** Command name for UI display. */
-  [[nodiscard]] virtual const char *name() const = 0;
+  virtual const char *name() const = 0;
 
   /** Called when command becomes active. */
   virtual void on_activate() {}
@@ -65,7 +65,7 @@ public:
   command_dispatcher &operator=(command_dispatcher &&) noexcept = default;
 
   /** Check if any command is currently active. */
-  [[nodiscard]] bool has_active_command() const;
+  bool has_active_command() const;
 
   /** Get the currently active command (top of stack), or nullptr. */
   [[nodiscard]] command *active_command() const;

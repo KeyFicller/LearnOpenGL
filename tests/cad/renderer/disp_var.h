@@ -20,7 +20,7 @@ public:
   bool orthographic = false;
 
   /** Clip = P×V; vertex shader uses `uMVP * vec4(world_pos,1)` with world-space geometry. */
-  [[nodiscard]] glm::mat4 clip_from_world() const {
+  glm::mat4 clip_from_world() const {
     return projection_matrix * view_matrix;
   }
 };

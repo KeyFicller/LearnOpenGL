@@ -21,10 +21,10 @@ public:
   void set_depth(float depth);
   void set_preview_mode(bool preview);
 
-  //[[nodiscard]] bool preview_mode() const { return m_preview_mode; }
-  [[nodiscard]] glm::vec3 direction() const { return m_direction; }
-  [[nodiscard]] glm::vec3 anchor() const { return m_anchor; }
-  [[nodiscard]] bool has_geometry() const { return m_shape_ok; }
+  //bool preview_mode() const { return m_preview_mode; }
+  glm::vec3 direction() const { return m_direction; }
+  glm::vec3 anchor() const { return m_anchor; }
+  bool has_geometry() const { return m_shape_ok; }
 
   void regen() override;
 
@@ -33,7 +33,7 @@ public:
   void draw_ui(handle explorer_row) override;
   void inspect() const override;
 
-  [[nodiscard]] handle brep_handle() const override { return m_brep; }
+  handle brep_handle() const override { return m_brep; }
 
 private:
   TopoDS_Face m_profile_face;

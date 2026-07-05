@@ -30,12 +30,12 @@ public:
   void push_command(const std::string &id);
 
   [[nodiscard]] const command_def *find_command(const std::string &id) const;
-  [[nodiscard]] const command_document &document() const { return m_document; }
+  const command_document &document() const { return m_document; }
 
   void push_context(const std::string &context_id);
   void pop_context(const std::string &context_id);
 
-  [[nodiscard]] bool check_requires(const std::string &requires_key) const;
+  bool check_requires(const std::string &requires_key) const;
 
 private:
   command_registry() = default;

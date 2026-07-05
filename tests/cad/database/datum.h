@@ -11,10 +11,10 @@ public:
   datum() = default;
   explicit datum(const gp_Ax2 &frame) : m_frame(frame) {}
 
-  [[nodiscard]] gp_Ax2 &ax2() { return m_frame; }
-  [[nodiscard]] const gp_Ax2 &ax2() const { return m_frame; }
+  gp_Ax2 &ax2() { return m_frame; }
+  const gp_Ax2 &ax2() const { return m_frame; }
 
-  [[nodiscard]] gp_Pln plane() const { return gp_Pln(m_frame); }
+  gp_Pln plane() const { return gp_Pln(m_frame); }
 
   void set_ax2(const gp_Ax2 &frame) { m_frame = frame; }
 

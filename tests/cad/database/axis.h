@@ -10,8 +10,8 @@ public:
   axis() = default;
   explicit axis(const gp_Ax1 &ax) : m_ax(ax) {}
 
-  [[nodiscard]] gp_Ax1 &ax1() { return m_ax; }
-  [[nodiscard]] const gp_Ax1 &ax1() const { return m_ax; }
+  gp_Ax1 &ax1() { return m_ax; }
+  const gp_Ax1 &ax1() const { return m_ax; }
 
   void set_ax1(const gp_Ax1 &ax) { m_ax = ax; }
 

@@ -21,7 +21,7 @@ public:
   virtual void on_framebuffer_resized(int width, int height);
 
   /** Get the owner command that created this handler. */
-  [[nodiscard]] command *owner() const { return m_owner; }
+  command *owner() const { return m_owner; }
 
   /** Set the owner command (called by command when pushing handler). */
   void set_owner(command *owner, const char *flag) {
@@ -30,7 +30,7 @@ public:
   }
 
   /** Get the flag identifier for this handler (e.g., "p1", "p2"). */
-  [[nodiscard]] const char *flag() const { return m_flag; }
+  const char *flag() const { return m_flag; }
 
 protected:
   input_handler() = default;
