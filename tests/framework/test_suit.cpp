@@ -35,6 +35,8 @@
 #endif
 #include "tests/scenes/transform_test_scene.h"
 #include "tests/scenes/triangle_test_scene.h"
+#include <cstdlib>
+#include <cstring>
 #include <exception>
 #include <fstream>
 #include <iostream>
@@ -84,6 +86,11 @@ void test_suit::init(GLFWwindow *_window) {
     REGISTER_SCENE(test_scene::k_occt_demo_test, occt_demo_scene);
     REGISTER_SCENE(test_scene::k_toy_cad_test, toy_cad_scene);
 #endif
+    if (const char *scene = std::getenv("LEARNOPENGL_SCENE")) {
+      if (std::strcmp(scene, "shader_editor") == 0) {
+        m_current_scene = test_scene::k_shader_editor_test;
+      }
+    }
   } catch (const std::exception &e) {
     std::cerr << "Error initializing test scenes: " << e.what() << std::endl;
     throw; // Re-throw to be caught by main

@@ -163,7 +163,7 @@ set(CPPREF_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 FetchContent_Declare(
   cppreflect
   GIT_REPOSITORY https://github.com/KeyFicller/CppReflectKit.git
-  GIT_TAG        1ac4c8b21624b401862cdde703e8478e86f9159d
+  GIT_TAG        038dbe1c20d906d7339cd33da5ae195177fbdaf1
 )
 FetchContent_MakeAvailable(cppreflect)
 # ---------------------------------------------------------------
@@ -318,6 +318,8 @@ add_executable(LearnOpenGL
     tests/scenes/soft_body_frog_scene.cpp
     tests/scenes/occt_demo_scene.cpp
     tests/scenes/shader_editor_scene.cpp
+    tests/component/shader_editor_mcp.cpp
+    tests/component/shader_editor_chat.cpp
     tests/component/text_renderer.cpp
     tests/component/connection.cpp
     tests/component/interaction_utils.cpp

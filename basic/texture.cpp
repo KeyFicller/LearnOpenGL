@@ -72,8 +72,12 @@ texture_2d::texture_2d(const char *_path, wrap_mode _wrap_mode,
   else if (m_nr_channels == 4)
     format = GL_RGBA;
 
+  GLint previous_alignment = 4;
+  glGetIntegerv(GL_UNPACK_ALIGNMENT, &previous_alignment);
+  glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
   glTexImage2D(GL_TEXTURE_2D, 0, format, m_width, m_height, 0, format,
                GL_UNSIGNED_BYTE, data);
+  glPixelStorei(GL_UNPACK_ALIGNMENT, previous_alignment);
   glGenerateMipmap(GL_TEXTURE_2D);
 
   stbi_image_free(data);
@@ -84,8 +88,8 @@ texture_2d::texture_2d(const char *_path, wrap_mode _wrap_mode,
 
 texture_2d::texture_2d(const std::array<uint8_t, 4> &_solid_rgba8,
                        wrap_mode _wrap_mode, filter_mode _filter_mode)
-    : m_wrap_mode(_wrap_mode), m_filter_mode(_filter_mode),
-      m_width(1), m_height(1), m_nr_channels(4) {
+    : m_wrap_mode(_wrap_mode), m_filter_mode(_filter_mode), m_width(1),
+      m_height(1), m_nr_channels(4) {
   glGenTextures(1, &m_ID);
   glBindTexture(GL_TEXTURE_2D, m_ID);
   glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE,

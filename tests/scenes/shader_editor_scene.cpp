@@ -3,13 +3,20 @@
 #include "imgui.h"
 
 #include "tests/component/mesh_manager.h"
+#include "tests/component/shader_editor_chat.h"
+#include "tests/component/shader_editor_mcp.h"
 #include "tests/framework/test_suit.h"
 
 #include "basic/texture.h"
 
 #include <GLFW/glfw3.h>
+#include <glad/gl.h>
+
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb_image_write.h"
 #include <algorithm>
 #include <cctype>
+#include <cstdio>
 #include <cstring>
 #include <array>
 #include <filesystem>
@@ -194,9 +201,18 @@ shader_editor_scene::shader_editor_scene() : test_scene_base("Shader Editor") {
 
   m_vertex_shader_editor->restore_default_help_info();
   m_fragment_shader_editor->restore_default_help_info();
+  m_chat = std::make_unique<shader_editor_chat>();
 }
 
-shader_editor_scene::~shader_editor_scene() { persist_sources_to_disk(); }
+shader_editor_scene::~shader_editor_scene() {
+  // The chat process calls back into the MCP server, so it has to be gone
+  // before that server is.
+  m_chat.reset();
+  // Stop the server before the editors it calls into are gone. An in-flight
+  // tool waits at most a few seconds for a frame that will not come.
+  m_mcp.reset();
+  persist_sources_to_disk();
+}
 
 std::string shader_editor_scene::vertex_path() const {
   return (fs::path(k_project_root) / m_active_project / "vertex.shader")
@@ -376,9 +392,20 @@ void shader_editor_scene::init(GLFWwindow *_window) {
     m_vertex_shader_editor->set_help_info(err);
     m_fragment_shader_editor->set_help_info(err);
   }
+
+  m_mcp = std::make_unique<shader_editor_mcp>(this);
+  m_mcp->start();
 }
 
 void shader_editor_scene::render() {
+  drain_mcp_tasks();
+  // Runs on every exit, including the early one, so a preview waits for this
+  // frame's image rather than the cleared buffer of the next.
+  struct capture_guard {
+    shader_editor_scene *self;
+    ~capture_guard() { self->finish_capture(); }
+  } guard{this};
+
   if (!m_shader) {
     return;
   }
@@ -452,6 +479,9 @@ void shader_editor_scene::render_ui() {
   }
 
   draw_builtin_uniforms_panel();
+  if (m_chat) {
+    m_chat->draw();
+  }
 }
 
 bool shader_editor_scene::compile_and_replace_shader(
@@ -530,6 +560,10 @@ void shader_editor_scene::open_user_texture_file_dialog() {
 }
 
 void shader_editor_scene::draw_builtin_uniforms_panel() {
+  const int port = mcp_port();
+  if (port > 0) {
+    ImGui::Text("MCP  http://127.0.0.1:%d/mcp", port);
+  }
   ImGui::SeparatorText("User builtin variables");
   ImGui::Text("u_time: %.2f", _builtin_uniforms.u_time);
   ImGui::Text("u_random: %.6f  (uniform in [0,1), new each frame)",
@@ -575,3 +609,215 @@ void shader_editor_scene::draw_builtin_uniforms_panel() {
   }
   ImGui::EndGroup();
 }
+
+std::string shader_editor_scene::vertex_text() const {
+  return m_vertex_shader_editor ? m_vertex_shader_editor->get_text()
+                                : m_vertex_shader_source;
+}
+
+std::string shader_editor_scene::fragment_text() const {
+  return m_fragment_shader_editor ? m_fragment_shader_editor->get_text()
+                                  : m_fragment_shader_source;
+}
+
+void shader_editor_scene::refresh_projects() { refresh_project_list(); }
+
+bool shader_editor_scene::apply_shader(const std::string &vertex,
+                                       const std::string &fragment,
+                                       std::string *error) {
+  if (!vertex.empty()) {
+    m_vertex_shader_editor->set_text(vertex);
+  }
+  if (!fragment.empty()) {
+    m_fragment_shader_editor->set_text(fragment);
+  }
+  m_show_vertex_shader_editor = true;
+  m_show_fragment_shader_editor = true;
+  m_vertex_shader_source = m_vertex_shader_editor->get_text();
+  m_fragment_shader_source = m_fragment_shader_editor->get_text();
+  persist_sources_to_disk();
+  std::string err;
+  if (!compile_and_replace_shader(&err)) {
+    m_vertex_shader_editor->set_help_info(err);
+    m_fragment_shader_editor->set_help_info(err);
+    if (error) {
+      *error = std::move(err);
+    }
+    return false;
+  }
+  m_vertex_shader_editor->restore_default_help_info();
+  m_fragment_shader_editor->restore_default_help_info();
+  if (error) {
+    error->clear();
+  }
+  return true;
+}
+
+bool shader_editor_scene::open_project(const std::string &name,
+                                       std::string *error) {
+  refresh_project_list();
+  if (std::find(m_project_names.begin(), m_project_names.end(), name) ==
+      m_project_names.end()) {
+    if (error) {
+      *error = "No shader project named \"" + name + "\".";
+    }
+    return false;
+  }
+  switch_to_project(name);
+  if (error) {
+    error->clear();
+  }
+  return true;
+}
+
+shader_editor_scene::builtin_uniform_sample
+shader_editor_scene::sample_builtin_uniforms() {
+  update_builtin_uniforms(m_window);
+  builtin_uniform_sample sample;
+  sample.time = _builtin_uniforms.u_time;
+  sample.random = _builtin_uniforms.u_random;
+  sample.mouse_x = _builtin_uniforms.u_mouse.x;
+  sample.mouse_y = _builtin_uniforms.u_mouse.y;
+  sample.resolution_x = _builtin_uniforms.u_resolution.x;
+  sample.resolution_y = _builtin_uniforms.u_resolution.y;
+  sample.texture_label = m_builtin_png_path_label;
+  if (m_builtin_user_png) {
+    sample.texture_w = m_builtin_user_png->width();
+    sample.texture_h = m_builtin_user_png->height();
+  }
+  return sample;
+}
+
+void shader_editor_scene::drain_mcp_tasks() {
+  std::vector<std::function<void()>> tasks;
+  {
+    std::lock_guard<std::mutex> lock(m_mcp_mu);
+    tasks.swap(m_mcp_tasks);
+  }
+  for (auto &task : tasks) {
+    task();
+  }
+}
+
+shader_editor_scene::preview shader_editor_scene::read_framebuffer() {
+  preview shot;
+  test_suit *ts =
+      m_window ? static_cast<test_suit *>(glfwGetWindowUserPointer(m_window))
+               : nullptr;
+  framebuffer *fb = ts ? ts->m_scene_framebuffer : nullptr;
+  if (!fb || fb->get_width() <= 0 || fb->get_height() <= 0) {
+    shot.error = "The scene framebuffer is not ready.";
+    return shot;
+  }
+  const int w = fb->get_width();
+  const int h = fb->get_height();
+  std::vector<unsigned char> rgb(static_cast<size_t>(w) * h * 3);
+  glReadBuffer(GL_COLOR_ATTACHMENT0);
+  glPixelStorei(GL_PACK_ALIGNMENT, 1);
+  glReadPixels(0, 0, w, h, GL_RGB, GL_UNSIGNED_BYTE, rgb.data());
+  if (const GLenum gl_error = glGetError(); gl_error != GL_NO_ERROR) {
+    shot.error = "glReadPixels failed: " + std::to_string(gl_error);
+    return shot;
+  }
+
+  unsigned long sum_r = 0, sum_g = 0, sum_b = 0;
+  std::string grid;
+  for (int gy = 0; gy < 8; ++gy) {
+    if (gy != 0) {
+      grid.push_back('\n');
+    }
+    const int y0 = h - (gy + 1) * h / 8;
+    const int y1 = h - gy * h / 8;
+    for (int gx = 0; gx < 8; ++gx) {
+      const int x0 = gx * w / 8;
+      const int x1 = (gx + 1) * w / 8;
+      unsigned long cr = 0, cg = 0, cb = 0, n = 0;
+      for (int y = y0; y < y1; ++y) {
+        for (int x = x0; x < x1; ++x) {
+          const unsigned char *p = rgb.data() + (static_cast<size_t>(y) * w + x) * 3;
+          cr += p[0];
+          cg += p[1];
+          cb += p[2];
+          ++n;
+        }
+      }
+      if (n == 0) {
+        continue;
+      }
+      sum_r += cr / n;
+      sum_g += cg / n;
+      sum_b += cb / n;
+      char hex[8];
+      std::snprintf(hex, sizeof(hex), "#%02x%02x%02x",
+                    static_cast<unsigned>(cr / n), static_cast<unsigned>(cg / n),
+                    static_cast<unsigned>(cb / n));
+      if (gx != 0) {
+        grid.push_back(' ');
+      }
+      grid += hex;
+    }
+  }
+
+  const fs::path path = fs::absolute("runtime/shader_preview.png");
+  std::error_code ec;
+  fs::create_directories(path.parent_path(), ec);
+  stbi_flip_vertically_on_write(1);
+  if (stbi_write_png(path.string().c_str(), w, h, 3, rgb.data(), w * 3) == 0) {
+    shot.error = "Failed to write " + path.string();
+    return shot;
+  }
+  shot.ok = true;
+  shot.width = w;
+  shot.height = h;
+  shot.path = path.string();
+  shot.mean_rgb = std::to_string(sum_r / 64) + ", " + std::to_string(sum_g / 64) +
+                  ", " + std::to_string(sum_b / 64);
+  shot.grid = std::move(grid);
+  return shot;
+}
+
+void shader_editor_scene::finish_capture() {
+  std::shared_ptr<std::promise<preview>> pending;
+  {
+    std::lock_guard<std::mutex> lock(m_mcp_mu);
+    pending = std::move(m_capture);
+  }
+  if (!pending) {
+    return;
+  }
+  try {
+    pending->set_value(read_framebuffer());
+  } catch (...) {
+    pending->set_exception(std::current_exception());
+  }
+}
+
+shader_editor_scene::preview shader_editor_scene::capture_preview() {
+  auto prom = std::make_shared<std::promise<preview>>();
+  {
+    std::lock_guard<std::mutex> lock(m_mcp_mu);
+    m_capture = prom;
+  }
+  auto fut = prom->get_future();
+  if (fut.wait_for(std::chrono::seconds(3)) == std::future_status::ready) {
+    return fut.get();
+  }
+  {
+    std::lock_guard<std::mutex> lock(m_mcp_mu);
+    if (m_capture == prom) {
+      m_capture.reset();
+    }
+  }
+  if (fut.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+    return fut.get();
+  }
+  preview shot;
+  shot.error =
+      "Shader Editor scene is not rendering. Select it in Scene Selection.";
+  return shot;
+}
+
+int shader_editor_scene::mcp_port() const {
+  return m_mcp ? m_mcp->http_port() : -1;
+}
+
