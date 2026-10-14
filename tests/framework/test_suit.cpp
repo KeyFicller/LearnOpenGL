@@ -43,10 +43,13 @@
 
 test_suit::test_suit() : m_current_scene(test_scene::k_texture_test) {}
 
-test_suit::~test_suit() {
+test_suit::~test_suit() { shutdown(); }
+
+void test_suit::shutdown() {
   for (auto &[scene, test_scene] : m_scenes) {
     delete test_scene;
   }
+  m_scenes.clear();
 }
 
 void test_suit::init(GLFWwindow *_window) {
@@ -89,6 +92,8 @@ void test_suit::init(GLFWwindow *_window) {
     if (const char *scene = std::getenv("LEARNOPENGL_SCENE")) {
       if (std::strcmp(scene, "shader_editor") == 0) {
         m_current_scene = test_scene::k_shader_editor_test;
+      } else if (std::strcmp(scene, "reveal_chess") == 0) {
+        m_current_scene = test_scene::k_reveal_chess_test;
       }
     }
   } catch (const std::exception &e) {

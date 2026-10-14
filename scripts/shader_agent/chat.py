@@ -74,6 +74,10 @@ def message_text(content):
 UI = "--ui" in sys.argv
 
 
+def parent_gone():
+    return os.getppid() == 1
+
+
 def emit(kind, text="", path=""):
     """One JSON line. The in-app panel reads these; a terminal prints text."""
     if not UI:
@@ -164,6 +168,8 @@ async def chat():
             )
             config = {"configurable": {"thread_id": "shader-editor"}}
             while True:
+                if parent_gone():
+                    return 0
                 emit("ready")
                 try:
                     if UI:

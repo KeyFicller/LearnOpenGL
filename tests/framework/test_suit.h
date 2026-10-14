@@ -51,6 +51,8 @@ public:
 
   // Initialize test resources
   void init(GLFWwindow *_window);
+  // Drop every scene, which stops the child processes those scenes own.
+  void shutdown();
 
   // Update the test suit
   void update(float _delta_time);

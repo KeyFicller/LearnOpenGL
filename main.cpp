@@ -270,6 +270,9 @@ int main() {
       glfwSwapBuffers(window);
     }
 
+    // Scenes own the Python children. Destroy them before tearing GLFW down.
+    test_suit.shutdown();
+
     // Cleanup
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();

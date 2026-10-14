@@ -58,6 +58,7 @@ void shader_editor_chat::start() {
   }
   if (pid == 0) {
     // Only async-signal-safe calls until exec: other threads hold locks.
+    setpgid(0, 0);
     dup2(to_child[0], STDIN_FILENO);
     dup2(from_child[1], STDOUT_FILENO);
     // stderr stays out of the transcript. macOS writes a Security-framework
@@ -78,6 +79,7 @@ void shader_editor_chat::start() {
     _exit(127);
   }
 
+  setpgid(pid, pid);
   close(to_child[0]);
   close(from_child[1]);
   fcntl(from_child[0], F_SETFL, O_NONBLOCK);
@@ -96,7 +98,8 @@ void shader_editor_chat::stop() {
     m_in = -1;
   }
   if (m_pid > 0) {
-    kill(m_pid, SIGTERM);
+    if (kill(-m_pid, SIGTERM) != 0)
+      kill(m_pid, SIGTERM);
     for (int i = 0; i < 20; ++i) {
       if (waitpid(m_pid, nullptr, WNOHANG) == m_pid) {
         m_pid = -1;
@@ -105,7 +108,8 @@ void shader_editor_chat::stop() {
       usleep(10000);
     }
     if (m_pid > 0) {
-      kill(m_pid, SIGKILL);
+      if (kill(-m_pid, SIGKILL) != 0)
+        kill(m_pid, SIGKILL);
       waitpid(m_pid, nullptr, 0);
       m_pid = -1;
     }

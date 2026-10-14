@@ -6,9 +6,16 @@
 #include "tests/component/mesh_manager.h"
 #include <array>
 #include <atomic>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <mutex>
 #include <string>
 #include <thread>
 #include <vector>
+
+class reveal_chess_chat;
+class reveal_chess_mcp;
 
 enum piece_type : unsigned int {
   k_none = 0,
@@ -34,6 +41,12 @@ public:
 
 public:
   void shuffle_board();
+  // Public view of the board as a diagram. Covered pieces are not identified.
+  std::string board_json();
+  // Black's move, used by the AI. Rejects Red's turn and illegal moves.
+  std::string play_move(int from_row, int from_col, int to_row, int to_col);
+  // Runs fn on the thread that renders this scene, and waits for it.
+  std::string on_render_thread(std::function<std::string()> fn);
 
 private:
   void init(GLFWwindow *_window) override;
@@ -61,6 +74,9 @@ private:
   void draw_text();
   void draw_valid_moves();
   void draw_last_move();
+
+  bool commit_move(int fr, int fc, int tr, int tc, std::string *error);
+  void drain_mcp_tasks();
 
 private:
   shader *m_board_shader = nullptr;
@@ -103,4 +119,21 @@ private:
 
   double m_last_recv_time = 0;
   double m_last_heartbeat_sent_time = 0;
+
+  bool m_red_ai = true;
+  bool m_black_ai = true;
+  bool m_ai_thinking = true;
+  int m_red_model = 0;
+  int m_black_model = 1;
+  int m_red_illegal = 0;
+  int m_black_illegal = 0;
+  std::unique_ptr<reveal_chess_chat> m_chat;
+  std::unique_ptr<reveal_chess_mcp> m_mcp;
+  std::mutex m_mcp_mu;
+  struct mcp_task {
+    std::uint64_t id;
+    std::function<void()> run;
+  };
+  std::vector<mcp_task> m_mcp_tasks;
+  std::atomic<std::uint64_t> m_mcp_seq{0};
 };
