@@ -22,11 +22,13 @@ import warnings
 if "--ui" in sys.argv:
     warnings.filterwarnings("ignore")
 
+from langchain.agents import create_agent
+from langchain.agents.middleware import AgentMiddleware, SummarizationMiddleware
 from langchain.mcp import MCPAdapter
 from langchain_core.messages import AIMessage, ToolMessage
 from langchain_deepseek import ChatDeepSeek
 from langgraph.checkpoint.memory import MemorySaver
-from langgraph.prebuilt import create_react_agent
+from langgraph.graph.message import REMOVE_ALL_MESSAGES, RemoveMessage
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # The machine proxy (macOS system proxy) returns 502 for this loopback server.
@@ -128,6 +130,58 @@ async def catalog(adapter):
     return "".join(block.text for block in contents if hasattr(block, "text"))
 
 
+def is_image_block(block):
+    if isinstance(block, dict):
+        kind = block.get("type")
+        return kind in ("image", "image_url") or "image_url" in block
+    kind = getattr(block, "type", None)
+    return kind in ("image", "image_url") or getattr(block, "image_url", None)
+
+
+def without_images(content):
+    if not isinstance(content, list):
+        return content
+    kept = [block for block in content if not is_image_block(block)]
+    if len(kept) == len(content):
+        return content
+    return kept or [{"type": "text", "text": "[earlier preview removed]"}]
+
+
+class LatestPreviewMiddleware(AgentMiddleware):
+    """Keeps only the newest capture_preview image in the thread.
+
+    Each preview is a whole framebuffer, so a few of them fill the window before
+    summarization gets a chance to run. Older ones are replaced with a line of
+    text; the newest stays, because that is the frame the reply describes.
+    """
+
+    def before_model(self, state, runtime):
+        messages = list(state["messages"])
+        last_image = -1
+        for index, message in enumerate(messages):
+            content = getattr(message, "content", None)
+            if isinstance(content, list) and any(is_image_block(b) for b in content):
+                last_image = index
+        if last_image < 0:
+            return None
+        stripped = []
+        for index, message in enumerate(messages):
+            content = getattr(message, "content", None)
+            if index == last_image or not isinstance(content, list):
+                stripped.append(message)
+                continue
+            trimmed = without_images(content)
+            if trimmed is content:
+                stripped.append(message)
+                continue
+            copied = message.model_copy(deep=True)
+            copied.content = trimmed
+            stripped.append(copied)
+        if all(a is b for a, b in zip(messages, stripped)):
+            return None
+        return {"messages": [RemoveMessage(id=REMOVE_ALL_MESSAGES), *stripped]}
+
+
 def make_model():
     # capture_preview returns an image block. deepseek-chat rejects that;
     # deepseek-flash is the vision model that reads it.
@@ -163,8 +217,22 @@ async def chat():
                 "End every reply with 喵～\n\n"
                 + notes
             )
-            agent = create_react_agent(
-                make_model(), tools, prompt=prompt, checkpointer=MemorySaver()
+            model = make_model()
+            agent = create_agent(
+                model,
+                tools,
+                system_prompt=prompt,
+                checkpointer=MemorySaver(),
+                middleware=[
+                    # Strips old previews first, so the summary trigger counts
+                    # what is actually sent rather than the removed images.
+                    LatestPreviewMiddleware(),
+                    SummarizationMiddleware(
+                        model,
+                        trigger=("fraction", 0.5),
+                        keep=("messages", 6),
+                    ),
+                ],
             )
             config = {"configurable": {"thread_id": "shader-editor"}}
             while True:

@@ -23,9 +23,11 @@ float vnoise(vec2 p) {
 
 const mat2 ROT = mat2(0.80, 0.60, -0.60, 0.80);
 
-float fbm(vec2 p) {
+// warp layers only need 3 octaves: the extra octaves were being washed
+// out by the later warps anyway, so this is ~40% fewer noise taps.
+float fbm3(vec2 p) {
   float v = 0.0, a = 0.5;
-  for (int i = 0; i < 6; i++) {
+  for (int i = 0; i < 3; i++) {
     v += a * vnoise(p);
     p = ROT * p * 2.03;
     a *= 0.5;
@@ -33,9 +35,20 @@ float fbm(vec2 p) {
   return v;
 }
 
-float ridged(vec2 p) {
+// the final layer keeps one more octave since it carries the visible detail
+float fbm4(vec2 p) {
   float v = 0.0, a = 0.5;
-  for (int i = 0; i < 5; i++) {
+  for (int i = 0; i < 4; i++) {
+    v += a * vnoise(p);
+    p = ROT * p * 2.03;
+    a *= 0.5;
+  }
+  return v;
+}
+
+float ridged3(vec2 p) {
+  float v = 0.0, a = 0.5;
+  for (int i = 0; i < 3; i++) {
     v += a * (1.0 - abs(vnoise(p) * 2.0 - 1.0));
     p = ROT * p * 2.11;
     a *= 0.55;
@@ -88,13 +101,14 @@ void main() {
   ang += 2.0 / (r + 0.30) + t * 1.6;
   vec2 q = vec2(cos(ang), sin(ang)) * r;
 
-  // double domain warp
-  vec2 w1 = vec2(fbm(q * 1.8 + t),
-                 fbm(q * 1.8 + vec2(5.2, 1.3) - t * 1.2));
-  vec2 w2 = vec2(fbm(q * 2.6 + 3.2 * w1 + vec2(1.7, 9.2) + t * 1.4),
-                 fbm(q * 2.6 + 3.2 * w1 + vec2(8.3, 2.8) - t * 1.1));
-  float f = fbm(q * 2.2 + 2.8 * w2);
-  float fil = ridged(q * 4.5 + 2.0 * w2) * 0.5;
+  // double domain warp, done with 3-octave fields instead of 6-octave ones
+  vec2 w1 = vec2(fbm3(q * 1.8 + t),
+                 fbm3(q * 1.8 + vec2(5.2, 1.3) - t * 1.2));
+  vec2 wp = q * 2.6 + 3.2 * w1;
+  vec2 w2 = vec2(fbm3(wp + vec2(1.7, 9.2) + t * 1.4),
+                 fbm3(wp + vec2(8.3, 2.8) - t * 1.1));
+  float f = fbm4(q * 2.2 + 2.8 * w2);
+  float fil = ridged3(q * 4.5 + 2.0 * w2) * 0.5;
 
   // emission
   vec3 col = palette(f * 1.5 + r * 0.55 + t * 0.30);
