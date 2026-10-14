@@ -1,6 +1,34 @@
 cmake_minimum_required(VERSION 3.15)
 
+# CppReflectKit's targets need clang-p2996 (P2996 static reflection), so the
+# whole project is pinned to it:
+#   <CPPREF_LLVM_ROOT>/bin/clang++          compiler
+#   <CPPREF_LLVM_ROOT>/include/c++/v1/meta  reflective libc++
+# The prefix is machine-local: the gitignored CMakeUserPresets.json "local"
+# preset exports CPPREF_LLVM_ROOT, and -DCPPREF_LLVM_ROOT=/path wins over it.
+if(NOT CPPREF_LLVM_ROOT AND DEFINED ENV{CPPREF_LLVM_ROOT})
+  set(CPPREF_LLVM_ROOT "$ENV{CPPREF_LLVM_ROOT}")
+endif()
+if(NOT EXISTS "${CPPREF_LLVM_ROOT}/bin/clang++" OR
+   NOT EXISTS "${CPPREF_LLVM_ROOT}/include/c++/v1/meta")
+  message(FATAL_ERROR
+    "clang-p2996 not found at \"${CPPREF_LLVM_ROOT}\" (need bin/clang++ and "
+    "include/c++/v1/meta); set CPPREF_LLVM_ROOT, as the CMakeUserPresets.json "
+    "\"local\" preset does, or pass -DCPPREF_LLVM_ROOT=/path")
+endif()
+set(CMAKE_CXX_COMPILER "${CPPREF_LLVM_ROOT}/bin/clang++" CACHE FILEPATH "" FORCE)
+set(CMAKE_C_COMPILER "${CPPREF_LLVM_ROOT}/bin/clang" CACHE FILEPATH "" FORCE)
+
 project(LearnOpenGL LANGUAGES C CXX)
+
+if(APPLE)
+  # A source-built clang has no default sysroot; every fetched dependency needs it too.
+  execute_process(COMMAND xcrun --show-sdk-path
+                  OUTPUT_VARIABLE _learnopengl_sdk OUTPUT_STRIP_TRAILING_WHITESPACE)
+  add_compile_options(-isysroot "${_learnopengl_sdk}")
+endif()
+# Link the reflective runtime from the prefix instead of /usr/lib.
+add_link_options(-L "${CPPREF_LLVM_ROOT}/lib" "-Wl,-rpath,${CPPREF_LLVM_ROOT}/lib")
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -24,6 +52,12 @@ else()
 endif()
 
 include(FetchContent)
+
+# Dependencies come straight from github.com. A network that cannot reach it
+# redirects through git's own rewrite rules instead: the gitignored
+# CMakeUserPresets.json "local" preset exports GIT_CONFIG_* url.insteadOf
+# entries, the same convention CppReflectKit uses. Keep such a redirect out of
+# this file so a checked-in build stays host-agnostic.
 
 # ------------------------ Vendor:  GLFW ------------------------
 FetchContent_Declare(
@@ -121,6 +155,19 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(nlohmann_json)
 # ---------------------------------------------------------------
 
+# ------------------------ Vendor: CppReflectKit ------------------------
+# Header-only INTERFACE targets. nlohmann_json is already provided above, so
+# the library reuses it; its ui target and its own tests are not needed here.
+set(CPPREF_WITH_UI     OFF CACHE BOOL "" FORCE)
+set(CPPREF_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+FetchContent_Declare(
+  cppreflect
+  GIT_REPOSITORY https://github.com/KeyFicller/CppReflectKit.git
+  GIT_TAG        1ac4c8b21624b401862cdde703e8478e86f9159d
+)
+FetchContent_MakeAvailable(cppreflect)
+# ---------------------------------------------------------------
+
 # ------------------------ Vendor:  imgui ------------------------
 FetchContent_Declare(
   imgui
@@ -141,6 +188,8 @@ FetchContent_MakeAvailable(glm)
 # ---------------------------------------------------------------
 
 # ------------------------ Vendor:  assimp ------------------------
+# Its bundled googletest trips clang-p2996's -Wcharacter-conversion under assimp's -Werror.
+set(ASSIMP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 FetchContent_Declare(
   assimp
   GIT_REPOSITORY https://github.com/assimp/assimp.git
@@ -288,7 +337,7 @@ if(MSVC)
   target_compile_options(LearnOpenGL PRIVATE /utf-8)
 endif()
 
-target_link_libraries(LearnOpenGL PRIVATE glfw glad_gl assimp freetype nfd)
+target_link_libraries(LearnOpenGL PRIVATE glfw glad_gl assimp freetype nfd cppreflect::json cppreflect::mcp)
 if(WIN32)
   target_link_libraries(LearnOpenGL PRIVATE ws2_32)
 endif()
@@ -315,7 +364,7 @@ if(LEARNOPENGL_OCCT_BUILD_DIR AND EXISTS "${LEARNOPENGL_OCCT_BUILD_DIR}/OpenCASC
       tests/cad/renderer/viewport_axis.cpp
       tests/cad/renderer/viewport_datum.cpp
       tests/cad/renderer/highlight_renderer.cpp
-tests/cad/renderer/sketch_overlay.cpp
+      tests/cad/renderer/sketch_overlay.cpp
       tests/cad/database/database.cpp
       tests/cad/database/object.cpp
       tests/cad/database/datum.cpp
@@ -333,7 +382,7 @@ tests/cad/renderer/sketch_overlay.cpp
       tests/cad/history/box_command.cpp
       tests/cad/history/extrude_feature.cpp
       tests/cad/history/extrude_command.cpp
-tests/cad/history/sketch_feature.cpp
+      tests/cad/history/sketch_feature.cpp
       tests/cad/history/sketch_command.cpp
       tests/cad/history/sketch_line_command.cpp
       tests/cad/history/sketch_circle_command.cpp
@@ -342,15 +391,15 @@ tests/cad/history/sketch_feature.cpp
       tests/cad/geometry/subshape_handle.cpp
       tests/cad/geometry/occt_mesh_utils.cpp
       tests/cad/geometry/bvh_tree.cpp
-tests/cad/camera/fit_view.cpp
-tests/cad/camera/sketch_camera.cpp
+      tests/cad/camera/fit_view.cpp
+      tests/cad/camera/sketch_camera.cpp
       tests/cad/document/command_panel.cpp
-tests/cad/document/ui_icons.cpp
+      tests/cad/document/ui_icons.cpp
       tests/cad/document/viewport_toolbar.cpp
       tests/cad/document/debug_panel.cpp
       tests/cad/document/inspector_panel.cpp
       tests/cad/interaction/command_dispatcher.cpp
-tests/cad/interaction/command_document.cpp
+      tests/cad/interaction/command_document.cpp
       tests/cad/interaction/command_registry.cpp
       tests/cad/interaction/command_actions.cpp
       tests/cad/interaction/command_impl_registration.cpp
@@ -359,8 +408,10 @@ tests/cad/interaction/command_document.cpp
       tests/cad/interaction/doc_input_handler.cpp
       tests/cad/interaction/point_input_handler.cpp
       tests/cad/interaction/face_input_handler.cpp
+      tests/cad/interaction/profile_input_handler.cpp
       tests/cad/interaction/extrude_depth_input_handler.cpp
-tests/cad/interaction/sketch_context.cpp
+      tests/cad/interaction/sketch_context.cpp
+      tests/cad/interaction/sketch_curve_pick.cpp
       tests/cad/interaction/sketch_plane_input_handler.cpp
       tests/cad/interaction/sketch_point_input_handler.cpp
       tests/cad/interaction/ray_pick.cpp

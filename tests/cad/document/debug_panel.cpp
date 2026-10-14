@@ -2,6 +2,7 @@
 
 #include "imgui.h"
 #include <cmath>
+#include <cstdio>
 
 namespace toy_cad::interaction {
 
