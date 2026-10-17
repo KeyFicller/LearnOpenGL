@@ -6,8 +6,13 @@ There is no conversation: whichever side is marked AI plays when it is
 that side's turn. Red and Black are separate models and do not share a
 transcript, so a covered piece stays hidden from both.
 
-The API key is read from the repository .env (DEEPSEEK_API_KEY,
-DEEPSEEK_BASE_URL, optional DEEPSEEK_MODEL).
+Every side speaks the OpenAI protocol. .env describes each one with four
+values: CHESS_RED_PROVIDER, CHESS_RED_MODEL, CHESS_RED_BASE_URL,
+CHESS_RED_API_KEY, and the same four for black. PROVIDER plus MODEL is the
+side's identity: it labels the log and names the folder long-term memory is
+kept in. Any OpenAI-compatible model works without code changes.
+CHESS_<SIDE>_EXTRA_BODY is a JSON object merged into each request for
+endpoint-specific knobs such as thinking.
 
 Every match is also written to .output/chess/, under a stamp the engine picks
 and passes over as CHESS_LOG_STAMP. The agent writes <stamp>.jsonl (one event
@@ -15,6 +20,17 @@ per line) and <stamp>.md (the same events grouped by turn, each turn opening
 with the board it was decided on). The engine writes <stamp>.truth.jsonl, the
 one place that records what a covered piece really was. The .md merges both
 and is the file to hand to a model for review.
+
+Each side keeps one conversation for the whole match. Messages only append, and
+SummarizationMiddleware folds the oldest part into a summary once it gets long.
+The opponent's thoughts are never in that conversation.
+
+Long-term memory is per model, one folder named provider:model each, holding
+self.md and one vs-<provider:model>.md per opponent it has met. Both files are
+read into the prompt before the match and rewritten after it, from that side's
+own messages only. When the same provider:model plays both colours the two
+sides are one mind writing to one set of files, so that deposit happens once
+from both halves of the game.
 """
 
 import asyncio
@@ -29,12 +45,12 @@ import warnings
 if "--ui" in sys.argv:
     warnings.filterwarnings("ignore")
 
+from langchain.agents import create_agent
+from langchain.agents.middleware import SummarizationMiddleware
 from langchain.mcp import MCPAdapter
-from langchain_core.messages import AIMessage, ToolMessage
-from langchain_deepseek import ChatDeepSeek
+from langchain_core.messages import AIMessage, RemoveMessage, ToolMessage
 from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.memory import MemorySaver
-from langgraph.prebuilt import create_react_agent
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ["NO_PROXY"] = "127.0.0.1,localhost"
@@ -46,7 +62,7 @@ UI = "--ui" in sys.argv
 def parent_gone():
     return os.getppid() == 1
 
-def prompt_for(side):
+def prompt_for(side, self_memory="", foe_memory=""):
     red = side == "red"
     words = {
         "me": "红方" if red else "黑方",
@@ -57,7 +73,7 @@ def prompt_for(side):
         "forward": "row + 1" if red else "row − 1",
         "seconds": str(move_seconds()),
     }
-    return (
+    text = (
         "你是{me}，下揭棋（暗子象棋），红先走，对手是另一个模型（{foe}）。\n\n"
         "全程用中文：推理过程和回答都写中文。\n\n"
         "## 每回合\n\n"
@@ -82,10 +98,12 @@ def prompt_for(side):
         "| 红将 红仕 红相 红车 红马 红炮 红兵 | 红方明子 |\n"
         "| 黑帅 黑士 黑象 黑车 黑马 黑炮 黑卒 | 黑方明子 |\n\n"
         "红将/黑帅 的写法与常规象棋相反，一律以红/黑前缀为准。车、马、炮两色同名。\n\n"
-        "## 己方子\n\n"
+        "## 你能走的子\n\n"
         "- 所有以「{mine}」开头的明子，含己方将。\n"
         "- 所有{mine}·。暗子不走不翻，所以{mine}·一定还在起始格。\n"
-        "- 30 个暗子的兵种已在两色间打乱：翻{mine}·可能翻出「{theirs}」的子，此后归{foe}。\n"
+        "- 但{mine}·不等于你的子：它只说明这枚子盖着、站在{mine}这一半、由你走。"
+        "真色和兵种是一起打乱的，翻开才定归属；翻出「{theirs}」的子就归{foe}，"
+        "等于你替{foe}出动了一个子。它不是已知的战力，挪开也不等于丢子。\n"
         "- 不要猜、也不要说出暗子的兵种。没人知道，`play` 也不会透露。\n\n"
         "## 本棋盘强制执行的规则\n\n"
         "| 条目 | 规则 |\n"
@@ -128,6 +146,20 @@ def prompt_for(side):
         "明子按自身算；没动过的暗子按起始格兵种算；刚被翻开的暗子新兵种未知，不能作为喊将军的理由。\n"
         "吃将直接获胜，不要喊将军。"
     ).format(**words)
+    if self_memory:
+        text += (
+            "\n\n## 你的长期记忆\n\n"
+            "这是你自己在前几局结束后写下的，可能已经过时。"
+            "只当参考，本局一律以棋盘和你读到的规则为准。\n\n"
+            + self_memory
+        )
+    if foe_memory:
+        text += (
+            "\n\n## 你对{}的笔记\n\n".format(words["foe"])
+            + "也是你自己写的，同样可能过时，同样以棋盘为准。\n\n"
+            + foe_memory
+        )
+    return text
 
 
 def load_env(path):
@@ -177,6 +209,7 @@ LOG_LABELS = {
     "aside": "内心",
     "taunt": "狠话",
     "summary": "总结",
+    "memory": "记忆",
 }
 LOG = None
 PIECE_NAMES = {
@@ -494,29 +527,73 @@ def show(message, played, side):
 
 
 def side_setup(side):
-    """Red defaults to DeepSeek, Black to Qwen. Either side can be overridden."""
+    """Everything about one side's model, straight from .env.
+
+    Nothing here names a provider. Each side supplies what an OpenAI-style
+    endpoint needs, and only that:
+
+        CHESS_RED_PROVIDER   name this side is logged and remembered under
+        CHESS_RED_MODEL      model id sent in the request
+        CHESS_RED_BASE_URL   root the endpoint serves, usually ending in /v1
+        CHESS_RED_API_KEY    bearer token
+
+    EXTRA_BODY is a JSON object merged into every request, for providers with
+    their own knobs (thinking, reasoning budgets, top_k). EXTRA_BODY_NOTHINK
+    replaces it when thinking is off, which is what the timeout retry uses.
+    """
     prefix = "CHESS_{}_".format(side.upper())
-    provider = os.environ.get(prefix + "PROVIDER", "").strip().lower()
-    model = os.environ.get(prefix + "MODEL", "").strip()
-    if not provider and not model:
-        if side == "red":
-            return "deepseek", os.environ.get("DEEPSEEK_MODEL", "deepseek-flash")
-        return "qwen", os.environ.get("QWEN_MODEL", "qwen3.8-flash")
-    if not provider:
-        provider = "qwen" if model.startswith(("qwen", "glm")) else "deepseek"
-    if not model:
-        if provider == "qwen":
-            model = os.environ.get("QWEN_MODEL", "qwen3.8-flash")
-        else:
-            model = os.environ.get("DEEPSEEK_MODEL", "deepseek-flash")
-    return provider, model
+
+    def value(name):
+        return os.environ.get(prefix + name, "").strip()
+
+    provider = value("PROVIDER").lower()
+    model = value("MODEL")
+    if not provider or not model:
+        raise RuntimeError(
+            "{}PROVIDER and {}MODEL must be set in .env.".format(prefix, prefix)
+        )
+    # Sharing one account between the sides is common enough to allow.
+    shared = provider.upper()
+    key = value("API_KEY") or os.environ.get(shared + "_API_KEY", "").strip()
+    base = value("BASE_URL") or os.environ.get(shared + "_BASE_URL", "").strip()
+    if not key:
+        raise RuntimeError(
+            "No API key for {} ({}). Set {}{} or {}_API_KEY in .env.".format(
+                side, provider, prefix, "API_KEY", shared
+            )
+        )
+    if not base:
+        raise RuntimeError(
+            "No base URL for {} ({}). Set {}{} or {}_BASE_URL in .env.".format(
+                side, provider, prefix, "BASE_URL", shared
+            )
+        )
+    body = extra_body(prefix + "EXTRA_BODY")
+    plain = extra_body(prefix + "EXTRA_BODY_NOTHINK")
+    return provider, model, key, base, body, plain
 
 
-class qwen_chat(ChatOpenAI):
-    """Keeps Qwen's reasoning_content.
+def extra_body(name):
+    """A JSON object from .env, or empty. Bad JSON is a config error, not a 400."""
+    raw = os.environ.get(name, "").strip()
+    if not raw:
+        return {}
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError("{} is not valid JSON: {}".format(name, exc))
+    if not isinstance(parsed, dict):
+        raise RuntimeError("{} must be a JSON object.".format(name))
+    return parsed
 
-    Thinking mode plus a tool call requires that field on the assistant message
-    in the next request. ChatOpenAI drops it, and the follow-up call then stalls.
+
+class reasoning_chat(ChatOpenAI):
+    """Plain OpenAI chat, plus whatever reasoning text the endpoint returns.
+
+    Some endpoints put the chain of thought in `reasoning_content`, and in
+    thinking mode with a tool call they require that field back on the
+    assistant message in the next request. ChatOpenAI drops it, and the
+    follow-up call then stalls. This keeps any such field it finds.
     """
 
     def _create_chat_result(self, response, generation_info=None):
@@ -575,44 +652,42 @@ def move_seconds():
         return 60
 
 
-def thinking_body(provider, on):
-    if provider == "qwen":
-        return {"enable_thinking": on}
-    return {"thinking": {"type": "enabled" if on else "disabled"}}
+class Player:
+    """One side of the match: config, chat model, and the name it logs under.
 
+    Nothing here knows which vendor is behind the endpoint. A side is whatever
+    .env describes in OpenAI terms, so a new model is a .env edit and no code.
+    """
 
-def make_model(side, thinking=None):
-    provider, model = side_setup(side)
-    on = thinking_on() if thinking is None else thinking
-    if provider == "qwen":
-        key = os.environ.get("QWEN_API_KEY")
-        base = os.environ.get("QWEN_BASE_URL")
-        if not key or not base:
-            raise RuntimeError("QWEN_API_KEY and QWEN_BASE_URL are required for {}.".format(side))
-        chat = qwen_chat(
-            model=model,
-            api_key=key,
-            base_url=base,
+    def __init__(self, side):
+        self.side = side
+        (
+            self.provider,
+            self.model,
+            self.key,
+            self.base_url,
+            self.body,
+            self.plain_body,
+        ) = side_setup(side)
+        self.label = "{}:{}".format(self.provider, self.model)
+        self.chat = self.build()
+
+    def build(self, thinking=None):
+        """A chat client for this player. thinking=False drops extra_body."""
+        on = thinking_on() if thinking is None else thinking
+        return reasoning_chat(
+            model=self.model,
+            api_key=self.key,
+            base_url=self.base_url,
             temperature=0,
             timeout=120,
             max_retries=1,
-            extra_body=thinking_body(provider, on),
+            extra_body=self.body if on else self.plain_body,
         )
-    elif provider == "deepseek":
-        kwargs = {
-            "model": model,
-            "temperature": 0,
-            "timeout": 120,
-            "max_retries": 1,
-            "extra_body": thinking_body(provider, on),
-        }
-        base = os.environ.get("DEEPSEEK_BASE_URL")
-        if base:
-            kwargs["api_base"] = base
-        chat = ChatDeepSeek(**kwargs)
-    else:
-        raise RuntimeError("Unknown provider '{}' for {}.".format(provider, side))
-    return chat, "{}:{}".format(provider, model)
+
+    def plain(self):
+        """No thinking. Used for short lines, summaries, and the retry."""
+        return self.build(thinking=False)
 
 
 def describe_last_move(diagram, before, last):
@@ -677,8 +752,10 @@ def describe_outcome(side, before_diagram, after, payload):
     mine = "红" if side == "red" else "黑"
     lines = [
         "你走了 ({}, {}) -> ({}, {})。".format(fr, fc, tr, tc),
-        "源格上原显示 {}。".format(src or "空"),
-        "那枚子现在在落点显示为 {}。".format(dst or "空"),
+        # One piece, one move. Said separately, the two squares read as two
+        # pieces, and the model then mourns the covered piece it just moved.
+        "源格当时显示 {}；同一枚子移到了落点，现在显示 {}；"
+        "源格空出来是因为它走开了，不是丢了子。".format(src or "空", dst or "空"),
     ]
     if src.endswith("·"):
         if dst.startswith(mine):
@@ -708,10 +785,9 @@ def describe_outcome(side, before_diagram, after, payload):
     return "\n".join(lines)
 
 
-async def speak(chat, provider, text):
+async def speak(player, text):
     """One short line. Thinking stays off so the game is not left waiting."""
-    extra = thinking_body(provider, False)
-    message = await chat.bind(extra_body=extra).ainvoke([{"role": "user", "content": text}])
+    message = await player.plain().ainvoke([{"role": "user", "content": text}])
     return message_text(message.content).strip()
 
 
@@ -739,26 +815,175 @@ def summary_text(side, result, diagram, notes):
     ).format(outcome, me, diagram)
 
 
-async def write_aside(chat, provider, outcome, earlier):
+async def write_aside(player, outcome, earlier):
     """Private reaction after the move has resolved. Thinking stays off."""
     lead = ""
     if earlier:
         lead = "你之前的内心笔记：\n{}\n\n".format("\n".join(earlier[-6:]))
+    mine = "红" if player.side == "red" else "黑"
     text = (
         lead
         + "刚刚发生的、已经确认的事实：\n"
         + outcome
         + "\n\n用中文写两三句内心戏，回应这些事实。"
-        "如果暗子翻出来是对手的子，或者你吃了自己的暗子，就针对这点反应。"
+        + "{}· 只是「盖着、站在你这一半」，不代表是你的子，翻开才定归属，"
+        "所以自己的暗子挪了窝不算丢东西。".format(mine)
+        + "如果暗子翻出来是对手的子，或者你吃了自己的暗子，就针对这点反应。"
         "这些话只有你自己看。凡是上面没写明的暗子兵种，一律不要猜、不要说出。"
         "不要替对手设想下一步。"
     )
-    return await speak(chat, provider, text)
+    return await speak(player, text)
 
 
 async def tool_json(tools, name):
     raw = await tools[name].ainvoke({})
     return json.loads(message_text(raw))
+
+
+MEMORY_DIR = os.path.join(LOG_DIR, "memory")
+
+
+def memory_files(key, foe):
+    """<key>/self.md and <key>/vs-<foe>.md, where key is provider:model.
+
+    One folder per model, holding its own lessons and one file per opponent it
+    has faced. Two models under the same PROVIDER label therefore keep
+    separate memories, and a model's opinion of one opponent survives a match
+    against another.
+    """
+    folder = os.path.join(MEMORY_DIR, path_name(key))
+    return (
+        folder,
+        os.path.join(folder, "self.md"),
+        os.path.join(folder, "vs-{}.md".format(path_name(foe))),
+    )
+
+
+def path_name(key):
+    """A model id used in a path. Provider and model stay readable, separated
+    by a colon; slashes, which many model ids use, become underscores."""
+    return key.replace("/", "_").replace("\\", "_")
+
+
+def read_memory(path):
+    """A memory file, or empty if this model has never written one."""
+    if not os.path.exists(path):
+        return ""
+    with open(path, encoding="utf-8") as handle:
+        return handle.read().strip()
+
+
+def write_memory(path, text):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as handle:
+        handle.write(text.strip() + "\n")
+
+
+def transcript(messages, limit=12000):
+    """The side's own conversation as text, for the memory pass.
+
+    Tool results are dropped: a board read echoes the whole diagram, and a play
+    result is already said in the note on the call. The opponent's thoughts
+    were never in this list. The tail is what carries, so that is what a long
+    match keeps.
+    """
+    lines = []
+    for message in messages:
+        kind = getattr(message, "type", "")
+        if kind == "human":
+            text = clip(message_text(message.content), 400)
+            if text:
+                lines.append("局面：" + text)
+        elif kind == "ai":
+            text = clip(message_text(message.content), 160)
+            if text:
+                lines.append("我说：" + text)
+            for call in getattr(message, "tool_calls", None) or []:
+                args = call.get("args", {})
+                note = ""
+                if isinstance(args, dict):
+                    args = dict(args)
+                    note = str(args.pop("note", "")).strip()
+                lines.append(
+                    "行动：{} {}{}".format(
+                        call.get("name", ""),
+                        json.dumps(args, ensure_ascii=False),
+                        "（{}）".format(note) if note else "",
+                    )
+                )
+    body = "\n".join(lines)
+    if len(body) > limit:
+        body = "…（前面略）\n" + body[-limit:]
+    return body
+
+
+SELF_MEMORY_PROMPT = (
+    "你又要下揭棋了。先更新你给自己留的长期记忆。\n\n"
+    "## 之前的长期记忆\n\n{prior}\n\n"
+    "## 刚结束的这一局（{scope}）\n\n{history}\n\n"
+    "用中文重写这份记忆，下一局开局就用它。"
+    "保留仍然成立的经验，过期或被推翻的删掉，补上这一局学到的。"
+    "分三节：开局偏好 / 翻子与吃子的经验 / 失误与教训。"
+    "只写下一局还用得上的判断：不要复述棋谱，不要写坐标推演，"
+    "不要编造没有发生的翻子。直接输出记忆正文，不要开场白。"
+)
+
+FOE_MEMORY_PROMPT = (
+    "你又要和 {foe} 下揭棋了。先更新你记下的、关于它的那份笔记。\n\n"
+    "## 之前记下的\n\n{prior}\n\n"
+    "## 刚结束的这一局（{scope}）\n\n{history}\n\n"
+    "用中文重写这份笔记，只写能用来对付 {foe} 的东西。"
+    "分两节：它的习惯与偏好 / 可以被利用的弱点。"
+    "被这一局推翻的旧结论要删掉，不要留着一个已经不准的判断。"
+    "没有证据的猜测不要写；暗子的兵种没人知道，不要编。"
+    "直接输出正文，不要开场白。"
+)
+
+
+async def rewrite_memory(player, prompt, prior, messages, foe, mirror=None):
+    """One model call: the old file plus this match in, the new file out.
+
+    `mirror` is the other side's messages in a match where the same
+    provider:model played both colours. There is no opponent in that game, only
+    the same mind twice, so both halves are fed in and the prompt says so.
+    """
+    history = transcript(messages)
+    if not history:
+        return ""
+    if mirror is None:
+        scope = "你自己的对话，没有对手的想法"
+    else:
+        history += "\n\n## 同一个 provider:model 执另一方的记录\n\n" + transcript(mirror)
+        scope = "两方都是同一个 provider:model，记忆只有一份，两半都算你自己的"
+    return await speak(
+        player,
+        prompt.format(
+            prior=prior or "（还没有）", history=history, foe=foe, scope=scope
+        ),
+    )
+
+
+async def deposit_memory(player, foe, entry, messages, mirror=None):
+    """Rewrite both of this model's files after a match.
+
+    One call each: self.md is general lessons, vs-<foe>.md is only about the
+    model just played, named provider:model. Returns what was written, for the
+    log.
+    """
+    written = []
+    for key, prompt, index in (
+        ("self", SELF_MEMORY_PROMPT, 1),
+        ("foe", FOE_MEMORY_PROMPT, 2),
+    ):
+        text = await rewrite_memory(
+            player, prompt, entry[key], messages, foe, mirror
+        )
+        if not text:
+            continue
+        entry[key] = text
+        write_memory(entry["files"][index], text)
+        written.append((key, entry["files"][index], text))
+    return written
 
 
 async def run_turn(agent, side, content, thread_id):
@@ -772,7 +997,16 @@ async def run_turn(agent, side, content, thread_id):
         },
         stream_mode="updates",
     ):
-        for step in update.values():
+        for node, step in update.items():
+            if node not in ("model", "tools"):
+                # The summarization node rewrites the history and re-emits the
+                # messages it kept. Those belong to earlier plies, so logging
+                # them here would repeat them under this turn. It runs before
+                # every model call, so only a rewrite is worth reporting.
+                messages = step.get("messages", []) if isinstance(step, dict) else []
+                if any(isinstance(message, RemoveMessage) for message in messages):
+                    emit("status", "上下文过长，旧消息已压缩成摘要", side)
+                continue
             messages = step.get("messages", []) if isinstance(step, dict) else []
             if not isinstance(messages, list):
                 messages = [messages]
@@ -783,32 +1017,81 @@ async def run_turn(agent, side, content, thread_id):
     return played
 
 
-async def session(adapter):
+SUMMARY_PROMPT = (
+    "你在下一盘揭棋。下面的历史马上会被这份摘要替换，后面紧接着最近几手。\n\n"
+    "只保留之后还用得上的东西：已经翻开的暗子成了什么、吃过谁的子、"
+    "你定下的计划、你踩过的坑、你对对手习惯的判断。"
+    "不要复述棋盘，不要写坐标推演，不要编造没发生的翻子。"
+    "用中文，三百字以内，直接输出摘要正文。\n\n<messages>\n{messages}\n</messages>"
+)
+
+
+def make_agent(player, tools, self_memory="", foe_memory="", thinking=None):
+    """One conversation per side, kept for the whole match.
+
+    Messages only append: each turn adds the position and the agent's own tool
+    exchanges. The opponent's thoughts never enter this list. Once the context
+    gets long the middleware folds the oldest part into a summary, so a match
+    can run past the window without the list being rebuilt by hand.
+
+    thinking=False is the retry that runs after a turn timed out.
+    """
+    chat = player.chat if thinking is None else player.build(thinking)
+    return create_agent(
+        chat,
+        tools,
+        system_prompt=prompt_for(player.side, self_memory, foe_memory),
+        middleware=[
+            SummarizationMiddleware(
+                model=player.plain(),
+                trigger=("tokens", 20000),
+                keep=("messages", 10),
+                summary_prompt=SUMMARY_PROMPT,
+            )
+        ],
+        checkpointer=MemorySaver(),
+    )
+
+
+async def session(adapter, players):
     tools = {tool.name: tool for tool in await adapter.list_tools()}
     emit("status", "tools: {}".format(", ".join(sorted(tools))))
     shared = list(tools.values())
     agents = {}
-    chats = {}
-    providers = {}
-    labels = {}
     notes = {"red": [], "black": []}
+    # Recall happens once, before the match: each side reads its own folder and
+    # the file for the provider:model it is about to face.
+    memory = {"red": {"self": "", "foe": "", "files": None},
+              "black": {"self": "", "foe": "", "files": None}}
+    # One thread per side for the whole match. It is only replaced when a run
+    # dies, since a half-written turn would poison every later request.
+    threads = {"red": "red", "black": "black"}
     quick_agents = {}
     for side in ("red", "black"):
-        chat, label = make_model(side)
-        chats[side] = chat
-        providers[side] = side_setup(side)[0]
-        labels[side] = label
-        agents[side] = create_react_agent(
-            chat, shared, prompt=prompt_for(side), checkpointer=MemorySaver()
+        foe = "black" if side == "red" else "red"
+        files = memory_files(players[side].label, players[foe].label)
+        memory[side] = {
+            "self": read_memory(files[1]),
+            "foe": read_memory(files[2]),
+            "files": files,
+        }
+        agents[side] = make_agent(
+            players[side], shared, memory[side]["self"], memory[side]["foe"]
         )
     emit(
         "status",
         "red {}  vs  black {}, thinking {}".format(
-            labels["red"], labels["black"], "on" if thinking_on() else "off"
+            players["red"].label,
+            players["black"].label,
+            "on" if thinking_on() else "off",
         ),
     )
     if LOG:
-        LOG.setup(labels, thinking_on(), move_seconds())
+        LOG.setup(
+            {"red": players["red"].label, "black": players["black"].label},
+            thinking_on(),
+            move_seconds(),
+        )
     turns = {"red": 0, "black": 0}
     idle = None
     greeted = False
@@ -829,6 +1112,19 @@ async def session(adapter):
         result = state.get("result", "waiting")
         local = state.get("mode") == "local"
         if local and result == "ongoing":
+            if summarized:
+                # A new match. Each side starts a fresh conversation, and the
+                # memory written when the last one ended is in its prompt now.
+                for side in ("red", "black"):
+                    notes[side] = []
+                    agents[side] = make_agent(
+                        players[side],
+                        shared,
+                        memory[side]["self"],
+                        memory[side]["foe"],
+                    )
+                    threads[side] = side
+                quick_agents.clear()
             seen_ongoing = True
             summarized = None
         elif (
@@ -839,13 +1135,22 @@ async def session(adapter):
         ):
             if LOG:
                 LOG.event("result", "红方胜" if result == "red_win" else "黑方胜")
+            ai_sides = [
+                s for s in ("red", "black") if state.get("{}_ai".format(s))
+            ]
+            # The same provider:model on both sides is the same folder and the
+            # same two files, so two deposits would overwrite each other. Treat
+            # it as one memory and write once, from both halves of the game.
+            same_mind = (
+                len(ai_sides) == 2
+                and players["red"].label == players["black"].label
+            )
             for side in ("red", "black"):
-                if not state.get("{}_ai".format(side)):
+                if side not in ai_sides:
                     continue
                 try:
                     text = await speak(
-                        chats[side],
-                        providers[side],
+                        players[side],
                         summary_text(side, result, state.get("diagram", ""), notes[side]),
                     )
                 except Exception as exc:
@@ -853,6 +1158,49 @@ async def session(adapter):
                     continue
                 if text:
                     emit("summary", text, side)
+                # Deposit: the same conversation is written back into the
+                # side's folder, once as self-knowledge and once as a note on
+                # the model it just played. The opponent file is chosen by
+                # provider:model, so facing someone else never overwrites it.
+                if same_mind and side != ai_sides[0]:
+                    continue
+                try:
+                    snapshot = await agents[side].aget_state(
+                        {"configurable": {"thread_id": threads[side]}}
+                    )
+                    mirror = None
+                    if same_mind:
+                        other = ai_sides[1]
+                        other_snapshot = await agents[other].aget_state(
+                            {"configurable": {"thread_id": threads[other]}}
+                        )
+                        mirror = other_snapshot.values.get("messages", [])
+                    foe = "black" if side == "red" else "red"
+                    written = await deposit_memory(
+                        players[side],
+                        players[foe].label,
+                        memory[side],
+                        snapshot.values.get("messages", []),
+                        mirror,
+                    )
+                except Exception as exc:
+                    emit("error", str(exc), side)
+                    continue
+                if same_mind:
+                    # Both entries point at the files just written, so they
+                    # must not keep the pre-match text for the next match.
+                    for key, _, text in written:
+                        memory[ai_sides[1]][key] = text
+                for key, path, text in written:
+                    emit(
+                        "memory",
+                        "{} → {}：{}".format(
+                            "自己" if key == "self" else "对手",
+                            os.path.relpath(path, ROOT),
+                            text,
+                        ),
+                        side,
+                    )
             summarized = result
             greeted = False
         if not local or result != "ongoing":
@@ -873,7 +1221,7 @@ async def session(adapter):
                 if not state.get("{}_ai".format(side)):
                     continue
                 try:
-                    text = await speak(chats[side], providers[side], taunt_text(side))
+                    text = await speak(players[side], taunt_text(side))
                 except Exception as exc:
                     emit("error", str(exc), side)
                     continue
@@ -904,9 +1252,7 @@ async def session(adapter):
         budget = move_seconds()
         try:
             played = await asyncio.wait_for(
-                run_turn(
-                    agents[side], side, content, "{}-{}".format(side, turns[side])
-                ),
+                run_turn(agents[side], side, content, threads[side]),
                 timeout=budget,
             )
         except asyncio.TimeoutError:
@@ -921,13 +1267,7 @@ async def session(adapter):
             if latest.get("turn") != side or latest.get("result") != "ongoing":
                 continue
             if side not in quick_agents:
-                quick_chat, _ = make_model(side, thinking=False)
-                quick_agents[side] = create_react_agent(
-                    quick_chat,
-                    shared,
-                    prompt=prompt_for(side),
-                    checkpointer=MemorySaver(),
-                )
+                quick_agents[side] = make_agent(players[side], shared, thinking=False)
             hurry = (
                 "时间到。棋盘如下，只调 `play`，不要调 `board`，不要解释。\n\n"
                 + state.get("diagram", "")
@@ -952,6 +1292,10 @@ async def session(adapter):
                 continue
         except Exception as exc:
             emit("error", str(exc), side)
+            # A run that died can leave an assistant tool call with no result,
+            # and every later request on that thread would be rejected. Give
+            # the side a fresh one instead of failing the rest of the match.
+            threads[side] = "{}-{}".format(side, turns[side])
             await asyncio.sleep(2)
             continue
         if not played["ok"]:
@@ -966,7 +1310,7 @@ async def session(adapter):
             after = {}
         outcome = describe_outcome(side, state.get("diagram", ""), after, payload)
         try:
-            note = await write_aside(chats[side], providers[side], outcome, notes[side])
+            note = await write_aside(players[side], outcome, notes[side])
         except Exception as exc:
             emit("error", str(exc), side)
             note = ""
@@ -979,8 +1323,10 @@ async def session(adapter):
 async def main():
     global LOG
     load_env(os.path.join(ROOT, ".env"))
-    if not os.environ.get("DEEPSEEK_API_KEY"):
-        emit("error", "DEEPSEEK_API_KEY is not set. Put it in the repository .env.")
+    try:
+        players = {side: Player(side) for side in ("red", "black")}
+    except RuntimeError as exc:
+        emit("error", str(exc))
         return 1
     LOG = game_log()
     announced = False
@@ -988,7 +1334,7 @@ async def main():
         try:
             async with MCPAdapter(MCP_URL) as adapter:
                 announced = False
-                await session(adapter)
+                await session(adapter, players)
                 return 0
         except Exception as exc:
             if not announced:

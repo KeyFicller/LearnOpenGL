@@ -140,8 +140,6 @@ private:
   bool m_red_ai = true;
   bool m_black_ai = true;
   bool m_ai_thinking = true;
-  int m_red_model = 0;
-  int m_black_model = 1;
   int m_red_illegal = 0;
   int m_black_illegal = 0;
   // Seconds an AI side gets for one move. The agent retries once without

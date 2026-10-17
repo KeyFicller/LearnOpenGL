@@ -16,11 +16,8 @@ namespace fs = std::filesystem;
 
 reveal_chess_chat::~reveal_chess_chat() { stop(); }
 
-void reveal_chess_chat::start(const std::string &red_provider,
-                              const std::string &red_model,
-                              const std::string &black_provider,
-                              const std::string &black_model, bool thinking,
-                              int move_seconds, const std::string &stamp) {
+void reveal_chess_chat::start(bool thinking, int move_seconds,
+                              const std::string &stamp) {
   if (m_pid > 0) {
     return;
   }
@@ -40,10 +37,6 @@ void reveal_chess_chat::start(const std::string &red_provider,
     return;
   }
   setenv("PYTHONUNBUFFERED", "1", 1);
-  setenv("CHESS_RED_PROVIDER", red_provider.c_str(), 1);
-  setenv("CHESS_RED_MODEL", red_model.c_str(), 1);
-  setenv("CHESS_BLACK_PROVIDER", black_provider.c_str(), 1);
-  setenv("CHESS_BLACK_MODEL", black_model.c_str(), 1);
   setenv("CHESS_THINKING", thinking ? "1" : "0", 1);
   setenv("CHESS_MOVE_SECONDS", std::to_string(move_seconds).c_str(), 1);
   setenv("CHESS_LOG_STAMP", stamp.c_str(), 1);
@@ -88,7 +81,8 @@ void reveal_chess_chat::start(const std::string &red_provider,
   m_buf.clear();
   m_thinking = false;
   m_thinking_side.clear();
-  m_log.push_back({"status", "Red " + red_model + " vs Black " + black_model});
+  // The models themselves come from .env, so the UI names none of them.
+  m_log.push_back({"status", "Red vs Black (models from .env)"});
   m_scroll = true;
 }
 
@@ -224,6 +218,9 @@ void reveal_chess_chat::draw() {
       label = "狠话: ";
     } else if (item.kind == "summary") {
       label = "总结: ";
+    } else if (item.kind == "memory") {
+      label = "记忆: ";
+      color = ImVec4(0.65f, 0.85f, 0.65f, 1.0f);
     } else if (item.kind == "move") {
       label = "move: ";
     } else if (item.kind == "tool") {

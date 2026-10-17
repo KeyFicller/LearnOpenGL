@@ -741,47 +741,11 @@ void reveal_chess_scene::draw_valid_moves() {
 
 namespace {
 
-struct chess_model_choice {
-  const char *label;
-  const char *provider;
-  const char *model;
-};
-
-// Text models only. DeepSeek flash uses the DeepSeek API; the rest use the
-// Qwen token-plan endpoint named in .env.
-const chess_model_choice k_chess_models[] = {
-    {"DeepSeek flash", "deepseek", "deepseek-flash"},
-    {"Qwen 3.8 flash", "qwen", "qwen3.8-flash"},
-    {"Qwen 3.8 max", "qwen", "qwen3.8-max"},
-    {"Qwen 3.7 plus", "qwen", "qwen3.7-plus"},
-    {"Qwen 3.7 max", "qwen", "qwen3.7-max"},
-    {"Qwen 3.6 flash", "qwen", "qwen3.6-flash"},
-    {"GLM 5.3", "qwen", "glm-5.3"},
-    {"GLM 5.2", "qwen", "glm-5.2"},
-    {"DeepSeek v4 flash", "qwen", "deepseek-v4-flash-0731"},
-    {"DeepSeek v4.1 flash", "qwen", "deepseek-v4.1-flash"},
-    {"DeepSeek v4 pro", "qwen", "deepseek-v4-pro"},
-};
-
-void model_combo(const char *id, int &selected, int illegal) {
-  const int count = static_cast<int>(sizeof(k_chess_models) / sizeof(k_chess_models[0]));
-  if (selected < 0 || selected >= count)
-    selected = 0;
-  const float stat_w = ImGui::CalcTextSize("illegal moves 000").x;
-  const float label_w = ImGui::CalcTextSize(id).x;
-  const float spacing = ImGui::GetStyle().ItemInnerSpacing.x;
-  ImGui::SetNextItemWidth(std::max(
-      80.0f, ImGui::GetContentRegionAvail().x - label_w - stat_w - spacing * 2));
-  const bool open = ImGui::BeginCombo(id, k_chess_models[selected].label);
-  if (open) {
-    for (int i = 0; i < count; ++i) {
-      if (ImGui::Selectable(k_chess_models[i].label, i == selected))
-        selected = i;
-    }
-    ImGui::EndCombo();
-  }
+// Both sides' models come from .env; nothing here names a provider.
+void model_note(const char *id, int illegal) {
+  ImGui::Text("%s: .env", id);
   ImGui::SameLine();
-  ImGui::Text("illegal moves %d", illegal);
+  ImGui::TextDisabled("illegal moves %d", illegal);
 }
 
 } // namespace
@@ -844,8 +808,8 @@ void reveal_chess_scene::render_ui() {
   const bool running = m_chat && m_chat->running();
   if (!local || running)
     ImGui::BeginDisabled();
-  model_combo("Red model", m_red_model, m_red_illegal);
-  model_combo("Black model", m_black_model, m_black_illegal);
+  model_note("Red model", m_red_illegal);
+  model_note("Black model", m_black_illegal);
   ImGui::Checkbox("Think", &m_ai_thinking);
   ImGui::InputInt("Move limit (s)", &m_move_seconds);
   m_move_seconds = std::clamp(m_move_seconds, 5, 3600);
@@ -858,10 +822,7 @@ void reveal_chess_scene::render_ui() {
     if (!local || !(m_red_ai || m_black_ai))
       ImGui::BeginDisabled();
     if (ImGui::Button("Start") && m_chat) {
-      const chess_model_choice &red = k_chess_models[m_red_model];
-      const chess_model_choice &black = k_chess_models[m_black_model];
-      m_chat->start(red.provider, red.model, black.provider, black.model,
-                    m_ai_thinking, m_move_seconds, m_log_stamp);
+      m_chat->start(m_ai_thinking, m_move_seconds, m_log_stamp);
       m_was_thinking = false;
       restart_turn_clock();
     }
@@ -1132,9 +1093,10 @@ std::string explain_failure(const std::string &_error, const int _board[10][9],
         cell == 0 ? square_text(_fr, _fc) + " is empty."
                   : square_text(_fr, _fc) + " holds " +
                         cell_text(cell, _fr, _fc) + ", which is not yours.";
-    return what + " You are " + side + ". Your pieces are " + yours +
-           ". Re-read the diagram: the first field of a row is the row "
-           "number, then columns 0 through 8.";
+    return what + " You are " + side + ". You may move " + yours +
+           ". A covered square shows which half it stands on, not whose piece "
+           "it is, until it is revealed. Re-read the diagram: the first field "
+           "of a row is the row number, then columns 0 through 8.";
   }
   if (_error != "Illegal move.")
     return _error;
