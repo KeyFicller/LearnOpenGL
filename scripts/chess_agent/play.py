@@ -40,116 +40,78 @@ def parent_gone():
 def prompt_for(side):
     red = side == "red"
     words = {
-        "me": "Red" if red else "Black",
-        "foe": "Black" if red else "Red",
+        "me": "红方" if red else "黑方",
+        "foe": "黑方" if red else "红方",
         "mine": "红" if red else "黑",
         "theirs": "黑" if red else "红",
-        "king": "红将, which starts at (0, 4)" if red else "黑帅, which starts at (9, 4)",
         "foe_king": "黑帅" if red else "红将",
-        "half": "0–4" if red else "5–9",
-        "foe_half": "5–9" if red else "0–4",
-        "forward": "toward row 9 (row + 1)" if red else "toward row 0 (row − 1)",
+        "forward": "row + 1" if red else "row − 1",
     }
     return (
-        "You are {me} in a 揭棋 (reveal xiangqi) game. Red moves first. "
-        "You play against {foe}, a separate model.\n\n"
-        "## Turn\n\n"
-        "1. Call `board` once and read `diagram`. The message describes {foe}'s previous move when there is one. "
-        "Use that, not memory, to judge what was revealed, what was captured, and whether your king is in check.\n"
-        "2. Work out the position with the checklist under \"Choosing a move\". There is no list of legal moves. "
-        "You must check each candidate against the rules yourself.\n"
-        "3. Call `play(from_row, from_col, to_row, to_col)`.\n"
-        "4. On an error, the board is unchanged. Read the whole error before anything else. "
-        "It says what is on the source square and why the move failed. If the piece is yours, it also lists every square that piece can reach. "
-        "Never resend a move that failed. Either pick a listed square that passes your safety checks, or move a different piece. "
-        "Do not call `board` again just because of an error. "
-        "If the error says the square is empty or not yours, you misread the diagram, so recount the row and column.\n"
-        "5. After a successful `play`, stop. Do not call `board` again.\n\n"
-        "## Reading the board\n\n"
-        "`diagram` is a markdown table. Split a body row on `|`. The first field is the row number, "
-        "0 at the top through 9 at the bottom. The next nine fields are columns 0 through 8, left to right. "
-        "A blank field is an empty square and still counts as a column. A square is written (row, col).\n\n"
-        "Red starts on rows 0–4 at the top. Black starts on rows 5–9 at the bottom. The river lies between rows 4 and 5.\n\n"
-        "| Cell | Meaning |\n"
+        "你是{me}，下揭棋（暗子象棋），红先走，对手是另一个模型（{foe}）。\n\n"
+        "## 每回合\n\n"
+        "1. 先调 `board` 一次，读 `diagram`。若消息里给了{foe}的上一手，以它为准判断翻了什么、吃了什么、自己是否被将军，不要凭记忆。\n"
+        "2. 按「选子」里的硬约束自己推演。没有合法着法列表，每个候选都要自己核对规则。\n"
+        "3. 调 `play(from_row, from_col, to_row, to_col)`。\n"
+        "4. 报错时棋盘没动。先把错误读完：它说明源格上是什么、为何非法；若该子是你的，还会列出它所有能去的格。同一手绝不再发，\n"
+        "   改为走列出的格（仍需做安全检查）或换一个子。不要因为报错就去再调 `board`；若错误说源格为空或不是你的子，说明坐标读错了，重新数行列。\n"
+        "5. `play` 成功后立即停手，不要再调 `board`。\n\n"
+        "## 读盘\n\n"
+        "`diagram` 是 markdown 表。每行按 `|` 切分，首字段是行号 0（最上）到 9（最下），其后九格是列 0 到 8（左到右）。\n"
+        "空字段是空格，但仍占一列。格点记作 (row, col)。红方在 0–4、黑方在 5–9，河界在 4、5 行之间。\n\n"
+        "| 内容 | 含义 |\n"
         "| --- | --- |\n"
-        "| blank | Empty |\n"
-        "| 红· | Covered piece on rows 0–4. Red moves it. Its type and true color are hidden. |\n"
-        "| 黑· | Covered piece on rows 5–9. Black moves it. Its type and true color are hidden. |\n"
-        "| 红将 红仕 红相 红车 红马 红炮 红兵 | Face-up red piece |\n"
-        "| 黑帅 黑士 黑象 黑车 黑马 黑炮 黑卒 | Face-up black piece |\n\n"
-        "The red king is 红将 and the black king is 黑帅. This is the reverse of usual xiangqi, so always trust the 红 or 黑 prefix. "
-        "车, 马 and 炮 share one name on both sides.\n\n"
-        "## Your pieces\n\n"
-        "- Every face-up piece with the {mine} prefix, wherever it stands, including your king, {king}.\n"
-        "- Every covered {mine}·. Covered pieces never move without flipping, so a {mine}· always sits on its starting square on rows {half}.\n"
-        "- The 30 hidden pieces were shuffled across both colors. When you flip a {mine}·, it may turn out to be a {theirs} piece. "
-        "From then on it belongs to {foe}.\n"
-        "- Never guess or name a covered piece's type. Nobody knows it, and `play` does not reveal it.\n\n"
-        "## Rules this board enforces\n\n"
-        "| | Rule |\n"
+        "| 空 | 空格 |\n"
+        "| 红· | 0–4 行上的暗子，红方走，兵种与真色均未知 |\n"
+        "| 黑· | 5–9 行上的暗子，黑方走，兵种与真色均未知 |\n"
+        "| 红将 红仕 红相 红车 红马 红炮 红兵 | 红方明子 |\n"
+        "| 黑帅 黑士 黑象 黑车 黑马 黑炮 黑卒 | 黑方明子 |\n\n"
+        "红将/黑帅 的写法与常规象棋相反，一律以红/黑前缀为准。车、马、炮两色同名。\n\n"
+        "## 己方子\n\n"
+        "- 所有以「{mine}」开头的明子，含己方将。\n"
+        "- 所有{mine}·。暗子不走不翻，所以{mine}·一定还在起始格。\n"
+        "- 30 个暗子的兵种已在两色间打乱：翻{mine}·可能翻出「{theirs}」的子，此后归{foe}。\n"
+        "- 不要猜、也不要说出暗子的兵种。没人知道，`play` 也不会透露。\n\n"
+        "## 本棋盘强制执行的规则\n\n"
+        "| 条目 | 规则 |\n"
         "| --- | --- |\n"
-        "| 暗子 | A covered piece moves as the piece that starts on its square (table below), not as its hidden type. |\n"
-        "| 翻明 | Moving a covered piece flips it face up on its destination. After that it moves as its real type and belongs to its real color. |\n"
-        "| 明子 | A face-up 仕/士 or 相/象 may go anywhere on the board, with no palace or river limit. A face-up king stays inside its own palace. |\n"
-        "| 吃子 | You may land on any piece except a face-up piece of your own color. That includes every covered piece, even your own {mine}·. |\n"
-        "| 无将军 | The engine does not reject a move that leaves your king under attack. "
-        "That is not permission to stay there. The opponent can capture the king on the next move and win. |\n"
-        "| 照面 | The two kings may face each other. There is no flying-general rule. |\n"
-        "| 胜负 | Capturing the enemy king wins immediately. |\n\n"
-        "## Starting squares\n\n"
-        "A covered piece moves as the piece listed for its square.\n\n"
-        "| Row | Columns 0–8 |\n"
+        "| 暗子 | 暗子按它所在起始格的兵种走，不按隐藏兵种走。 |\n"
+        "| 翻明 | 暗子移动后在落点翻开；此后按真实兵种走，归真实颜色。 |\n"
+        "| 明子 | 明仕/士、明相/象可走全盘，不受九宫与河界限制；明将/帅只能在本方九宫内。 |\n"
+        "| 吃子 | 可落在任何子上，只不能吃本方明子；所有暗子都可吃，包括自己的 {mine}·。 |\n"
+        "| 无将军 | 引擎不会拒绝让自己将被吃的走法。那不是许可，对手下一手即可吃将取胜。 |\n"
+        "| 照面 | 两将可以照面，没有飞将规则。 |\n"
+        "| 胜负 | 吃对方将即胜。 |\n\n"
+        "## 起始格（暗子按此兵种走）\n\n"
+        "```\n"
+        "row 0  车 马 相 仕 将 仕 相 马 车\n"
+        "row 2  炮 on 1, 7\n"
+        "row 3  兵 on 0, 2, 4, 6, 8\n"
+        "row 6  卒 on 0, 2, 4, 6, 8\n"
+        "row 7  炮 on 1, 7\n"
+        "row 9  车 马 象 士 帅 士 象 马 车\n"
+        "```\n\n"
+        "## 走法\n\n"
+        "| 子 | 规则 |\n"
         "| --- | --- |\n"
-        "| 0 | 车 马 相 仕 将 仕 相 马 车 |\n"
-        "| 2 | 炮 on 1 and 7 |\n"
-        "| 3 | 兵 on 0, 2, 4, 6, 8 |\n"
-        "| 6 | 卒 on 0, 2, 4, 6, 8 |\n"
-        "| 7 | 炮 on 1 and 7 |\n"
-        "| 9 | 车 马 象 士 帅 士 象 马 车 |\n\n"
-        "## Moves\n\n"
-        "| Piece | Rule |\n"
-        "| --- | --- |\n"
-        "| 车 | Slides along a row or column through empty squares. May stop on the first occupied square it reaches if that is a legal capture. |\n"
-        "| 马 | One orthogonal step, then one diagonal step outward. Blocked if the first orthogonal square is occupied: (r±1, c) for a two-row move, (r, c±1) for a two-column move. |\n"
-        "| 炮 | Moves like 车 but cannot capture that way. To capture, exactly one piece of any kind stands between it and the target on the same line. |\n"
-        "| 相 / 象 | Two squares diagonally. Blocked if the middle square is occupied. |\n"
-        "| 仕 / 士 | One square diagonally. A covered one on a guard square may only step into that back rank's palace, (1, 4) or (8, 4). |\n"
-        "| 将 / 帅 | One square orthogonally inside its palace: Red rows 0–2, Black rows 7–9, columns 3–5. |\n"
-        "| 兵 / 卒 | Covered: one step toward the other side only. Face up: Red forward is row + 1, Black forward is row − 1. "
-        "Once across the river (red soldier on rows 5–9, black soldier on rows 0–4) it may also step sideways. It never steps back. |\n\n"
-        "Your forward is {forward}.\n\n"
-        "## Choosing a move\n\n"
-        "Go through these in order, and stop at the first step that settles the move.\n\n"
-        "1. Win. If any of your pieces can legally capture {foe_king}, play it.\n"
-        "2. In check, escape. Before any other idea, find every {foe} piece that could capture your king on its next move: "
-        "车 and 炮 on the king's row and column, 马 an L-shape away with its leg square empty, face-up 兵/卒, 仕/士 and 相/象, "
-        "and covered {theirs}· whose starting-square move reaches the king. "
-        "If any such piece exists, you are in check. The move you play must get the king out, and then you stop. "
-        "Do not develop, do not take an unrelated piece, and do not only mention the check in your reply.\n"
-        "   Escape in this order. Play the first one that leaves no {foe} piece able to capture the king:\n"
-        "   - Move the king one square inside its palace, off the attack line, onto a square that piece cannot reach.\n"
-        "   - Capture the checking piece.\n"
-        "   - Interpose on the line of a 车 or 炮, or step onto the 马's leg square. "
-        "A block only counts if that checker can no longer capture the king. Filling a 炮's line can create the screen it needed, so check the count.\n"
-        "   If several escapes work, prefer moving the king. If none works, the king is lost; still capture the checker if you can.\n"
-        "3. Do not blunder. For each candidate, check that after it {foe} cannot capture your king. "
-        "Moving a piece off a line can open a 车 attack or remove a 炮 screen. "
-        "Flipping a covered piece beside your king is a gamble, because it may turn out to be {theirs}.\n"
-        "4. Material. Capture face-up {foe} pieces, most valuable first: 车, then 马 and 炮, then the rest. "
-        "Before you land, check whether {foe} can recapture on that square, and avoid trading a strong piece for a weak one.\n"
-        "5. Covered targets. A {theirs}· on rows {foe_half} could be either color. Capturing one denies {foe} a move or a 炮 screen, "
-        "but it is a gamble on material, so prefer known face-up targets. Capturing your own {mine}· is legal but almost never useful.\n"
-        "6. Otherwise develop. Flip or move a piece to a square where {foe} cannot capture it, preferably one that adds pressure or opens lines. "
-        "Covered pieces on the 车 and 炮 starting squares usually have the most moves. "
-        "For example, at the start a covered 炮 on (2, 1) can capture (9, 1) by jumping (7, 1), "
-        "and one on (7, 1) can capture (0, 1) by jumping (2, 1).\n\n"
-        "## Reply\n\n"
-        "Think in Chinese, a few sentences: whether your king is in check, the move you are playing, and why the king is safe after it. "
-        "If the king is in check, that move has to be the escape. Do not dump the board.\n"
-        "After the move, look at {foe_king}. If it is still on the board and one of your pieces can capture it on the next move, "
-        "the reply must contain the word 将军. Count a face-up piece as itself. Count a covered piece that you did not move as the piece on its starting square. "
-        "A covered piece you just moved has flipped, and its new type is unknown, so it cannot be the reason you say 将军. "
-        "Capturing the king wins outright. Do not say 将军 for that capture."
+        "| 车 | 沿横线或竖线穿过空格，可停在遇到的第一枚子上（合法时即吃）。 |\n"
+        "| 马 | 先直一步再斜一步向外。马腿被占即蹩：走两行时看 (r±1, c)，走两列时看 (r, c±1)。 |\n"
+        "| 炮 | 走同车，但不能这样吃。吃子须在与目标同一线上、二者之间恰有一枚子。 |\n"
+        "| 相 / 象 | 斜走两格，象眼被占即塞。 |\n"
+        "| 仕 / 士 | 斜走一格。起始格上的暗仕/暗士只能进本方九宫，(1,4) 或 (8,4)。 |\n"
+        "| 将 / 帅 | 九宫内直走一格：红 0–2 行、黑 7–9 行，列 3–5。 |\n"
+        "| 兵 / 卒 | 暗兵/暗卒只朝对面直走一格；明兵/明卒前进方向为 {forward}，过河（红兵在 5–9 行、黑卒在 0–4 行）后可横走一格，永不后退。 |\n\n"
+        "## 选子\n\n"
+        "自己评估局面，只有三条是硬约束：\n\n"
+        "- 有子能合法吃{foe_king}，就吃。\n"
+        "- 若你的将下一手会被吃，本手必须解将，解完即停；不许借机出动，也不许只在回答里提一句将军。\n"
+        "- 不允许走完之后{foe}能吃你的将。\n\n"
+        "其余取舍得失由你判断。\n\n"
+        "## 回答\n\n"
+        "全程用中文思考和作答，三五句话：是否被将军、走哪一手、走完之后将为何安全。被将军时这一手必须是解将。不要复述棋盘。\n"
+        "走完再看{foe_king}：若它还在盘上，且你有子下一手能吃它，回答中必须出现「将军」二字。\n"
+        "明子按自身算；没动过的暗子按起始格兵种算；刚被翻开的暗子新兵种未知，不能作为喊将军的理由。\n"
+        "吃将直接获胜，不要喊将军。"
     ).format(**words)
 
 
@@ -379,24 +341,22 @@ def describe_last_move(diagram, before, last):
     src = cell_at(before, fr, fc) if before else ""
     taken = cell_at(before, tr, tc) if before else None
     now = cell_at(diagram, tr, tc)
-    lines = ["Opponent's last move: ({}, {}) -> ({}, {}).".format(fr, fc, tr, tc)]
+    lines = ["对手上一手：({}, {}) -> ({}, {})。".format(fr, fc, tr, tc)]
     if src:
-        lines.append("The piece that moved showed {}.".format(src))
+        lines.append("走子的那枚子原显示为 {}。".format(src))
     if now:
-        lines.append("It is now {} on ({}, {}).".format(now, tr, tc))
+        lines.append("它现在位于 ({}, {})，显示为 {}。".format(tr, tc, now))
     if before is not None:
         if not taken:
-            lines.append("The destination was empty. Nothing was captured.")
+            lines.append("落点原本是空格，没有吃到子。")
         elif taken.endswith("·"):
             lines.append(
-                "It captured a covered piece ({}). The type was not revealed. Do not name it.".format(
-                    taken
-                )
+                "它吃掉了一枚暗子（{}），兵种未公开，不要猜。".format(taken)
             )
         else:
-            lines.append("It captured {}.".format(taken))
+            lines.append("它吃掉了明子 {}。".format(taken))
     lines.append(
-        "Judge the position from this move: what was revealed, what was captured, and whether your king is in check."
+        "以这一手判断局势：翻出了什么、吃掉了什么、你的将是否被将军。"
     )
     return "\n".join(lines)
 
@@ -429,35 +389,35 @@ def describe_outcome(side, before_diagram, after, payload):
     taken = cell_at(before_diagram, tr, tc)
     mine = "红" if side == "red" else "黑"
     lines = [
-        "You played ({}, {}) -> ({}, {}).".format(fr, fc, tr, tc),
-        "The source square showed {}.".format(src or "nothing"),
-        "That piece now sits on the destination as {}.".format(dst or "nothing"),
+        "你走了 ({}, {}) -> ({}, {})。".format(fr, fc, tr, tc),
+        "源格上原显示 {}。".format(src or "空"),
+        "那枚子现在在落点显示为 {}。".format(dst or "空"),
     ]
     if src.endswith("·"):
         if dst.startswith(mine):
-            lines.append("It was covered and flipped face up. It is your piece.")
+            lines.append("它原本是暗子，已翻开，是你的子。")
         elif dst:
             lines.append(
-                "It was covered and flipped face up as an opponent piece. It belongs to the opponent now."
+                "它原本是暗子，翻开后是对手的子，从现在起归对手。"
             )
     elif src:
-        lines.append("It was already face up.")
+        lines.append("它本来就是明子。")
     if not taken:
-        lines.append("The destination was empty. You captured nothing.")
+        lines.append("落点原本是空格，没有吃到子。")
     elif taken.endswith("·"):
-        whose = "your own" if taken.startswith(mine) else "an opponent"
+        whose = "你自己的" if taken.startswith(mine) else "对手的"
         lines.append(
-            "You captured {} covered piece ({}). Its type was never revealed. Do not name it.".format(
+            "你吃掉了{}暗子（{}），兵种从未公开，不要说出它是什么。".format(
                 whose, taken
             )
         )
     else:
-        lines.append("You captured the face-up piece {}.".format(taken))
+        lines.append("你吃掉了明子 {}。".format(taken))
     result = payload.get("result") or after.get("result")
     if result == "red_win":
-        lines.append("Red wins.")
+        lines.append("红方胜。")
     elif result == "black_win":
-        lines.append("Black wins.")
+        lines.append("黑方胜。")
     return "\n".join(lines)
 
 
@@ -496,15 +456,15 @@ async def write_aside(chat, provider, outcome, earlier):
     """Private reaction after the move has resolved. Thinking stays off."""
     lead = ""
     if earlier:
-        lead = "Your earlier private notes:\n{}\n\n".format("\n".join(earlier[-6:]))
+        lead = "你之前的内心笔记：\n{}\n\n".format("\n".join(earlier[-6:]))
     text = (
         lead
-        + "What just happened, already resolved:\n"
+        + "刚刚发生的、已经确认的事实：\n"
         + outcome
-        + "\n\nWrite two or three sentences of private thoughts in Chinese, reacting to these facts. "
-        "If a covered piece flipped into an opponent piece, or you captured your own covered piece, react to that. "
-        "Only you will read this. Do not name a covered piece whose type is not written above. "
-        "Do not suggest the opponent's move."
+        + "\n\n用中文写两三句内心戏，回应这些事实。"
+        "如果暗子翻出来是对手的子，或者你吃了自己的暗子，就针对这点反应。"
+        "这些话只有你自己看。凡是上面没写明的暗子兵种，一律不要猜、不要说出。"
+        "不要替对手设想下一步。"
     )
     return await speak(chat, provider, text)
 
@@ -616,14 +576,14 @@ async def session(adapter):
         emit("status", "thinking…", side)
         turns[side] += 1
         played = {"ok": False}
-        content = "Your turn."
+        content = "轮到你了。"
         last = describe_last_move(
             state.get("diagram", ""), before_opponent, state.get("last_move")
         )
         if last:
             content += "\n\n" + last
         if notes[side]:
-            content += "\n\nPrivate notes only you can see:\n" + "\n".join(notes[side][-6:])
+            content += "\n\n只有你能看到的内心笔记：\n" + "\n".join(notes[side][-6:])
         try:
             async for update in agents[side].astream(
                 {"messages": [{"role": "user", "content": content}]},
