@@ -75,18 +75,30 @@ def prompt_for(side, self_memory="", foe_memory=""):
     }
     text = (
         "你是{me}，下揭棋（暗子象棋），红先走，对手是另一个模型（{foe}）。\n\n"
+        "## 揭棋怎么下\n\n"
+        "开局所有子都盖着。`红·` 是摆在你这一半的暗子，`黑·` 是摆在对面的暗子；"
+        "兵种和真色开局前就一起打乱了，没人知道，翻之前也不许猜。\n\n"
+        "- 暗子按它所在起始格的兵种走，不按隐藏兵种走；移动后在落点翻开。\n"
+        "- 翻开后按真实兵种和真色走。翻出「{theirs}」的子就归{foe}——"
+        "你出的这一手等于替{foe}把子挪了出来，所以暗子不是稳赚的战力，挪开也不等于丢子。\n"
+        "- 可以吃任何子，只不能吃本方明子；暗子（含自己的 {mine}·）都能吃。\n"
+        "- 吃{foe_king}即胜，但将不能白吃：只有你上一手已经将军、对手没能解，本手才吃得到将。\n"
+        "- 其余按象棋走：车直、马走日且蹩腿、炮隔一子吃、相塞象眼、士斜走、兵过河可横走；"
+        "两将不能在同一条直线上照面。与常规象棋不同之处，以「走法」表为准。\n\n"
         "全程用中文：推理过程和回答都写中文。\n\n"
         "## 每回合\n\n"
         "本手预算 {seconds} 秒。超时会被取消，关闭思考后重试一次，再超时判负。"
         "想知道还剩多少秒就调 `clock`。\n\n"
         "1. 先调 `board` 一次，读 `diagram`。若消息里给了{foe}的上一手，以它为准判断翻了什么、吃了什么、自己是否被将军，不要凭记忆。\n"
-        "2. 按「选子」里的硬约束自己推演。没有合法着法列表，每个候选都要自己核对规则。\n"
+        "2. 按「选子」里的硬约束自己推演。没有全盘着法列表；拿不准某一枚子能去哪，就调 `moves(row, col)` 问那一枚。"
+        "它只给机械合法性——走完会送将的格也照样列出——所以安全和取舍仍由你判断。每手能问的次数有限，拒绝也算一次，回复里的 `queries_left` 是余量；"
+        "别把它当成逐子列举的解算器，挑真正在考虑的几枚问。\n"
         "3. 调 `play(from_row, from_col, to_row, to_col, note)`。`note` 必填，一两句中文，说清走哪步、为什么、走完将为何安全。"
         "它会原样进复盘日志，所以只写结论和理由，不要贴推演过程，不要罗列候选；空 note 会被拒绝。\n"
         "4. 报错时棋盘没动。先把错误读完：它说明源格上是什么、为何非法；若该子是你的，还会列出它所有能去的格。同一手绝不再发，\n"
         "   改为走列出的格（仍需做安全检查）或换一个子。不要因为报错就去再调 `board`；若错误说源格为空或不是你的子，说明坐标读错了，重新数行列。\n"
         "   唯一的例外是 `note` 缺失或为空：这一手本身没被受理，补上 note 原样重发即可。\n"
-        "5. `play` 成功后立即停手，不要再调 `board`。\n\n"
+        "5. `play` 成功后立即停手，不要再调 `board` 或 `moves`。\n\n"
         "## 读盘\n\n"
         "`diagram` 是 markdown 表。每行按 `|` 切分，首字段是行号 0（最上）到 9（最下），其后九格是列 0 到 8（左到右）。\n"
         "空字段是空格，但仍占一列。格点记作 (row, col)。红方在 0–4、黑方在 5–9，河界在 4、5 行之间。\n\n"
@@ -112,8 +124,10 @@ def prompt_for(side, self_memory="", foe_memory=""):
         "| 翻明 | 暗子移动后在落点翻开；此后按真实兵种走，归真实颜色。 |\n"
         "| 明子 | 明仕/士、明相/象可走全盘，不受九宫与河界限制；明将/帅只能在本方九宫内。 |\n"
         "| 吃子 | 可落在任何子上，只不能吃本方明子；所有暗子都可吃，包括自己的 {mine}·。 |\n"
-        "| 无将军 | 引擎不会拒绝让自己将被吃的走法。那不是许可，对手下一手即可吃将取胜。 |\n"
-        "| 照面 | 两将可以照面，没有飞将规则。 |\n"
+        "| 无将军 | 引擎不会拒绝让自己将被吃的走法。那不是许可：棋盘会公开标出你的将被将军，对手很快就能吃将取胜。 |\n"
+        "| 照面 | 两将不能在同一条直线上直接照面。中间有任意一枚子（暗子也算）就隔开了；会让两将照面的走法非法，引擎直接拒绝。 |\n"
+        "| 将军 | 引擎在你走完之后判定，把正被将的一方写进棋盘的 `check`，对手下一手一定看得到。不用你在回答里喊。 |\n"
+        "| 吃将 | 只有你上一手已经将军、对手没解，本手才吃得到将，`may_take_king` 为真才行。对手自己走进被吃的位置也吃不到，要先将军一手。 |\n"
         "| 胜负 | 吃对方将即胜。 |\n\n"
         "## 起始格（暗子按此兵种走）\n\n"
         "```\n"
@@ -136,15 +150,14 @@ def prompt_for(side, self_memory="", foe_memory=""):
         "| 兵 / 卒 | 暗兵/暗卒只朝对面直走一格；明兵/明卒前进方向为 {forward}，过河（红兵在 5–9 行、黑卒在 0–4 行）后可横走一格，永不后退。 |\n\n"
         "## 选子\n\n"
         "自己评估局面，只有三条是硬约束：\n\n"
-        "- 有子能合法吃{foe_king}，就吃。\n"
-        "- 若你的将下一手会被吃，本手必须解将，解完即停；不许借机出动，也不许只在回答里提一句将军。\n"
+        "- {foe_king}能吃就吃，但引擎只在 `may_take_king` 为真时接受吃将（见上）。\n"
+        "- 若你的将下一手会被吃，本手必须解将，解完即停；不许借机出动。\n"
         "- 不允许走完之后{foe}能吃你的将。\n\n"
         "其余取舍得失由你判断。\n\n"
         "## 回答\n\n"
         "三五句话，用中文：是否被将军、走哪一手、走完之后将为何安全。被将军时这一手必须是解将。不要复述棋盘；复盘日志留下的是 `note`，不是这段回答。\n"
-        "走完再看{foe_king}：若它还在盘上，且你有子下一手能吃它，回答中必须出现「将军」二字。\n"
-        "明子按自身算；没动过的暗子按起始格兵种算；刚被翻开的暗子新兵种未知，不能作为喊将军的理由。\n"
-        "吃将直接获胜，不要喊将军。"
+        "将军由引擎宣告，回答里不用喊；`note` 只写这一手的意图。\n"
+        "明子按自身算；没动过的暗子按起始格兵种算。"
     ).format(**words)
     if self_memory:
         text += (
@@ -210,6 +223,7 @@ LOG_LABELS = {
     "taunt": "狠话",
     "summary": "总结",
     "memory": "记忆",
+    "check": "将军",
 }
 LOG = None
 PIECE_NAMES = {
@@ -778,6 +792,15 @@ def describe_outcome(side, before_diagram, after, payload):
     else:
         lines.append("你吃掉了明子 {}。".format(taken))
     result = payload.get("result") or after.get("result")
+    if payload.get("check"):
+        lines.append(
+            "将军：{}的将正被你将着，它本手必须解将；它不解，你下一手就吃将。"
+            "这次将军已由引擎公开，不用你在回答里喊。".format(
+                "黑方" if side == "red" else "红方"
+            )
+        )
+    if side in (after.get("check") or []):
+        lines.append("你自己的将也正被对方将着：轮到你时必须先解将，否则会被吃将。")
     if result == "red_win":
         lines.append("红方胜。")
     elif result == "black_win":
@@ -993,7 +1016,7 @@ async def run_turn(agent, side, content, thread_id):
         {"messages": [{"role": "user", "content": content}]},
         {
             "configurable": {"thread_id": thread_id},
-            "recursion_limit": 12,
+            "recursion_limit": 24,
         },
         stream_mode="updates",
     ):
@@ -1044,7 +1067,7 @@ def make_agent(player, tools, self_memory="", foe_memory="", thinking=None):
         middleware=[
             SummarizationMiddleware(
                 model=player.plain(),
-                trigger=("tokens", 20000),
+                trigger=("tokens", 200000),
                 keep=("messages", 10),
                 summary_prompt=SUMMARY_PROMPT,
             )
@@ -1242,6 +1265,12 @@ async def session(adapter, players):
             # even when a human played one of the earlier turns.
             LOG.turn(side, int(state.get("ply", 0)) + 1, state.get("diagram", ""))
         content = "轮到你了。"
+        if side in state.get("check", []):
+            # The opponent was never told by the mover; the engine says it here,
+            # so a check always reaches the side that has to answer it.
+            foe = "黑方" if side == "red" else "红方"
+            content += "\n\n你正被将军：{}上一手将着你的将，本手必须解将。".format(foe)
+            emit("check", "{}的将被将军，本手必须解将。".format(SIDE_NAMES[side]), side)
         last = describe_last_move(
             state.get("diagram", ""), before_opponent, state.get("last_move")
         )

@@ -2,6 +2,11 @@
 
 #include "tests/scenes/reveal_chess_scene.h"
 
+// The moves tool description states the cap in words so the agent can plan
+// before its first call; the engine enforces the constant below.
+static_assert(k_reveal_chess_move_queries == 4,
+              "update the moves tool description: it says 4 per turn");
+
 reveal_chess_mcp::reveal_chess_mcp(reveal_chess_scene *scene)
     : m_scene(scene) {}
 
@@ -25,6 +30,11 @@ std::string reveal_chess_mcp::board() {
 
 std::string reveal_chess_mcp::clock() {
   return m_scene->on_render_thread([this] { return m_scene->clock_json(); });
+}
+
+std::string reveal_chess_mcp::moves(int row, int col) {
+  return m_scene->on_render_thread(
+      [this, row, col] { return m_scene->moves_json(row, col); });
 }
 
 std::string reveal_chess_mcp::play(int from_row, int from_col, int to_row,

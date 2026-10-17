@@ -46,6 +46,11 @@ public:
   std::string board_json();
   // Seconds left on the current turn, published as the clock tool.
   std::string clock_json();
+  // Squares the piece on (row, col) can reach this turn, published as the moves
+  // tool. Refuses a square whose piece cannot move this turn, and refuses once
+  // the per-turn query budget is spent. Mechanical legality only: a move that
+  // leaves the mover's own king en prise is still listed.
+  std::string moves_json(int row, int col);
   // Seconds since the AI started working on the current turn.
   double turn_elapsed() const;
   // Black's move, used by the AI. Rejects Red's turn and illegal moves.
@@ -142,9 +147,16 @@ private:
   bool m_ai_thinking = true;
   int m_red_illegal = 0;
   int m_black_illegal = 0;
+  // Whether that side's last move left the other king attacked, i.e. whether
+  // it gave check. A king may only be taken after a check the taker gave
+  // itself, so this is what makes the capture legal.
+  bool m_red_check_given = false;
+  bool m_black_check_given = false;
   // Seconds an AI side gets for one move. The agent retries once without
   // thinking, so the engine only forfeits after two missed budgets.
   int m_move_seconds = 60;
+  // moves calls spent this turn. Reset with the clock, so the cap is per turn.
+  int m_move_queries = 0;
   std::chrono::steady_clock::time_point m_turn_started =
       std::chrono::steady_clock::now();
   bool m_was_thinking = false;

@@ -47,6 +47,11 @@ constexpr double k_heartbeat_timeout = 6.0;
 // timer, so a retry that lands just inside its window is not rejected.
 constexpr double k_move_grace = 3.0;
 
+// Defined further down, where the diagram vocabulary lives. Declared here
+// because the move helpers above them need to say which side a square is.
+bool is_piece_of_current_side(bool _red_turn, unsigned int _cell, int _r,
+                              int _c);
+
 static void pack_move_msg(char *buf, int fr, int fc, int tr, int tc) {
   buf[0] = static_cast<char>(msg_type::k_msg_move);
   int32_t *p = reinterpret_cast<int32_t *>(buf + 1);
@@ -171,6 +176,54 @@ static bool is_friend(int _first, int _second) {
       (_second & piece_type::k_black_mask) != 0)
     return true;
   return false;
+}
+
+// Xiangqi's flying-general rule: the two kings may never stand on the same
+// open line. Occupancy is what blocks, so a covered piece blocks as well.
+bool kings_facing(const int _board[10][9]) {
+  int red_row = -1, red_col = -1, black_row = -1, black_col = -1;
+  for (int r = 0; r < 10; ++r) {
+    for (int c = 0; c < 9; ++c) {
+      const unsigned int cell = static_cast<unsigned int>(_board[r][c]);
+      if (cell == 0 || (cell & piece_type::k_cover_mask) != 0 ||
+          (cell & 0xFF) != piece_type::k_king)
+        continue;
+      if ((cell & piece_type::k_red_mask) != 0) {
+        red_row = r;
+        red_col = c;
+      } else {
+        black_row = r;
+        black_col = c;
+      }
+    }
+  }
+  if (red_row < 0 || black_row < 0)
+    return false;
+  if (red_row == black_row) {
+    for (int c = std::min(red_col, black_col) + 1;
+         c < std::max(red_col, black_col); ++c)
+      if (_board[red_row][c] != 0)
+        return false;
+    return true;
+  }
+  if (red_col != black_col)
+    return false;
+  for (int r = std::min(red_row, black_row) + 1;
+       r < std::max(red_row, black_row); ++r)
+    if (_board[r][red_col] != 0)
+      return false;
+  return true;
+}
+
+// Whether playing this move would leave the kings facing. Only occupancy
+// changes, so whether the mover is revealed on the way does not matter.
+bool leaves_kings_facing(const int _board[10][9], int _fr, int _fc, int _tr,
+                         int _tc) {
+  int after[10][9];
+  std::memcpy(after, _board, sizeof(after));
+  after[_tr][_tc] = after[_fr][_fc];
+  after[_fr][_fc] = 0;
+  return kings_facing(after);
 }
 
 // When is_covered: use default position rules (king/guard in palace, bishop not
@@ -337,6 +390,55 @@ get_valid_moves_for_piece(const int board[10][9], piece_type _piece_type,
   return valid_moves;
 }
 
+// What the board will actually accept: piece geometry plus the flying-general
+// rule. Used wherever moves are shown to a player. commit_move checks the two
+// separately, so it can say which one failed.
+std::vector<std::pair<int, int>>
+legal_moves_for_piece(const int _board[10][9], piece_type _piece_type, int _r,
+                      int _c) {
+  auto moves = get_valid_moves_for_piece(_board, _piece_type, _r, _c);
+  std::erase_if(moves, [&](const std::pair<int, int> &_to) {
+    return leaves_kings_facing(_board, _r, _c, _to.first, _to.second);
+  });
+  return moves;
+}
+
+// A face-up king of one colour. Covered pieces are never a king, and a king is
+// always face up, so there is at most one square per colour.
+std::pair<int, int> king_square(const int _board[10][9], bool _red) {
+  for (int r = 0; r < 10; ++r) {
+    for (int c = 0; c < 9; ++c) {
+      const unsigned int cell = static_cast<unsigned int>(_board[r][c]);
+      if (cell == 0 || (cell & piece_type::k_cover_mask) != 0 ||
+          (cell & 0xFF) != piece_type::k_king)
+        continue;
+      if (((cell & piece_type::k_red_mask) != 0) == _red)
+        return {r, c};
+    }
+  }
+  return {-1, -1};
+}
+
+// Whether the side `_by_red` has a legal move onto the other king. That is a
+// check: the other side must answer it on its turn.
+bool side_checks(const int _board[10][9], bool _by_red) {
+  const auto king = king_square(_board, !_by_red);
+  if (king.first < 0)
+    return false;
+  for (int r = 0; r < 10; ++r) {
+    for (int c = 0; c < 9; ++c) {
+      const unsigned int cell = static_cast<unsigned int>(_board[r][c]);
+      if (cell == 0 || !is_piece_of_current_side(_by_red, cell, r, c))
+        continue;
+      const auto moves =
+          legal_moves_for_piece(_board, static_cast<piece_type>(cell), r, c);
+      if (std::find(moves.begin(), moves.end(), king) != moves.end())
+        return true;
+    }
+  }
+  return false;
+}
+
 bool piece_index_is_valid(const std::pair<int, int> &_index) {
   return _index.first != -1 && _index.second != -1;
 }
@@ -475,6 +577,8 @@ void reveal_chess_scene::shuffle_board() {
   m_game_result = game_result::ongoing;
   m_red_illegal = 0;
   m_black_illegal = 0;
+  m_red_check_given = false;
+  m_black_check_given = false;
   restart_turn_clock();
   forget_history();
   invalidate_piece_index(m_last_move_from);
@@ -496,7 +600,8 @@ void reveal_chess_scene::apply_remote_move(int fr, int fc, int tr, int tc) {
     return;
   unsigned int piece = m_board[fr][fc];
   unsigned int captured = m_board[tr][tc];
-  record_move(fr, fc, tr, tc, piece, captured, m_red_turn);
+  const bool moved_by_red = m_red_turn;
+  record_move(fr, fc, tr, tc, piece, captured, moved_by_red);
   m_board[tr][tc] = piece & (~piece_type::k_cover_mask);
   m_board[fr][fc] = 0;
   m_last_move_from = {fr, fc};
@@ -507,8 +612,14 @@ void reveal_chess_scene::apply_remote_move(int fr, int fc, int tr, int tc) {
     piece_type pt = static_cast<piece_type>(captured & 0xFF);
     if (pt == piece_type::k_king)
       m_game_result =
-          m_red_turn ? game_result::red_win : game_result::black_win;
+          moved_by_red ? game_result::red_win : game_result::black_win;
   }
+  // Same announcement as a local move, so both sides agree on who may take a
+  // king.
+  if (moved_by_red)
+    m_red_check_given = side_checks(m_board, true);
+  else
+    m_black_check_given = side_checks(m_board, false);
   if (m_game_result == game_result::ongoing)
     m_red_turn = !m_red_turn;
   restart_turn_clock();
@@ -1098,6 +1209,22 @@ std::string explain_failure(const std::string &_error, const int _board[10][9],
            "it is, until it is revealed. Re-read the diagram: the first field "
            "of a row is the row number, then columns 0 through 8.";
   }
+  if (_error == "Kings would face.") {
+    return "Illegal: " + cell_text(cell, _fr, _fc) + " " +
+           square_text(_fr, _fc) + " to " + square_text(_tr, _tc) +
+           ". That would leave the two kings on the same open line, which "
+           "xiangqi never allows: the side to move may not expose them to each "
+           "other. Any piece between them blocks the line, a covered piece "
+           "included. Block the line or move the king; the board did not "
+           "change.";
+  }
+  if (_error == "Undeclared check.") {
+    return "Illegal: taking the king at " + square_text(_tr, _tc) +
+           " needs a check you gave on your own previous move. Your last move "
+           "did not check that side, so the engine never announced it and the "
+           "capture is not allowed. Play a different move; the board did not "
+           "change.";
+  }
   if (_error != "Illegal move.")
     return _error;
 
@@ -1108,7 +1235,7 @@ std::string explain_failure(const std::string &_error, const int _board[10][9],
     text += std::string(" It is covered and stands on a ") +
             move_type_text(default_type_at(_fr, _fc)) +
             " starting square, so it moves as that piece.";
-  const auto moves = get_valid_moves_for_piece(
+  const auto moves = legal_moves_for_piece(
       _board, static_cast<piece_type>(cell), _fr, _fc);
   if (moves.empty()) {
     text += " This piece has no legal move now. Pick a different piece.";
@@ -1137,14 +1264,26 @@ bool reveal_chess_scene::commit_move(int fr, int fc, int tr, int tc,
   const unsigned int cell = static_cast<unsigned int>(m_board[fr][fc]);
   if (!is_piece_of_current_side(m_red_turn, cell, fr, fc))
     return fail("That piece is not the side to move.");
+  const unsigned int captured = static_cast<unsigned int>(m_board[tr][tc]);
   const auto moves = get_valid_moves_for_piece(
       m_board, static_cast<piece_type>(cell), fr, fc);
   if (std::find(moves.begin(), moves.end(), std::pair<int, int>{tr, tc}) ==
       moves.end())
     return fail("Illegal move.");
+  // Checked after the geometry, so an unreachable square is still explained as
+  // unreachable rather than as the general rule.
+  if (leaves_kings_facing(m_board, fr, fc, tr, tc))
+    return fail("Kings would face.");
+  // A king is only winnable through a check this side gave itself. The engine
+  // announces every check, so a capture the opponent was never warned about is
+  // a capture of a king that was simply left hanging.
+  const bool takes_king =
+      captured != 0 && (captured & 0xFF) == piece_type::k_king;
+  if (takes_king && !(m_red_turn ? m_red_check_given : m_black_check_given))
+    return fail("Undeclared check.");
 
-  const unsigned int captured = static_cast<unsigned int>(m_board[tr][tc]);
-  record_move(fr, fc, tr, tc, cell, captured, m_red_turn);
+  const bool moved_by_red = m_red_turn;
+  record_move(fr, fc, tr, tc, cell, captured, moved_by_red);
   m_board[tr][tc] = static_cast<int>(cell & ~piece_type::k_cover_mask);
   m_board[fr][fc] = 0;
   m_last_move_from = {fr, fc};
@@ -1153,7 +1292,13 @@ bool reveal_chess_scene::commit_move(int fr, int fc, int tr, int tc,
   if (m_connect_mode != connect_mode::none)
     send_move(fr, fc, tr, tc);
   if (captured != 0 && (captured & 0xFF) == piece_type::k_king)
-    m_game_result = m_red_turn ? game_result::red_win : game_result::black_win;
+    m_game_result = moved_by_red ? game_result::red_win : game_result::black_win;
+  // Recorded after the board changed: this is the check the opponent will be
+  // told about, and the one that licenses taking their king next turn.
+  if (moved_by_red)
+    m_red_check_given = side_checks(m_board, true);
+  else
+    m_black_check_given = side_checks(m_board, false);
   if (m_game_result == game_result::ongoing)
     m_red_turn = !m_red_turn;
   restart_turn_clock();
@@ -1183,7 +1328,7 @@ std::string reveal_chess_scene::board_json() {
       diagram += " |";
       if (!can_move && cell != 0 &&
           is_piece_of_current_side(m_red_turn, cell, r, c) &&
-          !get_valid_moves_for_piece(m_board, static_cast<piece_type>(cell), r, c)
+          !legal_moves_for_piece(m_board, static_cast<piece_type>(cell), r, c)
                .empty())
         can_move = true;
     }
@@ -1197,6 +1342,22 @@ std::string reveal_chess_scene::board_json() {
            {"black_ai", m_black_ai},
            {"mode", m_connect_mode == connect_mode::none ? "local" : "network"},
            {"diagram", std::move(diagram)}};
+  // The announcement: which sides are in check right now. Published here so the
+  // side to move learns it from the engine, not from the opponent's own words,
+  // which nobody else sees.
+  const bool red_in_check = side_checks(m_board, false);
+  const bool black_in_check = side_checks(m_board, true);
+  json in_check = json::array();
+  if (red_in_check)
+    in_check.push_back("red");
+  if (black_in_check)
+    in_check.push_back("black");
+  doc["check"] = std::move(in_check);
+  // A king is only winnable after a check its taker gave on its own previous
+  // move, and only while that king is still under attack.
+  const bool checked_last = m_red_turn ? m_red_check_given : m_black_check_given;
+  doc["may_take_king"] =
+      checked_last && (m_red_turn ? black_in_check : red_in_check);
   if (piece_index_is_valid(m_last_move_from)) {
     doc["last_move"] = {{"from_row", m_last_move_from.first},
                         {"from_col", m_last_move_from.second},
@@ -1215,8 +1376,49 @@ std::string reveal_chess_scene::clock_json() {
       .dump();
 }
 
+std::string reveal_chess_scene::moves_json(int row, int col) {
+  using nlohmann::json;
+  // Every call costs, refusals included; otherwise asking about empty or
+  // foreign squares would be a free sweep of the board.
+  if (m_move_queries >= k_reveal_chess_move_queries)
+    return json{{"ok", false},
+                {"error", "No move queries left this turn (limit " +
+                              std::to_string(k_reveal_chess_move_queries) +
+                              "). Decide from what you already know."},
+                {"queries_left", 0}}
+        .dump();
+  const int left = k_reveal_chess_move_queries - ++m_move_queries;
+  const auto refuse = [left](const std::string &_error) {
+    return json{{"ok", false}, {"error", _error}, {"queries_left", left}}.dump();
+  };
+  if (m_game_result != game_result::ongoing)
+    return refuse("The game is over.");
+  if (!in_bounds(row, col))
+    return refuse("Square is off the board.");
+  const unsigned int cell = static_cast<unsigned int>(m_board[row][col]);
+  if (cell == 0)
+    return refuse(square_text(row, col) + " is empty; there is no piece to ask about.");
+  if (!is_piece_of_current_side(m_red_turn, cell, row, col))
+    return refuse(square_text(row, col) + " holds " + cell_text(cell, row, col) +
+                  ", which is not yours this turn, so it cannot move now.");
+
+  const auto squares = legal_moves_for_piece(
+      m_board, static_cast<piece_type>(cell), row, col);
+  json reply{{"ok", true},
+             {"from_row", row},
+             {"from_col", col},
+             {"piece", cell_text(cell, row, col)},
+             {"covered", (cell & piece_type::k_cover_mask) != 0},
+             {"moves", json::array()},
+             {"queries_left", left}};
+  for (const auto &square : squares)
+    reply["moves"].push_back({square.first, square.second});
+  return reply.dump();
+}
+
 void reveal_chess_scene::restart_turn_clock() {
   m_turn_started = std::chrono::steady_clock::now();
+  m_move_queries = 0;
 }
 
 double reveal_chess_scene::turn_elapsed() const {
@@ -1259,6 +1461,7 @@ std::string reveal_chess_scene::play_move(int from_row, int from_col, int to_row
 
   const unsigned int target = static_cast<unsigned int>(m_board[to_row][to_col]);
   std::string error;
+  const bool red_moved = m_red_turn;
   if (!commit_move(from_row, from_col, to_row, to_col, &error)) {
     if (error != "The game is over.")
       ++(m_red_turn ? m_red_illegal : m_black_illegal);
@@ -1274,6 +1477,11 @@ std::string reveal_chess_scene::play_move(int from_row, int from_col, int to_row
              {"to_row", to_row},
              {"to_col", to_col},
              {"result", result_name(m_game_result)}};
+  // The check this move just gave, if any. The mover sees it at once; the
+  // opponent reads the same fact from the board on its turn.
+  const bool checked = side_checks(m_board, red_moved);
+  if (checked)
+    reply["check"] = red_moved ? "black" : "red";
   // A covered mover is face up on the next board call. A covered capture leaves
   // the board without ever showing its type, so that type stays hidden here too.
   if (target != 0) {
@@ -1422,8 +1630,7 @@ std::vector<std::pair<int, int>> reveal_chess_scene::get_valid_moves() {
   int r = m_selected_piece.first, c = m_selected_piece.second;
   unsigned int cell = m_board[r][c];
 
-  return get_valid_moves_for_piece(m_board, static_cast<piece_type>(cell), r,
-                                   c);
+  return legal_moves_for_piece(m_board, static_cast<piece_type>(cell), r, c);
 }
 
 void reveal_chess_scene::draw_text() {
