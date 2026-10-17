@@ -76,8 +76,8 @@ def prompt_for(side, self_memory="", foe_memory=""):
     text = (
         "你是{me}，下揭棋（暗子象棋），红先走，对手是另一个模型（{foe}）。\n\n"
         "## 揭棋怎么下\n\n"
-        "开局所有子都盖着。`红·` 是摆在你这一半的暗子，`黑·` 是摆在对面的暗子；"
-        "兵种和真色开局前就一起打乱了，没人知道，翻之前也不许猜。\n\n"
+        "开局只有双方的将/帅明摆着，其余三十枚子都盖着：`{mine}·` 摆在你这半场，"
+        "`{theirs}·` 摆在对面的半场。兵种和真色开局前就一起打乱了，没人知道，翻之前也不许猜。\n\n"
         "- 暗子按它所在起始格的兵种走，不按隐藏兵种走；移动后在落点翻开。\n"
         "- 翻开后按真实兵种和真色走。翻出「{theirs}」的子就归{foe}——"
         "你出的这一手等于替{foe}把子挪了出来，所以暗子不是稳赚的战力，挪开也不等于丢子。\n"
@@ -220,6 +220,7 @@ LOG_LABELS = {
     "error": "错误",
     "timeout": "超时",
     "aside": "内心",
+    "react": "反应",
     "taunt": "狠话",
     "summary": "总结",
     "memory": "记忆",
@@ -838,24 +839,45 @@ def summary_text(side, result, diagram, notes):
     ).format(outcome, me, diagram)
 
 
-async def write_aside(player, outcome, earlier):
+async def write_aside(player, outcome, diagram, earlier):
     """Private reaction after the move has resolved. Thinking stays off."""
     lead = ""
     if earlier:
-        lead = "你之前的内心笔记：\n{}\n\n".format("\n".join(earlier[-6:]))
+        lead = "你前几手的内心笔记：\n{}\n\n".format("\n".join(earlier[-3:]))
     mine = "红" if player.side == "red" else "黑"
     text = (
         lead
-        + "刚刚发生的、已经确认的事实：\n"
+        + "刚走完一手，已经确认的事实：\n"
         + outcome
-        + "\n\n用中文写两三句内心戏，回应这些事实。"
-        + "{}· 只是「盖着、站在你这一半」，不代表是你的子，翻开才定归属，"
-        "所以自己的暗子挪了窝不算丢东西。".format(mine)
-        + "如果暗子翻出来是对手的子，或者你吃了自己的暗子，就针对这点反应。"
-        "这些话只有你自己看。凡是上面没写明的暗子兵种，一律不要猜、不要说出。"
-        "不要替对手设想下一步。"
+        + "\n\n现在的棋盘：\n"
+        + diagram
+        + "\n\n用中文写两三句内心戏，说的是局面，不是刚才那步的流水账。"
+        "不要复述源格空了、落点有没有吃子这类已经写在上面的过程。"
+        "说点真正影响后面的：哪条线被你打开或堵住了，你的将附近现在有什么，"
+        "你手里哪些子开始有用、哪些子被困住，下一手想往哪个方向使劲。"
+        "{}· 只是「盖着、站在你这一半」，翻开才定归属，所以自己的暗子挪了窝不算丢东西。".format(mine)
+        + "上面没写明的暗子兵种一律不要猜、不要说出；对手的暗子更不要替他打算。"
+        "这些话只有你自己看。"
     )
     return await speak(player, text)
+
+
+async def write_reaction(player, facts, diagram, earlier):
+    """Private first reaction to the opponent's move, before this side plays."""
+    lead = ""
+    if earlier:
+        lead = "你前几手的内心笔记：\n{}\n\n".format("\n".join(earlier[-3:]))
+    return await speak(
+        player,
+        lead
+        + facts
+        + "\n\n现在的棋盘：\n"
+        + diagram
+        + "\n\n先别算棋，说反应。用中文写两三句：对方这一手想干什么，"
+        "哪条线被它占了或让开了，你的将现在什么处境，你打算从哪下手。"
+        "不要复述上面已经写明的走子过程，也不要逐格念棋盘。"
+        "上面没写明的暗子兵种一律不要猜、不要说出。这些话只有你自己看。",
+    )
 
 
 async def tool_json(tools, name):
@@ -1116,6 +1138,9 @@ async def session(adapter, players):
             move_seconds(),
         )
     turns = {"red": 0, "black": 0}
+    # Ply of the last opponent move each side has reacted to. The loop polls the
+    # board, so without this the same arrival would be reacted to again.
+    reacted = {"red": None, "black": None}
     idle = None
     greeted = False
     seen_ongoing = False
@@ -1140,6 +1165,9 @@ async def session(adapter, players):
                 # memory written when the last one ended is in its prompt now.
                 for side in ("red", "black"):
                     notes[side] = []
+                    # Ply restarts at 0, so an old value could swallow the first
+                    # reaction of the new match.
+                    reacted[side] = None
                     agents[side] = make_agent(
                         players[side],
                         shared,
@@ -1276,6 +1304,23 @@ async def session(adapter, players):
         )
         if last:
             content += "\n\n" + last
+            # React to the arrival itself. Both reactions are private notes, so
+            # each side reads the board twice: once when the move lands, once
+            # after its own move resolves.
+            ply = state.get("ply")
+            if ply != reacted[side]:
+                reacted[side] = ply
+                try:
+                    reaction = await write_reaction(
+                        players[side], content, state.get("diagram", ""), notes[side]
+                    )
+                except Exception as exc:
+                    emit("error", str(exc), side)
+                    reaction = ""
+                if reaction:
+                    notes[side].append(reaction)
+                    del notes[side][:-6]
+                    emit("react", reaction, side)
         if notes[side]:
             content += "\n\n只有你能看到的内心笔记：\n" + "\n".join(notes[side][-6:])
         budget = move_seconds()
@@ -1339,7 +1384,9 @@ async def session(adapter, players):
             after = {}
         outcome = describe_outcome(side, state.get("diagram", ""), after, payload)
         try:
-            note = await write_aside(players[side], outcome, notes[side])
+            note = await write_aside(
+                players[side], outcome, after.get("diagram", ""), notes[side]
+            )
         except Exception as exc:
             emit("error", str(exc), side)
             note = ""
