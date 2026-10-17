@@ -1192,6 +1192,26 @@ std::string why_illegal(const int _board[10][9], int _fr, int _fc, int _tr,
   return "That piece cannot reach that square.";
 }
 
+// A machine-readable reason for a refused move, alongside the prose from
+// explain_failure. The prose is for the model; this is for counting, so
+// rewording the prose never changes the statistics.
+std::string failure_reason(const std::string &_error, const int _board[10][9],
+                           int _fr, int _fc) {
+  if (_error == "That piece is not the side to move.")
+    return _board[_fr][_fc] == 0 ? "empty" : "not_your_piece";
+  if (_error == "Kings would face.")
+    return "facing";
+  if (_error == "Undeclared check.")
+    return "undeclared_check";
+  if (_error == "Illegal move.")
+    return "geometry";
+  if (_error == "The game is over.")
+    return "game_over";
+  if (_error == "Square is off the board.")
+    return "off_board";
+  return "other";
+}
+
 std::string explain_failure(const std::string &_error, const int _board[10][9],
                             bool _red_turn, int _fr, int _fc, int _tr, int _tc) {
   const unsigned int cell = static_cast<unsigned int>(_board[_fr][_fc]);
@@ -1446,26 +1466,38 @@ std::string reveal_chess_scene::play_move(int from_row, int from_col, int to_row
   using nlohmann::json;
   const bool side_ai = m_red_turn ? m_red_ai : m_black_ai;
   if (!side_ai)
-    return json{{"ok", false}, {"error", "It is the human's turn."}}.dump();
+    return json{{"ok", false},
+                {"error", "It is the human's turn."},
+                {"reason", "human_turn"}}
+        .dump();
   if (m_connect_mode != connect_mode::none)
-    return json{{"ok", false}, {"error", "A network game is in progress."}}.dump();
+    return json{{"ok", false},
+                {"error", "A network game is in progress."},
+                {"reason", "network"}}
+        .dump();
   if (note.find_first_not_of(" \t\r\n") == std::string_view::npos)
     return json{{"ok", false},
                 {"error", "note is empty. Pass one or two Chinese sentences on "
-                          "why this move; the board did not change."}}
+                          "why this move; the board did not change."},
+                {"reason", "note_missing"}}
         .dump();
   if (!in_bounds(from_row, from_col) || !in_bounds(to_row, to_col)) {
     ++(m_red_turn ? m_red_illegal : m_black_illegal);
-    return json{{"ok", false}, {"error", "Square is off the board."}}.dump();
+    return json{{"ok", false},
+                {"error", "Square is off the board."},
+                {"reason", "off_board"}}
+        .dump();
   }
 
   const unsigned int target = static_cast<unsigned int>(m_board[to_row][to_col]);
   std::string error;
   const bool red_moved = m_red_turn;
   if (!commit_move(from_row, from_col, to_row, to_col, &error)) {
+    const std::string reason = failure_reason(error, m_board, from_row, from_col);
     if (error != "The game is over.")
       ++(m_red_turn ? m_red_illegal : m_black_illegal);
     return json{{"ok", false},
+                {"reason", reason},
                 {"error", explain_failure(error, m_board, m_red_turn, from_row,
                                           from_col, to_row, to_col)}}
         .dump();

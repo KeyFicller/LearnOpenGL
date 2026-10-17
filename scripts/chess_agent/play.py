@@ -19,7 +19,8 @@ and passes over as CHESS_LOG_STAMP. The agent writes <stamp>.jsonl (one event
 per line) and <stamp>.md (the same events grouped by turn, each turn opening
 with the board it was decided on). The engine writes <stamp>.truth.jsonl, the
 one place that records what a covered piece really was. The .md merges both
-and is the file to hand to a model for review.
+and is the file to hand to a model for review. profile.py re-reads those logs
+into per-model fingerprints, .output/chess/profiles/<provider:model>.md.
 
 Each side keeps one conversation for the whole match. Messages only append, and
 SummarizationMiddleware folds the oldest part into a summary once it gets long.
@@ -300,7 +301,7 @@ class game_log:
         self.entries = []
         self.header = []
 
-    def setup(self, labels, thinking, seconds):
+    def setup(self, labels, thinking, seconds, ai=None):
         if self.header:
             return
         self.header = [
@@ -310,15 +311,27 @@ class game_log:
             "- 每手时限：{} 秒".format(seconds),
             "- 开始：{}".format(time.strftime("%Y-%m-%d %H:%M:%S")),
         ]
-        self.write({"kind": "session"})
+        # The same facts the header shows, in the file the profiler reads. The
+        # header alone only exists in the markdown, where it is prose. ai says
+        # which sides the agent drove: a human's move in the truth file is not
+        # the model's style.
+        self.write(
+            {
+                "kind": "session",
+                "labels": labels,
+                "thinking": thinking,
+                "seconds": seconds,
+                "ai": ai or {"red": True, "black": True},
+            }
+        )
 
     def turn(self, side, number, diagram):
         self.write({"kind": "turn", "side": side, "turn": number})
         if diagram:
             self.write({"kind": "board", "side": side, "turn": number, "text": diagram})
 
-    def event(self, kind, text, side=""):
-        self.write({"kind": kind, "side": side, "text": text})
+    def event(self, kind, text, side="", **extra):
+        self.write(dict({"kind": kind, "side": side, "text": text}, **extra))
 
     def write(self, record):
         record["at"] = round(time.time() - self.started, 2)
@@ -462,18 +475,19 @@ def annotate_board(diagram, record):
     return "\n".join(out)
 
 
-def emit(kind, text="", side=""):
+def emit(kind, text="", side="", **extra):
     text = text.strip()
     if not text:
         return
     if LOG:
-        LOG.event(kind, text, side)
+        LOG.event(kind, text, side, **extra)
     if not UI:
         print("{} {} {}".format(side, kind, text).strip())
         return
     payload = {"kind": kind, "text": text}
     if side:
         payload["side"] = side
+    payload.update(extra)
     sys.stdout.write(json.dumps(payload, ensure_ascii=False) + "\n")
     sys.stdout.flush()
 
@@ -527,7 +541,7 @@ def show(message, played, side):
                 emit("move", played["move"], side)
                 return
             if isinstance(payload, dict) and payload.get("error"):
-                emit("error", payload["error"], side)
+                emit("error", payload["error"], side, reason=payload.get("reason", "other"))
                 return
         if name == "board":
             try:
@@ -1131,12 +1145,6 @@ async def session(adapter, players):
             "on" if thinking_on() else "off",
         ),
     )
-    if LOG:
-        LOG.setup(
-            {"red": players["red"].label, "black": players["black"].label},
-            thinking_on(),
-            move_seconds(),
-        )
     turns = {"red": 0, "black": 0}
     # Ply of the last opponent move each side has reacted to. The loop polls the
     # board, so without this the same arrival would be reacted to again.
@@ -1159,6 +1167,18 @@ async def session(adapter, players):
             continue
         result = state.get("result", "waiting")
         local = state.get("mode") == "local"
+        if LOG:
+            # Written once. The board has to be read first: which sides the
+            # agent drives decides what the profiler may attribute to a model.
+            LOG.setup(
+                {"red": players["red"].label, "black": players["black"].label},
+                thinking_on(),
+                move_seconds(),
+                {
+                    "red": bool(state.get("red_ai")),
+                    "black": bool(state.get("black_ai")),
+                },
+            )
         if local and result == "ongoing":
             if summarized:
                 # A new match. Each side starts a fresh conversation, and the
