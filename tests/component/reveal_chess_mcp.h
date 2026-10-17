@@ -43,12 +43,17 @@ public:
           "Play one move for the side to move. Rows and columns are the "
           "diagram indexes, 0 through 9 and 0 through 8. An illegal move "
           "returns an error and does not change the board. Does not reveal "
-          "a covered piece's type.")}]]
+          "a covered piece's type. note is required: one or two Chinese "
+          "sentences saying what you are doing and why, for the match log. "
+          "It is not shown to the opponent.")}]]
   [[= js::param_docs(js::str("Source row, 0 at Red's back rank through 9."),
                      js::str("Source column, 0 through 8, left to right."),
                      js::str("Destination row."),
-                     js::str("Destination column."))]] std::string
-  play(int from_row, int from_col, int to_row, int to_col);
+                     js::str("Destination column."),
+                     js::str("One or two Chinese sentences on why this move. "
+                             "Conclusions only; no worked-through lines."))]]
+  std::string
+  play(int from_row, int from_col, int to_row, int to_col, std::string note);
 
 protected:
   std::string_view server_name() const override { return "reveal-chess"; }

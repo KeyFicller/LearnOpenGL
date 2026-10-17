@@ -49,7 +49,10 @@ public:
   // Seconds since the AI started working on the current turn.
   double turn_elapsed() const;
   // Black's move, used by the AI. Rejects Red's turn and illegal moves.
-  std::string play_move(int from_row, int from_col, int to_row, int to_col);
+  // note is the agent's one-line reason; it never affects the game, only
+  // guards against a move logged without any explanation.
+  std::string play_move(int from_row, int from_col, int to_row, int to_col,
+                        std::string_view note);
   // Runs fn on the thread that renders this scene, and waits for it.
   std::string on_render_thread(std::function<std::string()> fn);
 
@@ -81,6 +84,13 @@ private:
   void draw_last_move();
 
   bool commit_move(int fr, int fc, int tr, int tc, std::string *error);
+  // Engine-only record of a move, appended to
+  // .output/chess/<stamp>.truth.jsonl. A covered piece that is captured never
+  // shows its type, so the public log cannot say what was taken. This can.
+  void record_move(int fr, int fc, int tr, int tc, unsigned int mover,
+                   unsigned int target, bool red_moved);
+  void forget_history();
+  std::string truth_path() const;
   void drain_mcp_tasks();
   void restart_turn_clock();
   void enforce_clock();
@@ -140,6 +150,8 @@ private:
   std::chrono::steady_clock::time_point m_turn_started =
       std::chrono::steady_clock::now();
   bool m_was_thinking = false;
+  int m_ply = 0;
+  std::string m_log_stamp;
   std::unique_ptr<reveal_chess_chat> m_chat;
   std::unique_ptr<reveal_chess_mcp> m_mcp;
   std::mutex m_mcp_mu;

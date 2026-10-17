@@ -8,13 +8,22 @@ transcript, so a covered piece stays hidden from both.
 
 The API key is read from the repository .env (DEEPSEEK_API_KEY,
 DEEPSEEK_BASE_URL, optional DEEPSEEK_MODEL).
+
+Every match is also written to .output/chess/, under a stamp the engine picks
+and passes over as CHESS_LOG_STAMP. The agent writes <stamp>.jsonl (one event
+per line) and <stamp>.md (the same events grouped by turn, each turn opening
+with the board it was decided on). The engine writes <stamp>.truth.jsonl, the
+one place that records what a covered piece really was. The .md merges both
+and is the file to hand to a model for review.
 """
 
 import asyncio
 import json
 import os
+import re
 import sys
 import threading
+import time
 import warnings
 
 if "--ui" in sys.argv:
@@ -56,9 +65,11 @@ def prompt_for(side):
         "想知道还剩多少秒就调 `clock`。\n\n"
         "1. 先调 `board` 一次，读 `diagram`。若消息里给了{foe}的上一手，以它为准判断翻了什么、吃了什么、自己是否被将军，不要凭记忆。\n"
         "2. 按「选子」里的硬约束自己推演。没有合法着法列表，每个候选都要自己核对规则。\n"
-        "3. 调 `play(from_row, from_col, to_row, to_col)`。\n"
+        "3. 调 `play(from_row, from_col, to_row, to_col, note)`。`note` 必填，一两句中文，说清走哪步、为什么、走完将为何安全。"
+        "它会原样进复盘日志，所以只写结论和理由，不要贴推演过程，不要罗列候选；空 note 会被拒绝。\n"
         "4. 报错时棋盘没动。先把错误读完：它说明源格上是什么、为何非法；若该子是你的，还会列出它所有能去的格。同一手绝不再发，\n"
         "   改为走列出的格（仍需做安全检查）或换一个子。不要因为报错就去再调 `board`；若错误说源格为空或不是你的子，说明坐标读错了，重新数行列。\n"
+        "   唯一的例外是 `note` 缺失或为空：这一手本身没被受理，补上 note 原样重发即可。\n"
         "5. `play` 成功后立即停手，不要再调 `board`。\n\n"
         "## 读盘\n\n"
         "`diagram` 是 markdown 表。每行按 `|` 切分，首字段是行号 0（最上）到 9（最下），其后九格是列 0 到 8（左到右）。\n"
@@ -112,7 +123,7 @@ def prompt_for(side):
         "- 不允许走完之后{foe}能吃你的将。\n\n"
         "其余取舍得失由你判断。\n\n"
         "## 回答\n\n"
-        "三五句话，用中文：是否被将军、走哪一手、走完之后将为何安全。被将军时这一手必须是解将。不要复述棋盘。\n"
+        "三五句话，用中文：是否被将军、走哪一手、走完之后将为何安全。被将军时这一手必须是解将。不要复述棋盘；复盘日志留下的是 `note`，不是这段回答。\n"
         "走完再看{foe_king}：若它还在盘上，且你有子下一手能吃它，回答中必须出现「将军」二字。\n"
         "明子按自身算；没动过的暗子按起始格兵种算；刚被翻开的暗子新兵种未知，不能作为喊将军的理由。\n"
         "吃将直接获胜，不要喊将军。"
@@ -154,10 +165,261 @@ def clip(text, limit):
     return text[:limit] + "…"
 
 
+LOG_DIR = os.path.join(ROOT, ".output", "chess")
+SIDE_NAMES = {"red": "红方", "black": "黑方"}
+LOG_LABELS = {
+    "think": "思考",
+    "digest": "摘要",
+    "tool": "调用",
+    "move": "落子",
+    "error": "错误",
+    "timeout": "超时",
+    "aside": "内心",
+    "taunt": "狠话",
+    "summary": "总结",
+}
+LOG = None
+PIECE_NAMES = {
+    "king": "将",
+    "guard": "仕",
+    "bishop": "相",
+    "rook": "车",
+    "horse": "马",
+    "cannon": "炮",
+    "soldier": "兵",
+}
+BLACK_PIECE_NAMES = {
+    "king": "帅",
+    "guard": "士",
+    "bishop": "象",
+    "rook": "车",
+    "horse": "马",
+    "cannon": "炮",
+    "soldier": "卒",
+}
+
+
+def piece_label(piece):
+    """红兵, 黑车, ... from an engine truth entry."""
+    black = piece.get("color") == "black"
+    names = BLACK_PIECE_NAMES if black else PIECE_NAMES
+    return ("黑" if black else "红") + names.get(piece.get("piece"), "?")
+
+
+def truth_text(record):
+    """One line from the engine's record, in the words both players use."""
+    side = record.get("side")
+    clauses = []
+    mover = record.get("mover") or {}
+    if mover.get("covered"):
+        clause = "翻开成" + piece_label(mover)
+        if mover.get("color") != side:
+            clause += "，改归对手"
+        clauses.append(clause)
+    target = record.get("target")
+    if target:
+        if target.get("covered"):
+            clauses.append("吃掉一枚暗子（实为{}）".format(piece_label(target)))
+        else:
+            clauses.append("吃掉" + piece_label(target))
+    return "；".join(clauses) or "移动明子，未吃子"
+
+
+class game_log:
+    """The match record, written twice while it happens.
+
+    <stamp>.jsonl is one event per line with its turn and the seconds since the
+    match started, which is what a script scans. <stamp>.md is the same events
+    grouped by turn, each turn opening with the board it was decided on, which
+    is what gets handed to a model for review. Both are flushed as events
+    arrive, so stopping midway still leaves a usable file.
+
+    <stamp>.truth.jsonl comes from the engine, not from here: it holds what each
+    move really did, including the type of a covered piece that was captured.
+    Neither player is ever told that, so it exists only for the review.
+    """
+
+    def __init__(self):
+        stamp = os.environ.get("CHESS_LOG_STAMP") or time.strftime(
+            "%Y-%m-%d_%H-%M-%S"
+        )
+        os.makedirs(LOG_DIR, exist_ok=True)
+        self.jsonl = os.path.join(LOG_DIR, stamp + ".jsonl")
+        self.markdown = os.path.join(LOG_DIR, stamp + ".md")
+        self.truth = os.path.join(LOG_DIR, stamp + ".truth.jsonl")
+        self.handle = open(self.jsonl, "a", encoding="utf-8")
+        self.started = time.time()
+        self.entries = []
+        self.header = []
+
+    def setup(self, labels, thinking, seconds):
+        if self.header:
+            return
+        self.header = [
+            "- 红方：{}".format(labels["red"]),
+            "- 黑方：{}".format(labels["black"]),
+            "- 思考模式：{}".format("开" if thinking else "关"),
+            "- 每手时限：{} 秒".format(seconds),
+            "- 开始：{}".format(time.strftime("%Y-%m-%d %H:%M:%S")),
+        ]
+        self.write({"kind": "session"})
+
+    def turn(self, side, number, diagram):
+        self.write({"kind": "turn", "side": side, "turn": number})
+        if diagram:
+            self.write({"kind": "board", "side": side, "turn": number, "text": diagram})
+
+    def event(self, kind, text, side=""):
+        self.write({"kind": kind, "side": side, "text": text})
+
+    def write(self, record):
+        record["at"] = round(time.time() - self.started, 2)
+        self.entries.append(record)
+        self.handle.write(json.dumps(record, ensure_ascii=False) + "\n")
+        self.handle.flush()
+        self.render()
+
+    def render(self):
+        lines = ["# 揭棋对局", ""] + self.header + [""]
+        # Legend for the marked board: struck = where the move left, bold =
+        # where it landed, struck-and-bolded = what was captured.
+        lines += [
+            "读图：~~红·~~ 是本手起点，**红仕** 是本手落点（暗子即翻开后的真身），"
+            "~~黑车~~**红车** 是落点原有被吃的子。",
+            "",
+        ]
+        truth = self.truth_by_ply()
+        opened = False
+        turn_at = None
+        turn_over = False
+        current = None
+        digested = False
+        think_tail = ""
+        for record in self.entries:
+            kind = record["kind"]
+            if kind == "session":
+                continue
+            if kind == "turn":
+                opened = True
+                turn_over = False
+                digested = False
+                think_tail = ""
+                turn_at = record["at"]
+                current = record["turn"]
+                lines += [
+                    "",
+                    "## 第 {} 手 · {}".format(
+                        record["turn"], SIDE_NAMES.get(record["side"], "")
+                    ),
+                    "",
+                ]
+            elif kind == "board":
+                # Bare markdown table: a fenced block would render as code
+                # instead of a table. The blank line after it keeps the list
+                # below from being swallowed by the table.
+                lines += [annotate_board(record["text"], truth.get(current)), ""]
+            elif kind == "result":
+                lines += ["", "## 终局", "", "- 结果：{}".format(record["text"]), ""]
+            else:
+                label = LOG_LABELS.get(kind)
+                if not label:
+                    continue
+                if not opened:
+                    opened = True
+                    lines += ["", "## 开局前", ""]
+                text = record["text"]
+                if kind == "think":
+                    # Kept in the .jsonl for full fidelity; the review reads
+                    # the digest instead. Hold the tail back as a fallback in
+                    # case the model skipped the digest.
+                    think_tail = text[-200:]
+                    continue
+                if kind == "tool" and text.startswith("| "):
+                    # A board read echoes the whole diagram; the turn snapshot
+                    # above already has it.
+                    continue
+                if kind == "move" and not digested and think_tail:
+                    lines += ["- 思考（节选）：…{}".format(think_tail), ""]
+                if kind == "digest":
+                    digested = True
+                if kind == "move" and turn_at is not None:
+                    text = "{}（用时 {:.1f} 秒）".format(text, record["at"] - turn_at)
+                lines += ["- {}：{}".format(label, text), ""]
+                if kind == "move" and current in truth and not turn_over:
+                    turn_over = True
+                    lines += ["- 实况：{}".format(truth_text(truth[current])), ""]
+        body = re.sub(r"\n{3,}", "\n\n", "\n".join(lines))
+        with open(self.markdown, "w", encoding="utf-8") as handle:
+            handle.write(body + "\n")
+
+    def truth_by_ply(self):
+        """The engine's record of each move, keyed by ply."""
+        if not os.path.exists(self.truth):
+            return {}
+        by_ply = {}
+        with open(self.truth, encoding="utf-8") as handle:
+            for line in handle:
+                try:
+                    record = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                by_ply[record.get("ply")] = record
+        return by_ply
+
+
+def annotate_board(diagram, record):
+    """Show the move on the position it was chosen in.
+
+    The snapshot is the board before the move. The source cell is struck
+    through, and the destination is bold: what stands there afterwards - taken
+    from the engine's record, so a covered mover shows its real type, which is
+    what the review needs and what neither player was told. A capture keeps the
+    struck target ahead of it. Only the .md is annotated; the board the model
+    reads stays plain.
+    """
+    if not record:
+        return diagram.rstrip("\n")
+    try:
+        from_row = int(record["from_row"])
+        from_col = int(record["from_col"])
+        to_row = int(record["to_row"])
+        to_col = int(record["to_col"])
+    except (KeyError, TypeError, ValueError):
+        return diagram.rstrip("\n")
+    mover = record.get("mover") or {}
+    if not mover.get("piece"):
+        return diagram.rstrip("\n")
+    arrived = piece_label(mover)
+    out = []
+    for line in diagram.rstrip("\n").splitlines():
+        parts = line.split("|")
+        # | row | c0 | ... | c8 |  ->  ["", row, c0..c8, ""]
+        if len(parts) != 12:
+            out.append(line)
+            continue
+        row_text = parts[1].strip()
+        if not row_text.isdigit():
+            out.append(line)
+            continue
+        row = int(row_text)
+        cells = [parts[2 + col].strip() for col in range(9)]
+        if row == from_row:
+            cells[from_col] = "~~{}~~".format(cells[from_col] or "空")
+        if row == to_row:
+            taken = cells[to_col]
+            cells[to_col] = (
+                "~~{}~~**{}**".format(taken, arrived) if taken else "**{}**".format(arrived)
+            )
+        out.append("| " + " | ".join([row_text] + cells) + " |")
+    return "\n".join(out)
+
+
 def emit(kind, text="", side=""):
     text = text.strip()
     if not text:
         return
+    if LOG:
+        LOG.event(kind, text, side)
     if not UI:
         print("{} {} {}".format(side, kind, text).strip())
         return
@@ -176,15 +438,27 @@ def show(message, played, side):
             reasoning = "".join(str(part) for part in reasoning)
         if str(reasoning).strip():
             emit("think", clip(str(reasoning), 4000), side)
-        for call in getattr(message, "tool_calls", None) or []:
-            emit(
-                "tool",
-                "{} {}".format(call.get("name", ""), json.dumps(call.get("args", {}), ensure_ascii=False)),
-                side,
-            )
+        calls = getattr(message, "tool_calls", None) or []
         text = message_text(message.content).strip()
         if text:
             emit("agent", text, side)
+        for call in calls:
+            # play carries its own note. The engine rejects the call without
+            # one, so this is the digest the review can always rely on; the
+            # chain of thought is never what the .md shows. The note leaves
+            # the logged arguments so the line stays one short line.
+            args = call.get("args", {})
+            note = ""
+            if isinstance(args, dict):
+                args = dict(args)
+                note = str(args.pop("note", "")).strip()
+            if note:
+                emit("digest", clip(note, 300), side)
+            emit(
+                "tool",
+                "{} {}".format(call.get("name", ""), json.dumps(args, ensure_ascii=False)),
+                side,
+            )
     elif isinstance(message, ToolMessage):
         body = message_text(message.content)
         name = getattr(message, "name", "") or ""
@@ -533,6 +807,8 @@ async def session(adapter):
             labels["red"], labels["black"], "on" if thinking_on() else "off"
         ),
     )
+    if LOG:
+        LOG.setup(labels, thinking_on(), move_seconds())
     turns = {"red": 0, "black": 0}
     idle = None
     greeted = False
@@ -561,6 +837,8 @@ async def session(adapter):
             and result in ("red_win", "black_win")
             and result != summarized
         ):
+            if LOG:
+                LOG.event("result", "红方胜" if result == "red_win" else "黑方胜")
             for side in ("red", "black"):
                 if not state.get("{}_ai".format(side)):
                     continue
@@ -611,6 +889,10 @@ async def session(adapter):
         idle = None
         emit("status", "thinking…", side)
         turns[side] += 1
+        if LOG:
+            # The engine counts every move it committed, so its ply is right
+            # even when a human played one of the earlier turns.
+            LOG.turn(side, int(state.get("ply", 0)) + 1, state.get("diagram", ""))
         content = "轮到你了。"
         last = describe_last_move(
             state.get("diagram", ""), before_opponent, state.get("last_move")
@@ -695,10 +977,12 @@ async def session(adapter):
 
 
 async def main():
+    global LOG
     load_env(os.path.join(ROOT, ".env"))
     if not os.environ.get("DEEPSEEK_API_KEY"):
         emit("error", "DEEPSEEK_API_KEY is not set. Put it in the repository .env.")
         return 1
+    LOG = game_log()
     announced = False
     while True:
         try:

@@ -28,8 +28,9 @@ std::string reveal_chess_mcp::clock() {
 }
 
 std::string reveal_chess_mcp::play(int from_row, int from_col, int to_row,
-                                   int to_col) {
-  return m_scene->on_render_thread([this, from_row, from_col, to_row, to_col] {
-    return m_scene->play_move(from_row, from_col, to_row, to_col);
-  });
+                                   int to_col, std::string note) {
+  return m_scene->on_render_thread(
+      [this, from_row, from_col, to_row, to_col, note = std::move(note)] {
+        return m_scene->play_move(from_row, from_col, to_row, to_col, note);
+      });
 }

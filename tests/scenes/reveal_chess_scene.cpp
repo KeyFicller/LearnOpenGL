@@ -18,6 +18,9 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <ctime>
+#include <filesystem>
+#include <fstream>
 #include <future>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -473,6 +476,7 @@ void reveal_chess_scene::shuffle_board() {
   m_red_illegal = 0;
   m_black_illegal = 0;
   restart_turn_clock();
+  forget_history();
   invalidate_piece_index(m_last_move_from);
   invalidate_piece_index(m_last_move_to);
   invalidate_piece_index(m_selected_piece);
@@ -492,6 +496,7 @@ void reveal_chess_scene::apply_remote_move(int fr, int fc, int tr, int tc) {
     return;
   unsigned int piece = m_board[fr][fc];
   unsigned int captured = m_board[tr][tc];
+  record_move(fr, fc, tr, tc, piece, captured, m_red_turn);
   m_board[tr][tc] = piece & (~piece_type::k_cover_mask);
   m_board[fr][fc] = 0;
   m_last_move_from = {fr, fc};
@@ -856,7 +861,7 @@ void reveal_chess_scene::render_ui() {
       const chess_model_choice &red = k_chess_models[m_red_model];
       const chess_model_choice &black = k_chess_models[m_black_model];
       m_chat->start(red.provider, red.model, black.provider, black.model,
-                    m_ai_thinking, m_move_seconds);
+                    m_ai_thinking, m_move_seconds, m_log_stamp);
       m_was_thinking = false;
       restart_turn_clock();
     }
@@ -1177,6 +1182,7 @@ bool reveal_chess_scene::commit_move(int fr, int fc, int tr, int tc,
     return fail("Illegal move.");
 
   const unsigned int captured = static_cast<unsigned int>(m_board[tr][tc]);
+  record_move(fr, fc, tr, tc, cell, captured, m_red_turn);
   m_board[tr][tc] = static_cast<int>(cell & ~piece_type::k_cover_mask);
   m_board[fr][fc] = 0;
   m_last_move_from = {fr, fc};
@@ -1223,6 +1229,7 @@ std::string reveal_chess_scene::board_json() {
   }
   json doc{{"turn", m_red_turn ? "red" : "black"},
            {"result", result_name(m_game_result)},
+           {"ply", m_ply},
            {"can_move", can_move},
            {"red_ai", m_red_ai},
            {"black_ai", m_black_ai},
@@ -1271,13 +1278,18 @@ void reveal_chess_scene::enforce_clock() {
 }
 
 std::string reveal_chess_scene::play_move(int from_row, int from_col, int to_row,
-                                          int to_col) {
+                                          int to_col, std::string_view note) {
   using nlohmann::json;
   const bool side_ai = m_red_turn ? m_red_ai : m_black_ai;
   if (!side_ai)
     return json{{"ok", false}, {"error", "It is the human's turn."}}.dump();
   if (m_connect_mode != connect_mode::none)
     return json{{"ok", false}, {"error", "A network game is in progress."}}.dump();
+  if (note.find_first_not_of(" \t\r\n") == std::string_view::npos)
+    return json{{"ok", false},
+                {"error", "note is empty. Pass one or two Chinese sentences on "
+                          "why this move; the board did not change."}}
+        .dump();
   if (!in_bounds(from_row, from_col) || !in_bounds(to_row, to_col)) {
     ++(m_red_turn ? m_red_illegal : m_black_illegal);
     return json{{"ok", false}, {"error", "Square is off the board."}}.dump();
@@ -1336,6 +1348,52 @@ reveal_chess_scene::on_render_thread(std::function<std::string()> fn) {
         "Reveal Chess is not rendering. Select it in Scene Selection.");
   }
   return fut.get();
+}
+
+void reveal_chess_scene::record_move(int fr, int fc, int tr, int tc,
+                                     unsigned int mover, unsigned int target,
+                                     bool red_moved) {
+  const std::string path = truth_path();
+  if (path.empty())
+    return;
+  using nlohmann::json;
+  const auto truth = [](unsigned int _cell) {
+    return json{{"covered", (_cell & piece_type::k_cover_mask) != 0},
+                {"color", (_cell & piece_type::k_black_mask) != 0 ? "black"
+                                                                  : "red"},
+                {"piece", piece_name(_cell)}};
+  };
+  json record{{"ply", ++m_ply},
+              {"side", red_moved ? "red" : "black"},
+              {"from_row", fr},
+              {"from_col", fc},
+              {"to_row", tr},
+              {"to_col", tc},
+              {"mover", truth(mover)},
+              {"target", target == 0 ? json(nullptr) : truth(target)}};
+  std::ofstream out(path, std::ios::app);
+  if (out)
+    out << record.dump() << '\n';
+}
+
+void reveal_chess_scene::forget_history() {
+  m_ply = 0;
+  // One stamp per match: the board is new, so the log is too.
+  char stamp[32] = {};
+  const std::time_t now = std::time(nullptr);
+  std::strftime(stamp, sizeof(stamp), "%Y-%m-%d_%H-%M-%S", std::localtime(&now));
+  m_log_stamp = stamp;
+  std::error_code ec;
+  std::filesystem::create_directories(
+      std::filesystem::path(".output") / "chess", ec);
+}
+
+std::string reveal_chess_scene::truth_path() const {
+  if (m_log_stamp.empty())
+    return {};
+  return (std::filesystem::path(".output") / "chess" /
+          (m_log_stamp + ".truth.jsonl"))
+      .string();
 }
 
 void reveal_chess_scene::drain_mcp_tasks() {

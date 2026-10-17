@@ -5,6 +5,7 @@
 #include <nlohmann/json.hpp>
 
 #include <cerrno>
+#include <ctime>
 #include <fcntl.h>
 #include <filesystem>
 #include <signal.h>
@@ -16,10 +17,10 @@ namespace fs = std::filesystem;
 reveal_chess_chat::~reveal_chess_chat() { stop(); }
 
 void reveal_chess_chat::start(const std::string &red_provider,
-                               const std::string &red_model,
-                               const std::string &black_provider,
-                               const std::string &black_model, bool thinking,
-                               int move_seconds) {
+                              const std::string &red_model,
+                              const std::string &black_provider,
+                              const std::string &black_model, bool thinking,
+                              int move_seconds, const std::string &stamp) {
   if (m_pid > 0) {
     return;
   }
@@ -45,6 +46,7 @@ void reveal_chess_chat::start(const std::string &red_provider,
   setenv("CHESS_BLACK_MODEL", black_model.c_str(), 1);
   setenv("CHESS_THINKING", thinking ? "1" : "0", 1);
   setenv("CHESS_MOVE_SECONDS", std::to_string(move_seconds).c_str(), 1);
+  setenv("CHESS_LOG_STAMP", stamp.c_str(), 1);
 
   const std::string python_s = python.string();
   const std::string script_s = script.string();
@@ -94,7 +96,8 @@ void reveal_chess_chat::stop() {
   m_thinking = false;
   m_thinking_side.clear();
   if (m_pid > 0) {
-    // The child is its own process group, so this also reaps anything it spawned.
+    // The child is its own process group, so this also reaps anything it
+    // spawned.
     if (kill(-m_pid, SIGTERM) != 0)
       kill(m_pid, SIGTERM);
     for (int i = 0; i < 20; ++i) {
@@ -122,7 +125,8 @@ void reveal_chess_chat::handle_line(const std::string &line) {
     return;
   }
   if (line.find("Performance Diagnostics") != std::string::npos ||
-      line.find("should not be called on the main thread") != std::string::npos) {
+      line.find("should not be called on the main thread") !=
+          std::string::npos) {
     return;
   }
   std::string kind = "log";
@@ -153,8 +157,8 @@ void reveal_chess_chat::handle_line(const std::string &line) {
 
 void reveal_chess_chat::note(const std::string &kind, const std::string &text,
                              const std::string &side) {
-  handle_line(nlohmann::json{{"kind", kind}, {"text", text}, {"side", side}}
-                  .dump());
+  handle_line(
+      nlohmann::json{{"kind", kind}, {"text", text}, {"side", side}}.dump());
 }
 
 void reveal_chess_chat::poll() {
@@ -200,7 +204,8 @@ void reveal_chess_chat::draw() {
   ImGui::TextUnformatted(m_pid > 0 ? "Match in progress."
                                    : "Choose models, then Start.");
 
-  ImGui::BeginChild("chess_ai_log", ImVec2(0.0f, 0.0f), ImGuiChildFlags_Borders);
+  ImGui::BeginChild("chess_ai_log", ImVec2(0.0f, 0.0f),
+                    ImGuiChildFlags_Borders);
   for (const entry &item : m_log) {
     const bool red = item.side == "red";
     const char *who = red ? "红 " : item.side == "black" ? "黑 " : "";
