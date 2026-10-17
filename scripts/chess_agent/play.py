@@ -46,10 +46,14 @@ def prompt_for(side):
         "theirs": "黑" if red else "红",
         "foe_king": "黑帅" if red else "红将",
         "forward": "row + 1" if red else "row − 1",
+        "seconds": str(move_seconds()),
     }
     return (
         "你是{me}，下揭棋（暗子象棋），红先走，对手是另一个模型（{foe}）。\n\n"
+        "全程用中文：推理过程和回答都写中文。\n\n"
         "## 每回合\n\n"
+        "本手预算 {seconds} 秒。超时会被取消，关闭思考后重试一次，再超时判负。"
+        "想知道还剩多少秒就调 `clock`。\n\n"
         "1. 先调 `board` 一次，读 `diagram`。若消息里给了{foe}的上一手，以它为准判断翻了什么、吃了什么、自己是否被将军，不要凭记忆。\n"
         "2. 按「选子」里的硬约束自己推演。没有合法着法列表，每个候选都要自己核对规则。\n"
         "3. 调 `play(from_row, from_col, to_row, to_col)`。\n"
@@ -108,7 +112,7 @@ def prompt_for(side):
         "- 不允许走完之后{foe}能吃你的将。\n\n"
         "其余取舍得失由你判断。\n\n"
         "## 回答\n\n"
-        "全程用中文思考和作答，三五句话：是否被将军、走哪一手、走完之后将为何安全。被将军时这一手必须是解将。不要复述棋盘。\n"
+        "三五句话，用中文：是否被将军、走哪一手、走完之后将为何安全。被将军时这一手必须是解将。不要复述棋盘。\n"
         "走完再看{foe_king}：若它还在盘上，且你有子下一手能吃它，回答中必须出现「将军」二字。\n"
         "明子按自身算；没动过的暗子按起始格兵种算；刚被翻开的暗子新兵种未知，不能作为喊将军的理由。\n"
         "吃将直接获胜，不要喊将军。"
@@ -289,14 +293,23 @@ def thinking_on():
     )
 
 
+def move_seconds():
+    """Set by the Move limit box. The agent cancels at this budget, the engine at twice it."""
+    try:
+        return max(1, int(os.environ.get("CHESS_MOVE_SECONDS", "60")))
+    except ValueError:
+        return 60
+
+
 def thinking_body(provider, on):
     if provider == "qwen":
         return {"enable_thinking": on}
     return {"thinking": {"type": "enabled" if on else "disabled"}}
 
 
-def make_model(side):
+def make_model(side, thinking=None):
     provider, model = side_setup(side)
+    on = thinking_on() if thinking is None else thinking
     if provider == "qwen":
         key = os.environ.get("QWEN_API_KEY")
         base = os.environ.get("QWEN_BASE_URL")
@@ -309,7 +322,7 @@ def make_model(side):
             temperature=0,
             timeout=120,
             max_retries=1,
-            extra_body=thinking_body(provider, thinking_on()),
+            extra_body=thinking_body(provider, on),
         )
     elif provider == "deepseek":
         kwargs = {
@@ -317,7 +330,7 @@ def make_model(side):
             "temperature": 0,
             "timeout": 120,
             "max_retries": 1,
-            "extra_body": thinking_body(provider, thinking_on()),
+            "extra_body": thinking_body(provider, on),
         }
         base = os.environ.get("DEEPSEEK_BASE_URL")
         if base:
@@ -474,6 +487,28 @@ async def tool_json(tools, name):
     return json.loads(message_text(raw))
 
 
+async def run_turn(agent, side, content, thread_id):
+    """Stream one move. Returns the play result the stream reported."""
+    played = {"ok": False}
+    async for update in agent.astream(
+        {"messages": [{"role": "user", "content": content}]},
+        {
+            "configurable": {"thread_id": thread_id},
+            "recursion_limit": 12,
+        },
+        stream_mode="updates",
+    ):
+        for step in update.values():
+            messages = step.get("messages", []) if isinstance(step, dict) else []
+            if not isinstance(messages, list):
+                messages = [messages]
+            for message in messages:
+                show(message, played, side)
+        if played["ok"]:
+            break
+    return played
+
+
 async def session(adapter):
     tools = {tool.name: tool for tool in await adapter.list_tools()}
     emit("status", "tools: {}".format(", ".join(sorted(tools))))
@@ -483,6 +518,7 @@ async def session(adapter):
     providers = {}
     labels = {}
     notes = {"red": [], "black": []}
+    quick_agents = {}
     for side in ("red", "black"):
         chat, label = make_model(side)
         chats[side] = chat
@@ -575,7 +611,6 @@ async def session(adapter):
         idle = None
         emit("status", "thinking…", side)
         turns[side] += 1
-        played = {"ok": False}
         content = "轮到你了。"
         last = describe_last_move(
             state.get("diagram", ""), before_opponent, state.get("last_move")
@@ -584,23 +619,55 @@ async def session(adapter):
             content += "\n\n" + last
         if notes[side]:
             content += "\n\n只有你能看到的内心笔记：\n" + "\n".join(notes[side][-6:])
+        budget = move_seconds()
         try:
-            async for update in agents[side].astream(
-                {"messages": [{"role": "user", "content": content}]},
-                {
-                    "configurable": {"thread_id": "{}-{}".format(side, turns[side])},
-                    "recursion_limit": 12,
-                },
-                stream_mode="updates",
-            ):
-                for step in update.values():
-                    messages = step.get("messages", []) if isinstance(step, dict) else []
-                    if not isinstance(messages, list):
-                        messages = [messages]
-                    for message in messages:
-                        show(message, played, side)
-                if played["ok"]:
-                    break
+            played = await asyncio.wait_for(
+                run_turn(
+                    agents[side], side, content, "{}-{}".format(side, turns[side])
+                ),
+                timeout=budget,
+            )
+        except asyncio.TimeoutError:
+            emit("timeout", "{} 秒内没落子，关闭思考重试。".format(budget), side)
+            try:
+                latest = await tool_json(tools, "board")
+            except Exception:
+                latest = {}
+            # The cancelled attempt may have landed its move, or the engine may
+            # have forfeited; either way a second play would be for the wrong
+            # side.
+            if latest.get("turn") != side or latest.get("result") != "ongoing":
+                continue
+            if side not in quick_agents:
+                quick_chat, _ = make_model(side, thinking=False)
+                quick_agents[side] = create_react_agent(
+                    quick_chat,
+                    shared,
+                    prompt=prompt_for(side),
+                    checkpointer=MemorySaver(),
+                )
+            hurry = (
+                "时间到。棋盘如下，只调 `play`，不要调 `board`，不要解释。\n\n"
+                + state.get("diagram", "")
+            )
+            try:
+                played = await asyncio.wait_for(
+                    run_turn(
+                        quick_agents[side],
+                        side,
+                        hurry,
+                        "{}-{}-quick".format(side, turns[side]),
+                    ),
+                    timeout=budget,
+                )
+            except asyncio.TimeoutError:
+                emit("timeout", "再次超时，判负。", side)
+                await asyncio.sleep(2)
+                continue
+            except Exception as exc:
+                emit("error", str(exc), side)
+                await asyncio.sleep(2)
+                continue
         except Exception as exc:
             emit("error", str(exc), side)
             await asyncio.sleep(2)

@@ -6,6 +6,7 @@
 #include "tests/component/mesh_manager.h"
 #include <array>
 #include <atomic>
+#include <chrono>
 #include <cstdint>
 #include <functional>
 #include <memory>
@@ -43,6 +44,10 @@ public:
   void shuffle_board();
   // Public view of the board as a diagram. Covered pieces are not identified.
   std::string board_json();
+  // Seconds left on the current turn, published as the clock tool.
+  std::string clock_json();
+  // Seconds since the AI started working on the current turn.
+  double turn_elapsed() const;
   // Black's move, used by the AI. Rejects Red's turn and illegal moves.
   std::string play_move(int from_row, int from_col, int to_row, int to_col);
   // Runs fn on the thread that renders this scene, and waits for it.
@@ -77,6 +82,8 @@ private:
 
   bool commit_move(int fr, int fc, int tr, int tc, std::string *error);
   void drain_mcp_tasks();
+  void restart_turn_clock();
+  void enforce_clock();
 
 private:
   shader *m_board_shader = nullptr;
@@ -127,6 +134,12 @@ private:
   int m_black_model = 1;
   int m_red_illegal = 0;
   int m_black_illegal = 0;
+  // Seconds an AI side gets for one move. The agent retries once without
+  // thinking, so the engine only forfeits after two missed budgets.
+  int m_move_seconds = 60;
+  std::chrono::steady_clock::time_point m_turn_started =
+      std::chrono::steady_clock::now();
+  bool m_was_thinking = false;
   std::unique_ptr<reveal_chess_chat> m_chat;
   std::unique_ptr<reveal_chess_mcp> m_mcp;
   std::mutex m_mcp_mu;

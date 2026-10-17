@@ -27,6 +27,14 @@ public:
   std::string
   board();
 
+  [[= mcp::tool{.read_only = true, .open_world = false}]][[= js::doc{
+      .text = js::str(
+          "Time left on the current turn: limit, elapsed and seconds_left. "
+          "seconds_left turns negative once the budget is spent, so call it "
+          "before a long think rather than after.")}]]
+  std::string
+  clock();
+
   [[= mcp::tool{.read_only = false,
                 .destructive = false,
                 .idempotent = false,
@@ -46,7 +54,8 @@ protected:
   std::string_view server_name() const override { return "reveal-chess"; }
   std::string_view server_version() const override { return "0.1.0"; }
   std::string_view instructions() const override {
-    return "Call board, then decide one move from the rules and play it.";
+    return "Call board, then decide one move from the rules and play it. clock "
+           "reports the time left on this turn.";
   }
 
 private:

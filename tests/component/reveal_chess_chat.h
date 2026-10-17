@@ -20,8 +20,11 @@ public:
   const std::string &thinking_side() const { return m_thinking_side; }
   void start(const std::string &red_provider, const std::string &red_model,
              const std::string &black_provider, const std::string &black_model,
-             bool thinking);
+             bool thinking, int move_seconds);
   void stop();
+  // Appends a line to the log, for events the process did not report.
+  void note(const std::string &kind, const std::string &text,
+            const std::string &side);
   void draw();
 
 private:

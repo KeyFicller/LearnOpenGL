@@ -23,6 +23,10 @@ std::string reveal_chess_mcp::board() {
   return m_scene->on_render_thread([this] { return m_scene->board_json(); });
 }
 
+std::string reveal_chess_mcp::clock() {
+  return m_scene->on_render_thread([this] { return m_scene->clock_json(); });
+}
+
 std::string reveal_chess_mcp::play(int from_row, int from_col, int to_row,
                                    int to_col) {
   return m_scene->on_render_thread([this, from_row, from_col, to_row, to_col] {

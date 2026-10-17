@@ -40,6 +40,9 @@ constexpr size_t k_move_msg_size = 17; // 1 type + 4 * int32
 constexpr size_t k_board_sync_size = 1 + 10 * 9 * sizeof(int32_t); // 361
 constexpr double k_heartbeat_interval = 2.0;
 constexpr double k_heartbeat_timeout = 6.0;
+// Absorbs the frame or two between starting the clock and the agent's own
+// timer, so a retry that lands just inside its window is not rejected.
+constexpr double k_move_grace = 3.0;
 
 static void pack_move_msg(char *buf, int fr, int fc, int tr, int tc) {
   buf[0] = static_cast<char>(msg_type::k_msg_move);
@@ -469,6 +472,7 @@ void reveal_chess_scene::shuffle_board() {
   m_game_result = game_result::ongoing;
   m_red_illegal = 0;
   m_black_illegal = 0;
+  restart_turn_clock();
   invalidate_piece_index(m_last_move_from);
   invalidate_piece_index(m_last_move_to);
   invalidate_piece_index(m_selected_piece);
@@ -502,6 +506,7 @@ void reveal_chess_scene::apply_remote_move(int fr, int fc, int tr, int tc) {
   }
   if (m_game_result == game_result::ongoing)
     m_red_turn = !m_red_turn;
+  restart_turn_clock();
 }
 
 void reveal_chess_scene::send_move(int fr, int fc, int tr, int tc) {
@@ -605,6 +610,16 @@ void reveal_chess_scene::update(float _delta_time) {
     }
   }
   poll_network();
+  // The budget covers the agent working on the turn, not the taunts and the
+  // polling that run before it picks the turn up. The chat parses the agent's
+  // "thinking" line, so this is the moment its own timer starts too.
+  if (m_chat) {
+    const bool thinking = m_chat->thinking();
+    if (thinking && !m_was_thinking)
+      restart_turn_clock();
+    m_was_thinking = thinking;
+  }
+  enforce_clock();
 
   if (m_connect_mode != connect_mode::none) {
     const double now = glfwGetTime();
@@ -792,7 +807,8 @@ void reveal_chess_scene::render_ui() {
       const bool red = m_chat->thinking_side() == "red";
       ImGui::TextColored(red ? ImVec4(0.95f, 0.45f, 0.38f, 1.0f)
                              : ImVec4(0.55f, 0.75f, 0.95f, 1.0f),
-                         "%s is thinking", red ? "Red" : "Black");
+                         "%s is thinking  %.1f / %d s", red ? "Red" : "Black",
+                         turn_elapsed(), m_move_seconds);
     } else {
       ImGui::Text("Current: %s", m_red_turn ? "Red" : "Black");
     }
@@ -826,6 +842,8 @@ void reveal_chess_scene::render_ui() {
   model_combo("Red model", m_red_model, m_red_illegal);
   model_combo("Black model", m_black_model, m_black_illegal);
   ImGui::Checkbox("Think", &m_ai_thinking);
+  ImGui::InputInt("Move limit (s)", &m_move_seconds);
+  m_move_seconds = std::clamp(m_move_seconds, 5, 3600);
   if (!local || running)
     ImGui::EndDisabled();
   if (running) {
@@ -838,7 +856,9 @@ void reveal_chess_scene::render_ui() {
       const chess_model_choice &red = k_chess_models[m_red_model];
       const chess_model_choice &black = k_chess_models[m_black_model];
       m_chat->start(red.provider, red.model, black.provider, black.model,
-                    m_ai_thinking);
+                    m_ai_thinking, m_move_seconds);
+      m_was_thinking = false;
+      restart_turn_clock();
     }
     if (!local || !(m_red_ai || m_black_ai))
       ImGui::EndDisabled();
@@ -1168,6 +1188,7 @@ bool reveal_chess_scene::commit_move(int fr, int fc, int tr, int tc,
     m_game_result = m_red_turn ? game_result::red_win : game_result::black_win;
   if (m_game_result == game_result::ongoing)
     m_red_turn = !m_red_turn;
+  restart_turn_clock();
   return true;
 }
 
@@ -1214,6 +1235,39 @@ std::string reveal_chess_scene::board_json() {
                         {"to_col", m_last_move_to.second}};
   }
   return doc.dump();
+}
+
+std::string reveal_chess_scene::clock_json() {
+  using nlohmann::json;
+  const double elapsed = turn_elapsed();
+  return json{{"limit", m_move_seconds},
+              {"elapsed", elapsed},
+              {"seconds_left", m_move_seconds - elapsed}}
+      .dump();
+}
+
+void reveal_chess_scene::restart_turn_clock() {
+  m_turn_started = std::chrono::steady_clock::now();
+}
+
+double reveal_chess_scene::turn_elapsed() const {
+  return std::chrono::duration<double>(std::chrono::steady_clock::now() -
+                                      m_turn_started)
+      .count();
+}
+
+void reveal_chess_scene::enforce_clock() {
+  // The agent cancels a late request and retries once without thinking, so a
+  // side only loses after missing the budget twice. A checked AI box with no
+  // running agent must not end the game.
+  if (m_game_result != game_result::ongoing ||
+      m_connect_mode != connect_mode::none || !m_chat || !m_chat->running() ||
+      !(m_red_turn ? m_red_ai : m_black_ai))
+    return;
+  if (turn_elapsed() <= 2.0 * m_move_seconds + k_move_grace)
+    return;
+  m_game_result = m_red_turn ? game_result::black_win : game_result::red_win;
+  m_chat->note("error", "超时判负", m_red_turn ? "red" : "black");
 }
 
 std::string reveal_chess_scene::play_move(int from_row, int from_col, int to_row,

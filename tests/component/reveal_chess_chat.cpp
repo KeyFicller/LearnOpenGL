@@ -18,7 +18,8 @@ reveal_chess_chat::~reveal_chess_chat() { stop(); }
 void reveal_chess_chat::start(const std::string &red_provider,
                                const std::string &red_model,
                                const std::string &black_provider,
-                               const std::string &black_model, bool thinking) {
+                               const std::string &black_model, bool thinking,
+                               int move_seconds) {
   if (m_pid > 0) {
     return;
   }
@@ -43,6 +44,7 @@ void reveal_chess_chat::start(const std::string &red_provider,
   setenv("CHESS_BLACK_PROVIDER", black_provider.c_str(), 1);
   setenv("CHESS_BLACK_MODEL", black_model.c_str(), 1);
   setenv("CHESS_THINKING", thinking ? "1" : "0", 1);
+  setenv("CHESS_MOVE_SECONDS", std::to_string(move_seconds).c_str(), 1);
 
   const std::string python_s = python.string();
   const std::string script_s = script.string();
@@ -149,6 +151,12 @@ void reveal_chess_chat::handle_line(const std::string &line) {
   m_scroll = true;
 }
 
+void reveal_chess_chat::note(const std::string &kind, const std::string &text,
+                             const std::string &side) {
+  handle_line(nlohmann::json{{"kind", kind}, {"text", text}, {"side", side}}
+                  .dump());
+}
+
 void reveal_chess_chat::poll() {
   if (m_out < 0) {
     return;
@@ -218,6 +226,9 @@ void reveal_chess_chat::draw() {
       color = ImVec4(0.85f, 0.70f, 0.40f, 1.0f);
     } else if (item.kind == "error") {
       color = ImVec4(1.0f, 0.40f, 0.40f, 1.0f);
+    } else if (item.kind == "timeout") {
+      label = "超时: ";
+      color = ImVec4(1.0f, 0.55f, 0.25f, 1.0f);
     } else if (item.kind == "status") {
       color = ImVec4(0.75f, 0.75f, 0.75f, 1.0f);
     }
