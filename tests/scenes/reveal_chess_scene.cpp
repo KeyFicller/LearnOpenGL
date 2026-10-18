@@ -750,8 +750,24 @@ void reveal_chess_scene::update(float _delta_time) {
   }
 }
 
+namespace {
+
+// Board coordinates are a square grid in NDC, so a wide viewport would stretch
+// the board and draw the pieces as ovals. Scaling x by height/width keeps a
+// board-space unit the same number of pixels on both axes.
+float viewport_aspect_x() {
+  GLint vp[4];
+  glGetIntegerv(GL_VIEWPORT, vp);
+  if (vp[2] <= 0 || vp[3] <= 0)
+    return 1.0f;
+  return static_cast<float>(vp[3]) / static_cast<float>(vp[2]);
+}
+
+} // namespace
+
 void reveal_chess_scene::draw_board() {
   m_board_shader->use();
+  m_board_shader->set_uniform("u_aspect", viewport_aspect_x());
   m_board_mesh_manager.bind();
   glDrawArrays(GL_POINTS, 0, m_board_mesh_manager.get_index_count());
 }
@@ -789,6 +805,7 @@ void reveal_chess_scene::draw_pieces() {
   m_piece_mesh_manager.setup_mesh(piece_mesh_data);
 
   m_piece_shader->use();
+  m_piece_shader->set_uniform("u_aspect", viewport_aspect_x());
   if (m_hovered_piece.first != -1 && m_hovered_piece.second != -1) {
     m_piece_shader->set_uniform("uHoveredPieceId", m_hovered_piece.first * 10 +
                                                        m_hovered_piece.second);
@@ -807,8 +824,8 @@ void reveal_chess_scene::draw_pieces() {
 }
 
 namespace {
-// Match board background in chess_board/fragment.shader for invisible hit area
-const glm::vec4 k_board_bg = glm::vec4(0.82f, 0.71f, 0.55f, 1.0f);
+// Match the wood in chess_board/fragment.shader for the invisible hit area
+const glm::vec4 k_board_bg = glm::vec4(0.850f, 0.730f, 0.555f, 1.0f);
 const glm::vec4 k_hint_color = glm::vec4(0.35f, 0.65f, 0.45f, 0.65f);
 const float k_display_radius = 0.03f;
 const float k_hit_radius = 0.08f;
@@ -830,6 +847,7 @@ void reveal_chess_scene::draw_valid_moves() {
   m_valid_move_mesh_manager.setup_mesh(valid_move_mesh_data);
 
   m_valid_move_shader->use();
+  m_valid_move_shader->set_uniform("u_aspect", viewport_aspect_x());
   m_valid_move_mesh_manager.bind();
 
   // Pass 1: large circle — write only to object_id; no color, no depth
@@ -1666,6 +1684,26 @@ std::vector<std::pair<int, int>> reveal_chess_scene::get_valid_moves() {
 }
 
 void reveal_chess_scene::draw_text() {
+  const float aspect = viewport_aspect_x();
+
+  // 楚河汉界, on the river. Drawn before the pieces and further from the camera,
+  // so a piece standing on the bank covers it.
+  {
+    const float scale =
+        interaction_utils::viewport_scale_from_ref_height(800.0f) * 0.62f;
+    const glm::vec3 ink(0.330f, 0.215f, 0.120f);
+    const char *labels[2] = {"楚 河", "汉 界"};
+    const float centers[2] = {-0.42f, 0.42f};
+    for (int i = 0; i < 2; ++i) {
+      float w_ndc = 0, h_ndc = 0, bearing_y_ndc = 0;
+      text_renderer::instance().measure_text_ndc(labels[i], scale, &w_ndc,
+                                                 &h_ndc, &bearing_y_ndc);
+      text_renderer::instance().render_text_by_uv(
+          labels[i], centers[i] * aspect - w_ndc * 0.5f, -h_ndc * 0.5f, scale,
+          ink, -0.04f);
+    }
+  }
+
   for (int r = 0; r < 10; r++) {
     for (int c = 0; c < 9; c++) {
 
@@ -1699,11 +1737,11 @@ void reveal_chess_scene::draw_text() {
         const float ref_height = 800.0f;
         float scale =
             interaction_utils::viewport_scale_from_ref_height(ref_height);
-        float cx = mix(-0.9f, 0.9f, float(c) / 8.0f);
+        float cx = mix(-0.9f, 0.9f, float(c) / 8.0f) * aspect;
         float cy = mix(0.9f, -0.9f, float(r) / 9.0f);
 
         if (is_hovered) {
-          cy += 0.01f * 0.9f;
+          cy += 0.012f; // matches k_hover_lift in chess_piece/geometry.shader
         }
 
         float w_ndc = 0, h_ndc = 0, bearing_y_ndc = 0;
@@ -1737,6 +1775,7 @@ void reveal_chess_scene::draw_last_move() {
   m_last_move_mesh_manager.setup_mesh(last_move_mesh);
 
   m_last_move_shader->use();
+  m_last_move_shader->set_uniform("u_aspect", viewport_aspect_x());
   m_last_move_mesh_manager.bind();
   glEnable(GL_BLEND);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);

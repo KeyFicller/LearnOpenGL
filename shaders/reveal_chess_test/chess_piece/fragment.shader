@@ -6,57 +6,65 @@ uniform int uSelectedPieceId;
 
 flat in int gs_piece_type;
 flat in int gs_piece_id;
-in vec2 gs_local; // interpolated: center=0, edge length=1
+flat in int gs_shadow;
+in vec2 gs_local; // center=0, rim=1
 
-// Base colors
-const vec3 piece_red = vec3(0.78, 0.22, 0.16);
-const vec3 piece_black = vec3(0.12, 0.12, 0.18);
-const vec3 piece_cover = vec3(0.55, 0.50, 0.48);
-const vec3 outline_dark = vec3(0.08, 0.06, 0.05);
-const vec3 outline_light = vec3(0.95, 0.92, 0.88);
-const vec3 outline_cover = vec3(0.35, 0.32, 0.30); // neutral, no red/black hint
+// A disc with an ivory edge, so a piece reads as an object sitting on the wood
+// instead of a coloured circle. The cover is a wooden back: no red or black hint
+// anywhere on it.
+const vec3 k_ivory = vec3(0.930, 0.885, 0.780);
+const vec3 k_ivory_shade = vec3(0.705, 0.625, 0.490);
+const vec3 k_face_red = vec3(0.760, 0.200, 0.140);
+const vec3 k_face_black = vec3(0.145, 0.145, 0.190);
+const vec3 k_face_cover = vec3(0.505, 0.420, 0.330);
+const vec3 k_gold = vec3(1.000, 0.855, 0.450);
 
 void main() {
-  const int red_mask = 0x00200;
-  const int black_mask = 0x00400;
-  const int cover_mask = 0x00100;
+  float d = length(gs_local);
   FragPieceId = gs_piece_id;
-
-  float dist = length(gs_local);
-  if (dist > 1.0)
+  if (d > 1.0)
     discard;
 
-  vec3 base;
-  if ((gs_piece_type & cover_mask) != 0) {
-    base = piece_cover;
-  } else if ((gs_piece_type & red_mask) != 0) {
-    base = piece_red;
-  } else if ((gs_piece_type & black_mask) != 0) {
-    base = piece_black;
-  } else {
-    base = vec3(1.0);
+  if (gs_shadow == 1) {
+    // A soft contact shadow. Only the part past the piece rim is visible, so
+    // the falloff sits at the shadow's own edge.
+    FragColor = vec4(0.120, 0.075, 0.045,
+                     0.34 * (1.0 - smoothstep(0.88, 1.0, d)));
+    return;
   }
 
-  // Rim: dark for red, light for black, neutral for covered (don't reveal color)
-  float rim = smoothstep(0.72, 0.88, dist);
-  vec3 rim_color;
-  if ((gs_piece_type & cover_mask) != 0)
-    rim_color = outline_cover;
-  else if ((gs_piece_type & black_mask) != 0)
-    rim_color = outline_light;
-  else
-    rim_color = outline_dark;
-  vec3 col = mix(base, rim_color, rim * 0.9);
+  const int black_mask = 0x00400;
+  const int cover_mask = 0x00100;
 
-  // Slight radial gradient: lighter center, darker edge (domed feel)
-  float shade = 1.0 - 0.22 * dist;
-  col *= shade;
+  bool covered = (gs_piece_type & cover_mask) != 0;
+  bool black = !covered && (gs_piece_type & black_mask) != 0;
 
-  // Highlight for selected piece: brighten and soft rim glow
+  vec3 face = covered ? k_face_cover : (black ? k_face_black : k_face_red);
+
+  // Ivory edge, and a groove just inside it so the face looks set into the rim.
+  float rim = smoothstep(0.815, 0.835, d);
+  float groove = smoothstep(0.775, 0.800, d) * (1.0 - rim);
+  vec3 col = mix(face, k_ivory, rim);
+  col = mix(col, k_ivory_shade, groove * 0.55);
+
+  // Light from the upper left: the rim picks it up, the face gets a gentle dome.
+  vec2 to_edge = gs_local + vec2(1e-4, 1e-4);
+  float lift = 0.5 + 0.5 * dot(normalize(to_edge), normalize(vec2(-0.55, 0.80)));
+  col *= 0.93 + 0.13 * lift;
+  col *= 1.0 - 0.10 * d * d;
+
+  // Covered pieces get an engraved ring and a dot: a back, not a blank disc.
+  if (covered) {
+    float ring = smoothstep(0.520, 0.545, d) * (1.0 - smoothstep(0.575, 0.600, d));
+    col = mix(col, k_face_cover * 0.66, ring * 0.60);
+    col = mix(col, k_face_cover * 0.66, (1.0 - smoothstep(0.095, 0.125, d)) * 0.45);
+  }
+
   if (gs_piece_id == uSelectedPieceId) {
-    col = mix(col, vec3(1.0), 0.18);
-    float highlight_rim = smoothstep(0.65, 0.95, dist);
-    col = mix(col, vec3(1.0, 0.98, 0.92), highlight_rim * 0.35);
+    // Gold rim plus a slight overall lift: the piece is picked up, not enlarged
+    // into the neighbouring squares.
+    col = mix(col, k_gold, smoothstep(0.885, 1.0, d) * 0.80);
+    col = mix(col, vec3(1.0), 0.05);
   }
 
   FragColor = vec4(col, 1.0);

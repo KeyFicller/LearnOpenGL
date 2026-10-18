@@ -2,6 +2,8 @@
 layout(points) in;
 layout(triangle_strip, max_vertices = 40) out;
 
+uniform float u_aspect;
+
 const float half_w = 0.102;
 const float half_h = 0.092;
 const float line_half = 0.006;
@@ -10,6 +12,7 @@ void emit_line(vec2 a, vec2 b, float z) {
   vec2 d = b - a;
   float len = length(d);
   vec2 perp = (len > 0.001) ? vec2(-d.y, d.x) / len * line_half : vec2(line_half, 0.0);
+  perp.x *= u_aspect; // keep the stroke as thick in pixels either way
   gl_Position = vec4(a - perp, z, 1.0);
   EmitVertex();
   gl_Position = vec4(a + perp, z, 1.0);
@@ -24,8 +27,8 @@ void emit_line(vec2 a, vec2 b, float z) {
 void main() {
   vec2 center = gl_in[0].gl_Position.xy;
   float z = gl_in[0].gl_Position.z;
-  float l = center.x - half_w;
-  float r = center.x + half_w;
+  float l = center.x - half_w * u_aspect;
+  float r = center.x + half_w * u_aspect;
   float b = center.y - half_h;
   float t = center.y + half_h;
   emit_line(vec2(l, b), vec2(r, b), z);
