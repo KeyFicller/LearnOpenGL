@@ -7,6 +7,11 @@
 #include <iterator>
 #include <vector>
 
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <unistd.h>
+
 #include <nlohmann/json.hpp>
 
 namespace {
@@ -61,6 +66,34 @@ std::string value_of(const uniform_spec &spec,
          std::to_string(sample.texture_h) + ", " + sample.texture_label;
 }
 
+// Picks a port the server can have. The preferred one first, so the usual
+// launch keeps the familiar URL; otherwise the kernel names a free one. The
+// probe socket is closed before serve_http() binds, which leaves a window for
+// another process to take the port, but only one we would have lost anyway.
+int pick_port(int _preferred) {
+  for (int attempt = 0; attempt < 2; ++attempt) {
+    const int want = attempt == 0 ? _preferred : 0;
+    const int fd = ::socket(AF_INET, SOCK_STREAM, 0);
+    if (fd < 0)
+      return -1;
+    sockaddr_in addr{};
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    addr.sin_port = htons(static_cast<uint16_t>(want));
+    int port = -1;
+    if (::bind(fd, reinterpret_cast<sockaddr *>(&addr), sizeof(addr)) == 0) {
+      sockaddr_in got{};
+      socklen_t len = sizeof(got);
+      if (::getsockname(fd, reinterpret_cast<sockaddr *>(&got), &len) == 0)
+        port = ntohs(got.sin_port);
+    }
+    ::close(fd);
+    if (port > 0)
+      return port;
+  }
+  return -1;
+}
+
 } // namespace
 
 shader_editor_mcp::shader_editor_mcp(shader_editor_scene *scene)
@@ -77,7 +110,11 @@ void shader_editor_mcp::start() {
   if (m_thread.joinable()) {
     return;
   }
-  m_thread = std::thread([this] { serve_http(k_shader_editor_mcp_port); });
+  m_port = pick_port(k_shader_editor_mcp_port);
+  if (m_port <= 0) {
+    return;
+  }
+  m_thread = std::thread([this, port = m_port] { serve_http(port); });
 }
 
 std::string shader_editor_mcp::get_shader() {

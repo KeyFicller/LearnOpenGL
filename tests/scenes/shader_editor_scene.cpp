@@ -395,6 +395,14 @@ void shader_editor_scene::init(GLFWwindow *_window) {
 
   m_mcp = std::make_unique<shader_editor_mcp>(this);
   m_mcp->start();
+  // The chat runs as a child process, and the port is not fixed. Hand it the
+  // URL this process actually took; chat.py reads SHADER_EDITOR_MCP_URL at
+  // start-up and would otherwise guess 8765.
+  if (m_mcp->port() > 0) {
+    const std::string url =
+        "http://127.0.0.1:" + std::to_string(m_mcp->port()) + "/mcp";
+    setenv("SHADER_EDITOR_MCP_URL", url.c_str(), 1);
+  }
 }
 
 void shader_editor_scene::render() {

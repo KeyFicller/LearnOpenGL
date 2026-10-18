@@ -1,8 +1,11 @@
 """Multi-turn shader editor chat.
 
-LearnOpenGL has to be running on the Shader Editor scene, which serves MCP at
-http://127.0.0.1:8765/mcp. Launch it with LEARNOPENGL_SCENE=shader_editor, or
-pick Shader Editor in Scene Selection.
+LearnOpenGL has to be running on the Shader Editor scene, which serves MCP on
+a local port. Launch it with LEARNOPENGL_SCENE=shader_editor, or pick Shader
+Editor in Scene Selection. The in-app panel starts this script itself and
+passes SHADER_EDITOR_MCP_URL, because the editor takes 127.0.0.1:8765 when it
+is free and any free port otherwise. From a terminal, read the URL in the
+panel's built-in uniforms section and put it in SHADER_EDITOR_MCP_URL.
 
 The API key is read from the repository .env (DEEPSEEK_API_KEY,
 DEEPSEEK_BASE_URL, optional DEEPSEEK_MODEL).

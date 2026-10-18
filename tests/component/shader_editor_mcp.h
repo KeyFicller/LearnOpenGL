@@ -10,6 +10,8 @@
 
 class shader_editor_scene;
 
+// Preferred port. Another app on the machine may already hold it, so start()
+// falls back to a free one and port() reports what was actually taken.
 inline constexpr int k_shader_editor_mcp_port = 8765;
 
 class shader_editor_mcp : public mcp::Server<shader_editor_mcp> {
@@ -18,6 +20,8 @@ public:
   ~shader_editor_mcp() override;
 
   void start();
+  // Port start() asked for, known before the server finishes binding.
+  int port() const { return m_port; }
 
   [[= mcp::tool{.read_only = true, .open_world = false}]][[= js::doc{
       .text = js::str("Reads the shader project currently open in the editor, "
@@ -84,5 +88,6 @@ protected:
 
 private:
   shader_editor_scene *m_scene;
+  int m_port = -1;
   std::thread m_thread;
 };
