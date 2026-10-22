@@ -12,3 +12,5 @@ runtime/
 .editorconfig
 CMakeUserPresets.json
 .env
+desktop.ini
+Thumbs.db
