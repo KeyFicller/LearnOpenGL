@@ -273,7 +273,6 @@ add_executable(LearnOpenGL
     basic/material.cpp
     basic/vertex_array.cpp
     basic/camera.cpp
-    vendor/imgui_opengl3_glad.cpp
     tests/framework/test_suit.cpp
     tests/scenes/scene_base.cpp
     tests/component/mesh_manager.cpp
