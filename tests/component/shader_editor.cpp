@@ -450,13 +450,38 @@ bool basic_code_editor::need_search_for_candidates() const {
            m_cached_seed.prefix.empty());
 }
 
+ImVec2 basic_code_editor::autocomplete_anchor_screen_pos() const {
+  // Reconstruct caret screen pos to match TextEditor::Render() (gutter + tabs).
+  // Remote ImGuiColorTextEdit master has no GetAutocompleteAnchorScreenPos; the
+  // old LearnOpenGL gitlink (0df4a33) was never published there.
+  const std::string child_title = m_name + "Impl";
+  ImGuiWindow *win = ImGui::FindWindowByName(child_title.c_str());
+  if (win == nullptr) {
+    const std::string nested = m_name + "/" + child_title;
+    win = ImGui::FindWindowByName(nested.c_str());
+  }
+  if (win == nullptr)
+    return ImGui::GetCursorScreenPos();
+
+  const TextEditor::Coordinates coords = m_editor.GetActualCursorCoordinates();
+  const float cx = m_editor.TextDistanceToLineStart(coords);
+  // CursorStartPos matches GetCursorScreenPos() at the start of the private Render loop.
+  const ImVec2 content_origin = win->DC.CursorStartPos;
+  const ImVec2 line_start(content_origin.x,
+                          content_origin.y +
+                              coords.mLine * m_editor.mCharAdvance.y);
+  // Bottom-left of the caret cell — popup adds ItemInnerSpacing.y below.
+  return ImVec2(line_start.x + m_editor.mTextStart + cx,
+                line_start.y + m_editor.mCharAdvance.y);
+}
+
 void basic_code_editor::show_autocomplete_popup() {
   if (m_autocomplete_candidates.empty()) {
     return;
   }
 
-  // Anchor from TextEditor — same geometry as drawn caret (gutter, zoom, tabs).
-  ImVec2 popup_pos = m_editor.GetAutocompleteAnchorScreenPos();
+  // Anchor: same geometry as TextEditor caret (gutter, zoom, tabs).
+  ImVec2 popup_pos = autocomplete_anchor_screen_pos();
   popup_pos.y += ImGui::GetStyle().ItemInnerSpacing.y;
 
   float line_height = ImGui::GetTextLineHeight();
