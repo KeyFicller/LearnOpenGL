@@ -331,7 +331,8 @@ add_executable(LearnOpenGL
 if(MONO_FOUND)
   target_sources(LearnOpenGL PRIVATE
     tests/scenes/script_editor_scene.cpp
-    tests/component/script_editor.cpp)
+    tests/component/script_editor.cpp
+    tests/component/script_input_content.cpp)
 endif()
 
 if(MSVC)

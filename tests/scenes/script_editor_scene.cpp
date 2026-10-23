@@ -7,8 +7,6 @@
 
 #include <GLFW/glfw3.h>
 
-#include <algorithm>
-#include <cmath>
 #include <cstdio>
 #include <fstream>
 #include <iostream>
@@ -37,8 +35,8 @@ script_editor_scene::script_editor_scene() : test_scene_base("Script Editor") {
   m_script_editor = std::make_unique<script_editor>("Script Editor");
   m_script_editor->set_save_callback([this]() { return on_save_script(); });
   m_script_editor->set_help_info(
-      "Game loop: host SetInput(axis, mouse NDC, buttons) then "
-      "OnUpdate(dt); script writes Player/Target/Score. "
+      "Game loop: host script_input_content -> HandleInput, then "
+      "OnUpdate(dt); C# owns Player/Target/Score. "
       "WASD move, click target to collect. Save rebuilds on macOS only.");
 }
 
@@ -79,106 +77,48 @@ void script_editor_scene::init(GLFWwindow *_window) {
   }
 }
 
-void script_editor_scene::sample_keyboard_axis(float &move_x,
-                                               float &move_y) const {
-  move_x = 0.0f;
-  move_y = 0.0f;
-  if (!m_window)
-    return;
-  // Don't steal keys while the C# editor (or other ImGui) wants them.
-  if (ImGui::GetIO().WantCaptureKeyboard)
-    return;
-
-  const bool left = glfwGetKey(m_window, GLFW_KEY_A) == GLFW_PRESS ||
-                    glfwGetKey(m_window, GLFW_KEY_LEFT) == GLFW_PRESS;
-  const bool right = glfwGetKey(m_window, GLFW_KEY_D) == GLFW_PRESS ||
-                     glfwGetKey(m_window, GLFW_KEY_RIGHT) == GLFW_PRESS;
-  const bool down = glfwGetKey(m_window, GLFW_KEY_S) == GLFW_PRESS ||
-                    glfwGetKey(m_window, GLFW_KEY_DOWN) == GLFW_PRESS;
-  const bool up = glfwGetKey(m_window, GLFW_KEY_W) == GLFW_PRESS ||
-                  glfwGetKey(m_window, GLFW_KEY_UP) == GLFW_PRESS;
-
-  if (left)
-    move_x -= 1.0f;
-  if (right)
-    move_x += 1.0f;
-  if (down)
-    move_y -= 1.0f;
-  if (up)
-    move_y += 1.0f;
-
-  // Normalize diagonal
-  const float len2 = move_x * move_x + move_y * move_y;
-  if (len2 > 1.0f) {
-    const float inv = 1.0f / std::sqrt(len2);
-    move_x *= inv;
-    move_y *= inv;
-  }
-}
-
-void script_editor_scene::cursor_to_ndc(float &ndc_x, float &ndc_y) const {
-  ndc_x = 0.0f;
-  ndc_y = 0.0f;
+void script_editor_scene::resolve_viewport_size(int &w, int &h) const {
+  w = 0;
+  h = 0;
   if (!m_window)
     return;
   test_suit *ts =
       static_cast<test_suit *>(glfwGetWindowUserPointer(m_window));
   if (!ts || !ts->m_scene_framebuffer)
     return;
-  const int w = ts->m_scene_framebuffer->get_width();
-  const int h = ts->m_scene_framebuffer->get_height();
-  if (w <= 0 || h <= 0)
-    return;
-  // Viewport mouse is top-left origin; clip NDC is y-up.
-  ndc_x = (m_cursor_x / static_cast<float>(w)) * 2.0f - 1.0f;
-  ndc_y = 1.0f - (m_cursor_y / static_cast<float>(h)) * 2.0f;
-  ndc_x = std::clamp(ndc_x, -1.0f, 1.0f);
-  ndc_y = std::clamp(ndc_y, -1.0f, 1.0f);
+  w = ts->m_scene_framebuffer->get_width();
+  h = ts->m_scene_framebuffer->get_height();
 }
 
-void script_editor_scene::push_input_to_script() {
+void script_editor_scene::forward_input_to_script() {
   if (!m_invoker.is_ready())
     return;
 
-  float move_x = 0.0f;
-  float move_y = 0.0f;
-  sample_keyboard_axis(move_x, move_y);
+  int vw = 0, vh = 0;
+  resolve_viewport_size(vw, vh);
+  m_input.sample(m_window, vw, vh, ImGui::GetIO().WantCaptureKeyboard);
 
-  // R = reset (edge; ignored while ImGui wants keyboard)
-  const bool r_down =
-      m_window && !ImGui::GetIO().WantCaptureKeyboard &&
-      glfwGetKey(m_window, GLFW_KEY_R) == GLFW_PRESS;
-  if (r_down && !m_r_was_down) {
+  if (m_input.reset_pressed()) {
     request_reset_game();
   }
-  m_r_was_down = r_down;
 
-  float mouse_x = 0.0f;
-  float mouse_y = 0.0f;
-  cursor_to_ndc(mouse_x, mouse_y);
-
-  int buttons = 0;
-  if (m_left_down)
-    buttons |= 1;
-  if (m_right_down)
-    buttons |= 2;
-  int clicked = 0;
-  if (m_left_clicked)
-    clicked |= 1;
-  if (m_right_clicked)
-    clicked |= 2;
+  float move_x = m_input.move_x();
+  float move_y = m_input.move_y();
+  float mouse_x = m_input.mouse_ndc_x();
+  float mouse_y = m_input.mouse_ndc_y();
+  int buttons = m_input.mouse_buttons();
+  int clicked = m_input.mouse_clicked();
 
   bool ok = m_invoker.invoke(
       mono_invoker::script_ncm("Scripts"_ns, "ExampleScript"_cls,
-                               "SetInput"_md),
+                               "HandleInput"_md),
       move_x, move_y, mouse_x, mouse_y, buttons, clicked);
-  note_invoke(ok, "SetInput");
+  note_invoke(ok, "HandleInput");
 
-  m_left_clicked = false;
-  m_right_clicked = false;
+  m_input.clear_frame_edges();
 }
 
-void script_editor_scene::pull_game_state_from_script() {
+void script_editor_scene::pull_render_state_from_script() {
   if (!m_invoker.is_ready())
     return;
 
@@ -209,7 +149,7 @@ void script_editor_scene::pull_game_state_from_script() {
                           won) &&
        ok;
   m_won = won != 0;
-  note_invoke(ok, "pull state");
+  note_invoke(ok, "pull render state");
 }
 
 void script_editor_scene::request_reset_game() {
@@ -218,7 +158,7 @@ void script_editor_scene::request_reset_game() {
   bool ok = m_invoker.invoke(mono_invoker::script_ncm(
       "Scripts"_ns, "ExampleScript"_cls, "ResetGame"_md));
   note_invoke(ok, "ResetGame");
-  pull_game_state_from_script();
+  pull_render_state_from_script();
   if (ok)
     m_last_invoke_msg = "game reset";
 }
@@ -227,7 +167,8 @@ void script_editor_scene::update(float _delta_time) {
   if (!m_invoker.is_ready())
     return;
 
-  push_input_to_script();
+  // 1) Record + forward input content  2) C# OnUpdate  3) Pull for render
+  forward_input_to_script();
 
   float dt = _delta_time;
   bool ok = m_invoker.invoke(
@@ -236,7 +177,7 @@ void script_editor_scene::update(float _delta_time) {
       dt);
   note_invoke(ok, "OnUpdate");
 
-  pull_game_state_from_script();
+  pull_render_state_from_script();
 }
 
 void script_editor_scene::render() {
@@ -245,7 +186,7 @@ void script_editor_scene::render() {
 
   m_shader->use();
 
-  // Target (cyan), then player (coral) on top
+  // Target (cyan), then player (coral) on top — poses come from C#.
   m_shader->set_uniform("uOffset", m_target);
   m_shader->set_uniform("uScale", 0.16f);
   m_shader->set_uniform("uColor", glm::vec3(0.2f, 0.85f, 0.9f));
@@ -263,7 +204,8 @@ void script_editor_scene::render_ui() {
   ImGui::Spacing();
   ImGui::TextWrapped(
       "WASD / arrows move the red player. Left-click the cyan target "
-      "(or walk into it) to score. R resets. Reach 5 to win.");
+      "(or walk into it) to score. R resets. Reach 5 to win. "
+      "Game state lives in ExampleScript.cs; host only records input.");
   ImGui::Text("Assembly: %s",
               m_invoker.is_ready() ? "ready" : "not loaded");
   ImGui::Text("Last invoke: %s", m_last_invoke_msg.c_str());
@@ -278,29 +220,15 @@ void script_editor_scene::render_ui() {
 }
 
 bool script_editor_scene::on_mouse_moved(double _xpos, double _ypos) {
-  m_cursor_x = static_cast<float>(_xpos);
-  m_cursor_y = static_cast<float>(_ypos);
+  m_input.on_mouse_moved(static_cast<float>(_xpos),
+                         static_cast<float>(_ypos));
   return false;
 }
 
 bool script_editor_scene::on_mouse_button(int _button, int _action,
                                           int _mods) {
   (void)_mods;
-  if (_button == GLFW_MOUSE_BUTTON_LEFT) {
-    if (_action == GLFW_PRESS) {
-      m_left_down = true;
-      m_left_clicked = true;
-    } else if (_action == GLFW_RELEASE) {
-      m_left_down = false;
-    }
-  } else if (_button == GLFW_MOUSE_BUTTON_RIGHT) {
-    if (_action == GLFW_PRESS) {
-      m_right_down = true;
-      m_right_clicked = true;
-    } else if (_action == GLFW_RELEASE) {
-      m_right_down = false;
-    }
-  }
+  m_input.on_mouse_button(_button, _action);
   return false;
 }
 
@@ -311,7 +239,7 @@ bool script_editor_scene::on_save_script() {
   fout.close();
 
 #ifdef __APPLE__
-  // 先阻塞执行 build_csharp.sh 生成新 DLL，再卸载旧程序集并加载新 DLL
+  // Block on build_csharp.sh, then unload old assembly and load the new DLL.
   const char *cmds[] = {"bash scripts/build_csharp.sh 2>&1",
                         "bash ../scripts/build_csharp.sh 2>&1"};
   int status = -1;

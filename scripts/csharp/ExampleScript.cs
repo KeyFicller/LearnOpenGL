@@ -3,22 +3,19 @@ using System;
 namespace Scripts
 {
     /// <summary>
-    /// Mini-game driven by the Script Editor Mono host.
+    /// Mini-game owned by this C# script. The C++ host only records input
+    /// (script_input_content) and renders quads from the properties below.
     ///
-    /// Input contract (C++ → C#, once per frame before OnUpdate):
-    ///   SetInput(float moveX, float moveY,
-    ///            float mouseX, float mouseY,
-    ///            int mouseButtons, int mouseClicked)
-    ///     moveX/Y     : WASD/arrows axis in [-1, 1] (host zeroes when ImGui wants keyboard)
-    ///     mouseX/Y    : cursor in clip NDC [-1, 1], y up (viewport-relative)
-    ///     mouseButtons: bit0 = left held, bit1 = right held
-    ///     mouseClicked: bit0 = left pressed this frame, bit1 = right pressed this frame
+    /// Lifecycle each frame:
+    ///   1. HandleInput(...)  — receive axes / mouse / buttons from the host
+    ///   2. OnUpdate(dt)      — move, collect, score (game logic lives here)
+    ///   3. Host reads PlayerX/Y, TargetX/Y, Score, IsWon and draws
     ///
-    /// Frame tick:
-    ///   OnUpdate(float deltaTime)  // seconds
-    ///
-    /// Host reads pose / HUD after OnUpdate:
-    ///   PlayerX/Y, TargetX/Y, Score, IsWon, ResetRequested (optional via R on host)
+    /// HandleInput contract:
+    ///   moveX/Y     : WASD/arrows axis in [-1, 1] (host zeroes when ImGui wants keyboard)
+    ///   mouseX/Y    : cursor in clip NDC [-1, 1], y up (viewport-relative)
+    ///   mouseButtons: bit0 = left held, bit1 = right held
+    ///   mouseClicked: bit0 = left pressed this frame, bit1 = right pressed this frame
     /// </summary>
     public static class ExampleScript
     {
@@ -28,19 +25,22 @@ namespace Scripts
         const float Arena = 0.85f;
         const int WinScore = 5;
 
+        // --- Input content (written by HandleInput, consumed by OnUpdate) ---
         static float s_moveX, s_moveY;
         static float s_mouseX, s_mouseY;
         static int s_mouseButtons, s_mouseClicked;
 
+        // --- Game state (authoritative; host only mirrors for rendering) ---
         static float s_playerX, s_playerY;
         static float s_targetX = 0.45f, s_targetY = 0.35f;
         static int s_score;
         static bool s_won;
         static readonly Random s_rng = new Random(7);
 
-        public static void SetInput(float moveX, float moveY,
-                                    float mouseX, float mouseY,
-                                    int mouseButtons, int mouseClicked)
+        /// <summary>Host forwards one frame of input content before OnUpdate.</summary>
+        public static void HandleInput(float moveX, float moveY,
+                                       float mouseX, float mouseY,
+                                       int mouseButtons, int mouseClicked)
         {
             s_moveX = moveX;
             s_moveY = moveY;
@@ -50,6 +50,7 @@ namespace Scripts
             s_mouseClicked = mouseClicked;
         }
 
+        /// <summary>Per-frame game tick: movement, collect, win check.</summary>
         public static void OnUpdate(float deltaTime)
         {
             if (deltaTime < 0.0f)
@@ -60,7 +61,6 @@ namespace Scripts
             if (s_won)
                 return;
 
-            // Keyboard: move player in NDC
             s_playerX += s_moveX * PlayerSpeed * deltaTime;
             s_playerY += s_moveY * PlayerSpeed * deltaTime;
             s_playerX = Clamp(s_playerX, -Arena, Arena);
@@ -87,7 +87,7 @@ namespace Scripts
                 }
             }
 
-            // Silence unused warning style — buttons available for script experiments
+            // Buttons available for script experiments beyond the mini-game.
             _ = s_mouseButtons;
         }
 
@@ -110,7 +110,6 @@ namespace Scripts
 
         static void RespawnTarget()
         {
-            // Keep target away from player
             for (int i = 0; i < 12; ++i)
             {
                 float x = (float)(s_rng.NextDouble() * 2.0 - 1.0) * (Arena - TargetHalf);
