@@ -49,6 +49,16 @@ cmake --build --preset local
 
 `CMakePresets.json` `default` also works if `CPPREF_LLVM_ROOT` is already in the environment.
 
+### Optional Open CASCADE (Toy CAD)
+
+OCCT is off by default. To enable the Toy CAD scene, point CMake at your OCCT *build* tree (the directory that contains `OpenCASCADETargets.cmake`):
+
+```bash
+cmake --preset local -DLEARNOPENGL_OCCT_BUILD_DIR=/path/to/OCCT/build
+```
+
+Leave `LEARNOPENGL_OCCT_BUILD_DIR` empty to keep OCCT disabled.
+
 ## Spline movement program animation
 ![Spline Movement](doc/spline_movement_demo.png)
 ## Soft body animation

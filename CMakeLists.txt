@@ -347,11 +347,11 @@ endif()
 
 # Optional Open CASCADE Technology (OCCT) demo scene:
 # Point LEARNOPENGL_OCCT_BUILD_DIR at your OCCT *build* directory (the one that
-# contains OpenCASCADETargets.cmake). Override in CMake or set empty to disable.
+# contains OpenCASCADETargets.cmake). Leave empty (the default) to disable.
 set(LEARNOPENGL_OCCT_BUILD_DIR
-    "/Users/keyficller/Documents/OCCT/build"
+    ""
     CACHE PATH
-    "OCCT build directory (contains OpenCASCADETargets.cmake); set empty to disable OCCT"
+    "OCCT build directory (contains OpenCASCADETargets.cmake); leave empty to disable OCCT"
 )
 if(LEARNOPENGL_OCCT_BUILD_DIR AND EXISTS "${LEARNOPENGL_OCCT_BUILD_DIR}/OpenCASCADETargets.cmake")
   set(CMAKE_MAP_IMPORTED_CONFIG_DEBUG RELWITHDEBINFO)
