@@ -3,11 +3,13 @@ using System;
 namespace Scripts
 {
     /// <summary>
-    /// Example C# script invoked from C++ Mono host.
+    /// Entry points the Script Editor scene invokes from C++.
+    /// OnUpdate + OffsetX/Y form the teachable host → script → render loop;
+    /// motion math lives in MoveController (same Scripts.dll).
     /// </summary>
     public static class ExampleScript
     {
-        // Returns greeting string - avoid Console to prevent System.Native DllNotFound in embedded Mono
+        // Avoid Console — System.Native DllNotFound under embedded Mono.
         public static string SayHello()
         {
             return "Hello from C# script!";
@@ -23,37 +25,26 @@ namespace Scripts
             return 123.456f;
         }
 
+        /// <summary>Frame tick from C++ (delta seconds).</summary>
         public static void OnUpdate(float deltaTime)
         {
-            // Called each frame from C++ - can be used for script lifecycle
-            // Console.WriteLine($"OnUpdate dt={deltaTime}");
+            MoveController.OnUpdate(deltaTime);
+        }
+
+        /// <summary>Forward path radius to MoveController (ImGui / host).</summary>
+        public static void SetPathRadius(float radius)
+        {
+            MoveController.setPathRadius(radius);
         }
 
         public static float OffsetX()
         {
-            return 0.8f;
+            return MoveController.MoveX();
         }
 
         public static float OffsetY()
         {
-            return 0.5f;
+            return MoveController.MoveY();
         }
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
