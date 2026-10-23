@@ -11,6 +11,9 @@ The API key is read from the repository .env (DEEPSEEK_API_KEY,
 DEEPSEEK_BASE_URL, optional DEEPSEEK_MODEL).
 
     .venv/bin/python scripts/shader_agent/chat.py
+
+The in-app panel resolves the same interpreter via LEARNOPENGL_PYTHON or
+.venv (see README "Python agents").
 """
 
 import asyncio

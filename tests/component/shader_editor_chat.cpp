@@ -1,5 +1,6 @@
 #include "tests/component/shader_editor_chat.h"
 
+#include "tests/component/agent_python.h"
 #include "basic/texture.h"
 #include "imgui.h"
 
@@ -22,14 +23,15 @@ void shader_editor_chat::start() {
   if (m_pid > 0) {
     return;
   }
-  const fs::path python = fs::absolute(".venv/bin/python");
   const fs::path script = fs::absolute("scripts/shader_agent/chat.py");
-  if (!fs::exists(python) || !fs::exists(script)) {
+  const auto python_opt = resolve_agent_python();
+  if (!python_opt || !fs::exists(script)) {
     m_log.push_back(
-        {"error", "Missing .venv/bin/python or scripts/shader_agent/chat.py"});
+        {"error", agent_python_missing_hint("scripts/shader_agent/chat.py")});
     m_scroll = true;
     return;
   }
+  const fs::path python = *python_opt;
 
   int to_child[2] = {-1, -1};
   int from_child[2] = {-1, -1};

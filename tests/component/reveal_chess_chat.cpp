@@ -1,5 +1,6 @@
 #include "tests/component/reveal_chess_chat.h"
 
+#include "tests/component/agent_python.h"
 #include "imgui.h"
 
 #include <nlohmann/json.hpp>
@@ -21,14 +22,15 @@ void reveal_chess_chat::start(bool thinking, int move_seconds,
   if (m_pid > 0) {
     return;
   }
-  const fs::path python = fs::absolute(".venv/bin/python");
   const fs::path script = fs::absolute("scripts/chess_agent/play.py");
-  if (!fs::exists(python) || !fs::exists(script)) {
+  const auto python_opt = resolve_agent_python();
+  if (!python_opt || !fs::exists(script)) {
     m_log.push_back(
-        {"error", "Missing .venv/bin/python or scripts/chess_agent/play.py"});
+        {"error", agent_python_missing_hint("scripts/chess_agent/play.py")});
     m_scroll = true;
     return;
   }
+  const fs::path python = *python_opt;
 
   int from_child[2] = {-1, -1};
   if (pipe(from_child) != 0) {

@@ -59,6 +59,30 @@ One-shot override without editing the preset:
 cmake --preset local -DLEARNOPENGL_OCCT_BUILD_DIR=/path/to/OCCT/build
 ```
 
+### Python agents (Shader Chat / Reveal Chess)
+
+The in-app chat panels spawn a **project-local** interpreter (after `resource_root` chdirs to the repo). Resolution order:
+
+1. `LEARNOPENGL_PYTHON` if set and the path exists
+2. `.venv/bin/python` or `.venv/bin/python3` (Unix)
+3. `.venv/Scripts/python.exe` (Windows layout)
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+pip install -r scripts/shader_agent/requirements.txt
+pip install -r scripts/chess_agent/requirements.txt
+cp .env.example .env               # fill API keys used by the agents
+```
+
+Override when the venv lives elsewhere:
+
+```bash
+export LEARNOPENGL_PYTHON=/path/to/python
+```
+
+The launchers use POSIX `fork`/`pipe` today, so the in-app panels target macOS/Linux; the Windows `.venv\Scripts\…` probe is for shared trees and a future CreateProcess path.
+
 ## Spline movement program animation
 ![Spline Movement](doc/spline_movement_demo.png)
 ## Soft body animation

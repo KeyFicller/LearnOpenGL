@@ -318,6 +318,7 @@ add_executable(LearnOpenGL
     tests/scenes/occt_demo_scene.cpp
     tests/scenes/shader_editor_scene.cpp
     tests/component/shader_editor_mcp.cpp
+    tests/component/agent_python.cpp
     tests/component/shader_editor_chat.cpp
     tests/component/reveal_chess_mcp.cpp
     tests/component/reveal_chess_chat.cpp
