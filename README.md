@@ -41,13 +41,23 @@ Without the submodule, CMake configures with a warning and the shader editor pat
 ```bash
 # one-time: machine-local preset (gitignored)
 cp CMakeUserPresets.json.example CMakeUserPresets.json
-# edit CPPREF_LLVM_ROOT inside CMakeUserPresets.json
+# edit CPPREF_LLVM_ROOT (and optional LEARNOPENGL_OCCT_BUILD_DIR) inside CMakeUserPresets.json
 
 cmake --preset local
 cmake --build --preset local
 ```
 
 `CMakePresets.json` `default` also works if `CPPREF_LLVM_ROOT` is already in the environment.
+
+### Optional Open CASCADE (Toy CAD)
+
+OCCT is off by default. Prefer filling `LEARNOPENGL_OCCT_BUILD_DIR` in your gitignored `CMakeUserPresets.json` (see the example file) so each machine keeps its own path. The value must be the OCCT *build* tree that contains `OpenCASCADETargets.cmake`. Leave it empty to keep OCCT disabled.
+
+One-shot override without editing the preset:
+
+```bash
+cmake --preset local -DLEARNOPENGL_OCCT_BUILD_DIR=/path/to/OCCT/build
+```
 
 ## Spline movement program animation
 ![Spline Movement](doc/spline_movement_demo.png)
