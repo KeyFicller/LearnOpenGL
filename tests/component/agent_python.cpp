@@ -38,7 +38,7 @@ std::string agent_python_missing_hint(const char *script_relpath) {
   std::string msg =
       "No agent Python found (tried LEARNOPENGL_PYTHON and .venv). "
       "Create .venv, pip install the agent requirements, or set "
-      "LEARNOPENGL_PYTHON. See README.";
+      "LEARNOPENGL_PYTHON.";
   if (script_relpath && script_relpath[0] != '\0') {
     msg += " Expected script: ";
     msg += script_relpath;

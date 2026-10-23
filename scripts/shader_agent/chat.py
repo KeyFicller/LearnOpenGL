@@ -13,7 +13,7 @@ DEEPSEEK_BASE_URL, optional DEEPSEEK_MODEL).
     .venv/bin/python scripts/shader_agent/chat.py
 
 The in-app panel resolves the same interpreter via LEARNOPENGL_PYTHON or
-.venv (see README "Python agents").
+.venv (see resolve_agent_python).
 """
 
 import asyncio
