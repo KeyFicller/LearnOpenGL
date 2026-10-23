@@ -1,0 +1,8 @@
+# Shared by Reveal Chess + Shader Editor Python agents (scripts/*_agent).
+# From the repo root:
+#   python3 -m venv .venv
+#   .venv/bin/pip install -r requirements.txt
+langchain[mcp]>=1.4.2
+langgraph>=1.2.12
+langchain-openai>=0.3.0
+langchain-deepseek>=1.1.0
