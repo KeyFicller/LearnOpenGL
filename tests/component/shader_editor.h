@@ -1,6 +1,8 @@
 #pragma once
 
 #include "TextEditor.h"
+
+struct ImVec2;
 #include <string>
 
 struct ImFont;
@@ -54,6 +56,8 @@ public:
 protected:
   void update_candidates();
   void show_autocomplete_popup();
+  /// Caret screen pos for autocomplete (replaces missing TextEditor API).
+  ImVec2 autocomplete_anchor_screen_pos() const;
   void insert_completion(const std::string &_candidate);
   bool key_pressed_events_entry();
   bool key_pressed_events_for_save();
