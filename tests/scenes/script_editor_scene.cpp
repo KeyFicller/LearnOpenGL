@@ -81,8 +81,9 @@ bool script_editor_scene::on_save_script() {
   fout << script_content;
   fout.close();
 
-#ifdef __APPLE__
-  // 先阻塞执行 build_csharp.sh 生成新 DLL，再卸载旧程序集并加载新 DLL
+#ifndef _WIN32
+  // Unix (macOS/Linux): block on build_csharp.sh so save hot-reloads a fresh DLL.
+  // Was #ifdef __APPLE__ only — Linux+Mono wrote .cs then reloaded the stale assembly.
   const char *cmds[] = {"bash scripts/build_csharp.sh 2>&1",
                         "bash ../scripts/build_csharp.sh 2>&1"};
   int status = -1;
