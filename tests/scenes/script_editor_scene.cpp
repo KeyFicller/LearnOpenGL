@@ -35,8 +35,8 @@ script_editor_scene::script_editor_scene() : test_scene_base("Script Editor") {
   m_script_editor = std::make_unique<script_editor>("Script Editor");
   m_script_editor->set_save_callback([this]() { return on_save_script(); });
   m_script_editor->set_help_info(
-      "Game loop: host script_input_content -> HandleInput, then "
-      "OnUpdate(dt); C# owns pose/score via Input+Time. "
+      "Game loop: host Input.SetFrame + Time.SetFrame, then "
+      "ExampleScript.Update (Start on load/reset). "
       "WASD move, click or walk into target. "
       "Save rebuilds on macOS only.");
 }
@@ -116,11 +116,12 @@ void script_editor_scene::forward_input_to_script() {
   int buttons = m_input.mouse_buttons();
   int clicked = m_input.mouse_clicked();
 
+  // Host writes Input directly (Unity-style); ExampleScript only reads it.
   bool ok =
       m_invoker.invoke(mono_invoker::script_ncm(
-                           "Scripts"_ns, "ExampleScript"_cls, "HandleInput"_md),
+                           "Scripts"_ns, "Input"_cls, "SetFrame"_md),
                        move_x, move_y, mouse_x, mouse_y, buttons, clicked);
-  note_invoke(ok, "HandleInput");
+  note_invoke(ok, "Input.SetFrame");
 
   m_input.clear_frame_edges();
 }
@@ -163,26 +164,31 @@ void script_editor_scene::request_reset_game() {
   if (!m_invoker.is_ready())
     return;
   bool ok = m_invoker.invoke(mono_invoker::script_ncm(
-      "Scripts"_ns, "ExampleScript"_cls, "ResetGame"_md));
-  note_invoke(ok, "ResetGame");
+      "Scripts"_ns, "ExampleScript"_cls, "Start"_md));
+  note_invoke(ok, "Start");
   pull_render_state_from_script();
   if (ok)
-    m_last_invoke_msg = "game reset";
+    m_last_invoke_msg = "game reset (Start)";
 }
 
 void script_editor_scene::update(float _delta_time) {
   if (!m_invoker.is_ready())
     return;
 
-  // 1) Record + forward input content  2) C# OnUpdate  3) Pull for render
+  // 1) Input.SetFrame  2) Time.SetFrame  3) ExampleScript.Update  4) Pull
   forward_input_to_script();
 
   float dt = _delta_time;
   bool ok =
       m_invoker.invoke(mono_invoker::script_ncm(
-                           "Scripts"_ns, "ExampleScript"_cls, "OnUpdate"_md),
+                           "Scripts"_ns, "Time"_cls, "SetFrame"_md),
                        dt);
-  note_invoke(ok, "OnUpdate");
+  note_invoke(ok, "Time.SetFrame");
+
+  ok = m_invoker.invoke(mono_invoker::script_ncm(
+           "Scripts"_ns, "ExampleScript"_cls, "Update"_md)) &&
+       ok;
+  note_invoke(ok, "Update");
 
   pull_render_state_from_script();
 }
@@ -211,8 +217,8 @@ void script_editor_scene::render_ui() {
   ImGui::Spacing();
   ImGui::TextWrapped(
       "WASD / arrows move. Left-click the cyan target (or walk into it) to "
-      "score. R resets. Reach 5 to win. Edit ExampleScript.cs (and Input/Time) "
-      "then Save to hot-reload on macOS. Host only records input and pulls "
+      "score. R resets. Reach 5 to win. Edit ExampleScript.cs (Start/Update) "
+      "then Save to hot-reload on macOS. Host sets Input/Time and pulls "
       "pose/HUD; game logic lives in C#.");
   ImGui::Text("Assembly: %s", m_invoker.is_ready() ? "ready" : "not loaded");
   ImGui::Text("Last invoke: %s", m_last_invoke_msg.c_str());

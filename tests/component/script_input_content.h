@@ -8,8 +8,8 @@ struct GLFWwindow;
 /// One frame of host input content forwarded to an attached C# script.
 ///
 /// The scene records raw mouse events into this object, samples keyboard axes
-/// each tick, then calls forward_* helpers so the script's HandleInput owns the
-/// values. Game/state data stays in the .cs file; this class only carries input.
+/// each tick, then the host writes them via Scripts.Input.SetFrame. Game/state
+/// data stays in the .cs file; this class only carries input.
 class script_input_content {
 public:
   void on_mouse_moved(float xpos, float ypos) {

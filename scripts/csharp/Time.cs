@@ -1,8 +1,8 @@
 namespace Scripts
 {
     /// <summary>
-    /// Unified CS-side clock. Host passes dt into ExampleScript.OnUpdate;
-    /// that forwards into SetFrame. Scripts read DeltaTime / Time since start here.
+    /// Unified CS-side clock. Host calls Time.SetFrame(dt) once per frame directly;
+    /// game scripts (e.g. ExampleScript.Update) only read DeltaTime / TimeSinceStartup.
     /// </summary>
     public static class Time
     {

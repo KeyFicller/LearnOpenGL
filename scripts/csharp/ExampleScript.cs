@@ -6,8 +6,8 @@ namespace Scripts
     /// Minimal collect demo for Script Editor teaching: edit this file, Save,
     /// (macOS) hot-reload. CS owns pose/score; host only records input and draws.
     ///
-    /// Per frame: HandleInput -> Input.SetFrame; OnUpdate -> Time.SetFrame then game.
-    /// Read input/time only through Input / Time (not raw HandleInput locals).
+    /// Unity-like lifecycle: host calls Start once (load/reset), then each frame
+    /// Input.SetFrame + Time.SetFrame + Update. Scripts only *read* Input / Time.
     /// </summary>
     public static class ExampleScript
     {
@@ -24,18 +24,20 @@ namespace Scripts
 
         static readonly Random s_rng = new Random(7);
 
-        /// <summary>Host forwards one frame of input; we stash it on Input.</summary>
-        public static void HandleInput(float moveX, float moveY,
-                                       float mouseX, float mouseY,
-                                       int mouseButtons, int mouseClicked)
+        /// <summary>Called once on load / reset (Unity Start).</summary>
+        public static void Start()
         {
-            Input.SetFrame(moveX, moveY, mouseX, mouseY, mouseButtons, mouseClicked);
+            s_playerX = 0.0f;
+            s_playerY = 0.0f;
+            s_score = 0;
+            s_won = false;
+            Time.Reset();
+            RespawnTarget();
         }
 
-        /// <summary>Per-frame tick: advance Time, then simple move + collect.</summary>
-        public static void OnUpdate(float deltaTime)
+        /// <summary>Per-frame tick (Unity Update). Reads Input + Time only.</summary>
+        public static void Update()
         {
-            Time.SetFrame(deltaTime);
             if (s_won)
                 return;
 
@@ -60,16 +62,6 @@ namespace Scripts
                 else
                     RespawnTarget();
             }
-        }
-
-        public static void ResetGame()
-        {
-            s_playerX = 0.0f;
-            s_playerY = 0.0f;
-            s_score = 0;
-            s_won = false;
-            Time.Reset();
-            RespawnTarget();
         }
 
         public static float PlayerX() { return s_playerX; }

@@ -4,7 +4,7 @@ namespace Scripts
 {
     /// <summary>
     /// Circular path helper for Spline Movement "Driven by Script".
-    /// Script Editor mini-game lives in ExampleScript (HandleInput / OnUpdate).
+    /// Script Editor mini-game lives in ExampleScript (Start / Update).
     /// MoveX/MoveY take absolute time (e.g. glfwGetTime), not frame dt.
     /// </summary>
     public static class MoveController

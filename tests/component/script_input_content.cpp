@@ -79,8 +79,8 @@ void script_input_content::sample(GLFWwindow *window, int viewport_w,
   m_reset_pressed = r_down && !m_r_was_down;
   m_r_was_down = r_down;
 
-  // Space is packed into mouse_buttons/clicked bit2 so HandleInput arity stays
-  // stable; C# treats it as a dash action alongside right-click.
+  // Space is packed into mouse_buttons/clicked bit2 so Input.SetFrame arity
+  // stays stable; C# can read it via Input.ButtonHeld/Down(2).
   m_space_down =
       keys_ok && glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS;
   m_space_clicked = m_space_down && !m_space_was_down;

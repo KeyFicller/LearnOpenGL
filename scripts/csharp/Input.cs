@@ -3,8 +3,8 @@ using System;
 namespace Scripts
 {
     /// <summary>
-    /// Unified CS-side input. Host calls ExampleScript.HandleInput once per frame;
-    /// that forwards into SetFrame. Game scripts read Move/Mouse/Buttons here only.
+    /// Unified CS-side input. Host calls Input.SetFrame once per frame directly;
+    /// game scripts (e.g. ExampleScript.Update) only read Move/Mouse/Buttons here.
     /// </summary>
     public static class Input
     {
