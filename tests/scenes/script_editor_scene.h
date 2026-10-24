@@ -11,8 +11,8 @@
 
 #include <string>
 
-// Script editor scene — host records input, forwards to C#; C# owns game state;
-// host pulls pose for rendering only.
+// Script editor scene — host sets Input/Time each frame, then calls C# Start/Update;
+// C# owns game state; host pulls pose for rendering only.
 class script_editor_scene : public test_scene_base {
 public:
   script_editor_scene();
@@ -41,10 +41,10 @@ private:
   shader *m_shader = nullptr;
   mono_invoker::invoker m_invoker;
 
-  // Host-side input recorder (not game state). Forwarded to C# HandleInput.
+  // Host-side input recorder (not game state). Written via Input.SetFrame.
   script_input_content m_input;
 
-  // Render snapshot pulled from C# after OnUpdate (source of truth is .cs).
+  // Render snapshot pulled from C# after Update (source of truth is .cs).
   glm::vec2 m_player = glm::vec2(0.0f);
   glm::vec2 m_target = glm::vec2(0.45f, 0.35f);
   int m_score = 0;

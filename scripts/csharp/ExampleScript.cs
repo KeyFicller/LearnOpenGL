@@ -3,19 +3,11 @@ using System;
 namespace Scripts
 {
     /// <summary>
-    /// Mini-game owned by this C# script. The C++ host only records input
-    /// (script_input_content) and renders quads from the properties below.
+    /// Minimal collect demo for Script Editor teaching: edit this file, Save,
+    /// (macOS) hot-reload. CS owns pose/score; host only records input and draws.
     ///
-    /// Lifecycle each frame:
-    ///   1. HandleInput(...)  — receive axes / mouse / buttons from the host
-    ///   2. OnUpdate(dt)      — move, collect, score (game logic lives here)
-    ///   3. Host reads PlayerX/Y, TargetX/Y, Score, IsWon and draws
-    ///
-    /// HandleInput contract:
-    ///   moveX/Y     : WASD/arrows axis in [-1, 1] (host zeroes when ImGui wants keyboard)
-    ///   mouseX/Y    : cursor in clip NDC [-1, 1], y up (viewport-relative)
-    ///   mouseButtons: bit0 = left held, bit1 = right held
-    ///   mouseClicked: bit0 = left pressed this frame, bit1 = right pressed this frame
+    /// Unity-like lifecycle: host calls Start once (load/reset), then each frame
+    /// Input.SetFrame + Time.SetFrame + Update. Scripts only *read* Input / Time.
     /// </summary>
     public static class ExampleScript
     {
@@ -25,51 +17,39 @@ namespace Scripts
         const float Arena = 0.85f;
         const int WinScore = 5;
 
-        // --- Input content (written by HandleInput, consumed by OnUpdate) ---
-        static float s_moveX, s_moveY;
-        static float s_mouseX, s_mouseY;
-        static int s_mouseButtons, s_mouseClicked;
-
-        // --- Game state (authoritative; host only mirrors for rendering) ---
         static float s_playerX, s_playerY;
         static float s_targetX = 0.45f, s_targetY = 0.35f;
         static int s_score;
         static bool s_won;
+
         static readonly Random s_rng = new Random(7);
 
-        /// <summary>Host forwards one frame of input content before OnUpdate.</summary>
-        public static void HandleInput(float moveX, float moveY,
-                                       float mouseX, float mouseY,
-                                       int mouseButtons, int mouseClicked)
+        /// <summary>Called once on load / reset (Unity Start).</summary>
+        public static void Start()
         {
-            s_moveX = moveX;
-            s_moveY = moveY;
-            s_mouseX = mouseX;
-            s_mouseY = mouseY;
-            s_mouseButtons = mouseButtons;
-            s_mouseClicked = mouseClicked;
+            s_playerX = 0.0f;
+            s_playerY = 0.0f;
+            s_score = 0;
+            s_won = false;
+            Time.Reset();
+            RespawnTarget();
         }
 
-        /// <summary>Per-frame game tick: movement, collect, win check.</summary>
-        public static void OnUpdate(float deltaTime)
+        /// <summary>Per-frame tick (Unity Update). Reads Input + Time only.</summary>
+        public static void Update()
         {
-            if (deltaTime < 0.0f)
-                deltaTime = 0.0f;
-            if (deltaTime > 0.1f)
-                deltaTime = 0.1f;
-
             if (s_won)
                 return;
 
-            s_playerX += s_moveX * PlayerSpeed * deltaTime;
-            s_playerY += s_moveY * PlayerSpeed * deltaTime;
+            float dt = Time.DeltaTime;
+            s_playerX += Input.MoveX * PlayerSpeed * dt;
+            s_playerY += Input.MoveY * PlayerSpeed * dt;
             s_playerX = Clamp(s_playerX, -Arena, Arena);
             s_playerY = Clamp(s_playerY, -Arena, Arena);
 
             bool collect = OverlapsTarget(s_playerX, s_playerY);
-            // Left click near target also collects (mouse aim)
-            if ((s_mouseClicked & 1) != 0 &&
-                OverlapsPoint(s_targetX, s_targetY, TargetHalf + 0.05f, s_mouseX, s_mouseY))
+            if (Input.ButtonDown(0) &&
+                OverlapsPoint(s_targetX, s_targetY, TargetHalf + 0.05f, Input.MouseX, Input.MouseY))
             {
                 collect = true;
             }
@@ -78,27 +58,10 @@ namespace Scripts
             {
                 s_score += 1;
                 if (s_score >= WinScore)
-                {
                     s_won = true;
-                }
                 else
-                {
                     RespawnTarget();
-                }
             }
-
-            // Buttons available for script experiments beyond the mini-game.
-            _ = s_mouseButtons;
-        }
-
-        /// <summary>Host calls on R / UI Reset — clear score and recenter.</summary>
-        public static void ResetGame()
-        {
-            s_playerX = 0.0f;
-            s_playerY = 0.0f;
-            s_score = 0;
-            s_won = false;
-            RespawnTarget();
         }
 
         public static float PlayerX() { return s_playerX; }

@@ -72,9 +72,17 @@ void script_input_content::sample(GLFWwindow *window, int viewport_w,
   sample_keyboard_axis(window, imgui_wants_keyboard);
   cursor_to_ndc(viewport_w, viewport_h);
 
+  const bool keys_ok = window && !imgui_wants_keyboard;
+
   const bool r_down =
-      window && !imgui_wants_keyboard &&
-      glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS;
+      keys_ok && glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS;
   m_reset_pressed = r_down && !m_r_was_down;
   m_r_was_down = r_down;
+
+  // Space is packed into mouse_buttons/clicked bit2 so Input.SetFrame arity
+  // stays stable; C# can read it via Input.ButtonHeld/Down(2).
+  m_space_down =
+      keys_ok && glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS;
+  m_space_clicked = m_space_down && !m_space_was_down;
+  m_space_was_down = m_space_down;
 }
