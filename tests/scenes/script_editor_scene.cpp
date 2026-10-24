@@ -38,8 +38,9 @@ script_editor_scene::script_editor_scene() : test_scene_base("Script Editor") {
       "Game loop: host Input.SetFrame + Time.SetFrame, then "
       "ExampleScript.Update (Start on load/reset). "
       "[ScriptField] fields are discovered via ScriptFieldMirror; Inspector "
-      "builds widgets from reflection. Edit .cs + Save (macOS hot-reload) or "
-      "tweak live. WASD move, click or walk into target.");
+      "builds widgets from reflection. Edit .cs + Save (macOS hot-reload) "
+      "keeps live inspector tweaks by name+kind; Refresh fields from script "
+      "re-pulls CS defaults. WASD move, click or walk into target.");
 }
 
 script_editor_scene::~script_editor_scene() { delete m_shader; }
@@ -250,6 +251,55 @@ void script_editor_scene::refresh_script_fields() {
       "discovered " + std::to_string(m_fields.size()) + " [ScriptField]s";
 }
 
+void script_editor_scene::stash_script_fields() {
+  // Snapshot live inspector values before unload/reload. Keyed later by
+  // name + kind so renamed / type-changed fields are skipped cleanly.
+  m_field_stash = m_fields;
+}
+
+void script_editor_scene::restore_script_fields_from_stash() {
+  if (m_field_stash.empty() || m_fields.empty()) {
+    m_field_stash.clear();
+    return;
+  }
+
+  int restored = 0;
+  for (script_field_entry &e : m_fields) {
+    const script_field_entry *hit = nullptr;
+    for (const script_field_entry &s : m_field_stash) {
+      if (s.name == e.name && s.kind == e.kind) {
+        hit = &s;
+        break;
+      }
+    }
+    if (!hit)
+      continue; // missing, renamed, or type-changed — keep CS default
+
+    if (e.kind == 0)
+      e.f = hit->f;
+    else if (e.kind == 1)
+      e.i = hit->i;
+    else if (e.kind == 2)
+      e.b = hit->b;
+    else if (e.kind == 3) {
+      e.color[0] = hit->color[0];
+      e.color[1] = hit->color[1];
+      e.color[2] = hit->color[2];
+    }
+    ++restored;
+  }
+
+  m_field_stash.clear();
+  if (restored == 0)
+    return;
+
+  push_scriptable_fields();
+  // Re-pull so C# clamps (min/max) show in the panel.
+  pull_scriptable_fields();
+  m_last_invoke_msg = "reloaded; restored " + std::to_string(restored) +
+                      " inspector override(s)";
+}
+
 void script_editor_scene::pull_scriptable_fields() {
   if (!m_invoker.is_ready())
     return;
@@ -421,7 +471,8 @@ void script_editor_scene::render_ui() {
       "WASD / arrows move. Left-click the target (or walk into it) to score. "
       "R resets. [ScriptField] on ExampleScript is discovered by "
       "ScriptFieldMirror — Inspector widgets below are built from reflection, "
-      "not hand-wired Get/Set. Edit .cs + Save (macOS) or tweak live.");
+      "not hand-wired Get/Set. Save keeps live inspector tweaks; Refresh "
+      "re-pulls CS defaults.");
   ImGui::Text("Assembly: %s", m_invoker.is_ready() ? "ready" : "not loaded");
   ImGui::Text("Last invoke: %s", m_last_invoke_msg.c_str());
   ImGui::Text("Score: %d / %d%s", m_score, m_goal_score,
@@ -437,7 +488,8 @@ void script_editor_scene::render_ui() {
   ImGui::TextWrapped(
       "Widgets come from ScriptFieldMirror over [ScriptField] public static "
       "fields (float / int / bool / Color). Unsupported types are skipped. "
-      "Refresh re-discovers after Save/hot-reload.");
+      "Save/hot-reload keeps live tweaks (match by name + kind). "
+      "Refresh fields from script discards overrides and re-pulls CS defaults.");
 
   bool dirty = false;
   if (m_fields.empty()) {
@@ -478,6 +530,8 @@ void script_editor_scene::render_ui() {
   }
 
   if (ImGui::Button("Refresh fields from script")) {
+    // Explicit path: discard any pending stash and re-pull CS defaults.
+    m_field_stash.clear();
     refresh_script_fields();
   }
 
@@ -528,6 +582,11 @@ bool script_editor_scene::on_save_script() {
   // Linux save-rebuild intentionally left Apple-only (see closed #12).
 #endif
 
+  // Stash live inspector overrides before the assembly goes away. After
+  // reload we re-discover fields, then re-apply by name + kind (Unity-editor
+  // lesson). "Refresh fields from script" is the discard-to-CS-defaults path.
+  stash_script_fields();
+
   m_invoker.unload();
   m_invoker.load(script_dll_path());
 
@@ -535,11 +594,14 @@ bool script_editor_scene::on_save_script() {
     m_script_editor->set_help_info("Failed to load script");
     m_last_invoke_ok = false;
     m_last_invoke_msg = "reload failed";
+    m_field_stash.clear();
   } else {
     request_reset_game();
-    refresh_script_fields();
+    refresh_script_fields(); // rediscover + pull CS defaults first
+    restore_script_fields_from_stash();
     m_last_invoke_ok = true;
-    m_last_invoke_msg = "reloaded + re-discovered fields";
+    if (m_last_invoke_msg.rfind("reloaded; restored", 0) != 0)
+      m_last_invoke_msg = "reloaded + re-discovered fields";
   }
 
   return true;
