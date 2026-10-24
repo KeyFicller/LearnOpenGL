@@ -33,6 +33,7 @@ private:
   void pull_render_state_from_script();
   void request_reset_game();
   void resolve_viewport_size(int &w, int &h) const;
+  bool viewport_has_focus() const;
 
 private:
   std::unique_ptr<script_editor> m_script_editor = nullptr;

@@ -1,9 +1,9 @@
 #include "script_editor_scene.h"
 
 #include "imgui.h"
-#include <glm/glm.hpp>
 #include "tests/component/mesh_manager.h"
 #include "tests/framework/test_suit.h"
+#include <glm/glm.hpp>
 
 #include <GLFW/glfw3.h>
 
@@ -82,12 +82,18 @@ void script_editor_scene::resolve_viewport_size(int &w, int &h) const {
   h = 0;
   if (!m_window)
     return;
-  test_suit *ts =
-      static_cast<test_suit *>(glfwGetWindowUserPointer(m_window));
+  test_suit *ts = static_cast<test_suit *>(glfwGetWindowUserPointer(m_window));
   if (!ts || !ts->m_scene_framebuffer)
     return;
   w = ts->m_scene_framebuffer->get_width();
   h = ts->m_scene_framebuffer->get_height();
+}
+
+bool script_editor_scene::viewport_has_focus() const {
+  if (!m_window)
+    return false;
+  test_suit *ts = static_cast<test_suit *>(glfwGetWindowUserPointer(m_window));
+  return ts && ts->m_viewport_focused;
 }
 
 void script_editor_scene::forward_input_to_script() {
@@ -96,7 +102,7 @@ void script_editor_scene::forward_input_to_script() {
 
   int vw = 0, vh = 0;
   resolve_viewport_size(vw, vh);
-  m_input.sample(m_window, vw, vh, ImGui::GetIO().WantCaptureKeyboard);
+  m_input.sample(m_window, vw, vh, !viewport_has_focus());
 
   if (m_input.reset_pressed()) {
     request_reset_game();
@@ -109,10 +115,10 @@ void script_editor_scene::forward_input_to_script() {
   int buttons = m_input.mouse_buttons();
   int clicked = m_input.mouse_clicked();
 
-  bool ok = m_invoker.invoke(
-      mono_invoker::script_ncm("Scripts"_ns, "ExampleScript"_cls,
-                               "HandleInput"_md),
-      move_x, move_y, mouse_x, mouse_y, buttons, clicked);
+  bool ok =
+      m_invoker.invoke(mono_invoker::script_ncm(
+                           "Scripts"_ns, "ExampleScript"_cls, "HandleInput"_md),
+                       move_x, move_y, mouse_x, mouse_y, buttons, clicked);
   note_invoke(ok, "HandleInput");
 
   m_input.clear_frame_edges();
@@ -171,10 +177,10 @@ void script_editor_scene::update(float _delta_time) {
   forward_input_to_script();
 
   float dt = _delta_time;
-  bool ok = m_invoker.invoke(
-      mono_invoker::script_ncm("Scripts"_ns, "ExampleScript"_cls,
-                               "OnUpdate"_md),
-      dt);
+  bool ok =
+      m_invoker.invoke(mono_invoker::script_ncm(
+                           "Scripts"_ns, "ExampleScript"_cls, "OnUpdate"_md),
+                       dt);
   note_invoke(ok, "OnUpdate");
 
   pull_render_state_from_script();
@@ -206,8 +212,7 @@ void script_editor_scene::render_ui() {
       "WASD / arrows move the red player. Left-click the cyan target "
       "(or walk into it) to score. R resets. Reach 5 to win. "
       "Game state lives in ExampleScript.cs; host only records input.");
-  ImGui::Text("Assembly: %s",
-              m_invoker.is_ready() ? "ready" : "not loaded");
+  ImGui::Text("Assembly: %s", m_invoker.is_ready() ? "ready" : "not loaded");
   ImGui::Text("Last invoke: %s", m_last_invoke_msg.c_str());
   ImGui::Text("Score: %d / 5%s", m_score, m_won ? "  YOU WIN" : "");
   ImGui::Text("Player: (%.2f, %.2f)  Target: (%.2f, %.2f)", m_player.x,
@@ -220,13 +225,11 @@ void script_editor_scene::render_ui() {
 }
 
 bool script_editor_scene::on_mouse_moved(double _xpos, double _ypos) {
-  m_input.on_mouse_moved(static_cast<float>(_xpos),
-                         static_cast<float>(_ypos));
+  m_input.on_mouse_moved(static_cast<float>(_xpos), static_cast<float>(_ypos));
   return false;
 }
 
-bool script_editor_scene::on_mouse_button(int _button, int _action,
-                                          int _mods) {
+bool script_editor_scene::on_mouse_button(int _button, int _action, int _mods) {
   (void)_mods;
   m_input.on_mouse_button(_button, _action);
   return false;

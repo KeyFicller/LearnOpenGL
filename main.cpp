@@ -260,6 +260,7 @@ int main() {
                    display_size, ImVec2(0, 1), ImVec2(1, 0));
       test_suit.render_viewport_overlay();
       test_suit.m_viewport_hovered = ImGui::IsWindowHovered();
+      test_suit.m_viewport_focused = ImGui::IsWindowFocused();
       ImGui::End();
 
       // Render ImGui

@@ -84,6 +84,8 @@ public:
   float m_viewport_height = 0.0f;
   framebuffer *m_scene_framebuffer = nullptr;
   bool m_viewport_hovered = false;
+  /** True while the Scene Viewport window owns ImGui keyboard focus. */
+  bool m_viewport_focused = false;
   /** True after left press in viewport until left release (keeps drag alive outside viewport). */
   bool m_viewport_pointer_active = false;
 

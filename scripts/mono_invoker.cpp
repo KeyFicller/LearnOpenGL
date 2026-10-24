@@ -23,6 +23,10 @@ MonoDomain *s_root_domain = nullptr;
 MonoDomain *get_root_domain() {
   if (s_root_domain)
     return s_root_domain;
+  // Load etc/mono/config so P/Invoke dllmaps (e.g. "System.Native" ->
+  // libmono-native.dylib) resolve; without it any System.Random/IO use throws
+  // DllNotFoundException.
+  mono_config_parse(nullptr);
   s_root_domain = mono_jit_init_version("LearnOpenGL", "v4.0.30319");
   if (!s_root_domain) {
     throw std::runtime_error("[Mono] Failed to initialize JIT");
