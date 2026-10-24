@@ -48,7 +48,12 @@ private:
   glm::vec2 m_player = glm::vec2(0.0f);
   glm::vec2 m_target = glm::vec2(0.45f, 0.35f);
   int m_score = 0;
+  int m_combo = 0;
+  float m_time_left = 0.0f;
+  float m_dash_cooldown = 0.0f;
   bool m_won = false;
+  bool m_lost = false;
+  bool m_dashing = false;
 
   bool m_last_invoke_ok = true;
   std::string m_last_invoke_msg = "idle";

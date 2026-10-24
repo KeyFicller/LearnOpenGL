@@ -36,8 +36,9 @@ script_editor_scene::script_editor_scene() : test_scene_base("Script Editor") {
   m_script_editor->set_save_callback([this]() { return on_save_script(); });
   m_script_editor->set_help_info(
       "Game loop: host script_input_content -> HandleInput, then "
-      "OnUpdate(dt); C# owns Player/Target/Score. "
-      "WASD move, click target to collect. Save rebuilds on macOS only.");
+      "OnUpdate(dt); C# owns Player/Target/Score/Combo/Timer. "
+      "WASD move, Space/RMB dash, click target to collect. "
+      "Save rebuilds on macOS only.");
 }
 
 script_editor_scene::~script_editor_scene() { delete m_shader; }
@@ -149,12 +150,37 @@ void script_editor_scene::pull_render_state_from_script() {
                               "Scripts"_ns, "ExampleScript"_cls, "Score"_md),
                           m_score) &&
        ok;
+  ok = m_invoker.invoke_r(mono_invoker::script_ncm(
+                              "Scripts"_ns, "ExampleScript"_cls, "Combo"_md),
+                          m_combo) &&
+       ok;
+  ok = m_invoker.invoke_r(mono_invoker::script_ncm(
+                              "Scripts"_ns, "ExampleScript"_cls, "TimeLeft"_md),
+                          m_time_left) &&
+       ok;
+  ok = m_invoker.invoke_r(
+           mono_invoker::script_ncm("Scripts"_ns, "ExampleScript"_cls,
+                                    "DashCooldownLeft"_md),
+           m_dash_cooldown) &&
+       ok;
   int won = 0;
   ok = m_invoker.invoke_r(mono_invoker::script_ncm(
                               "Scripts"_ns, "ExampleScript"_cls, "IsWon"_md),
                           won) &&
        ok;
   m_won = won != 0;
+  int lost = 0;
+  ok = m_invoker.invoke_r(mono_invoker::script_ncm(
+                              "Scripts"_ns, "ExampleScript"_cls, "IsLost"_md),
+                          lost) &&
+       ok;
+  m_lost = lost != 0;
+  int dashing = 0;
+  ok = m_invoker.invoke_r(mono_invoker::script_ncm(
+                              "Scripts"_ns, "ExampleScript"_cls, "IsDashing"_md),
+                          dashing) &&
+       ok;
+  m_dashing = dashing != 0;
   note_invoke(ok, "pull render state");
 }
 
@@ -192,15 +218,17 @@ void script_editor_scene::render() {
 
   m_shader->use();
 
-  // Target (cyan), then player (coral) on top — poses come from C#.
+  // Target (cyan), then player (coral / dash-yellow) — poses come from C#.
   m_shader->set_uniform("uOffset", m_target);
   m_shader->set_uniform("uScale", 0.16f);
   m_shader->set_uniform("uColor", glm::vec3(0.2f, 0.85f, 0.9f));
   m_mesh_manager.draw();
 
   m_shader->set_uniform("uOffset", m_player);
-  m_shader->set_uniform("uScale", 0.24f);
-  m_shader->set_uniform("uColor", glm::vec3(0.95f, 0.35f, 0.3f));
+  m_shader->set_uniform("uScale", m_dashing ? 0.28f : 0.24f);
+  m_shader->set_uniform("uColor",
+                        m_dashing ? glm::vec3(1.0f, 0.85f, 0.2f)
+                                  : glm::vec3(0.95f, 0.35f, 0.3f));
   m_mesh_manager.draw();
 }
 
@@ -209,12 +237,17 @@ void script_editor_scene::render_ui() {
   ImGui::Text("Script Game Host");
   ImGui::Spacing();
   ImGui::TextWrapped(
-      "WASD / arrows move the red player. Left-click the cyan target "
-      "(or walk into it) to score. R resets. Reach 5 to win. "
-      "Game state lives in ExampleScript.cs; host only records input.");
+      "WASD / arrows move. Space or right-click dashes along facing. "
+      "Left-click the drifting cyan target (or walk/dash into it) to score "
+      "combo points. Keep collecting before the timer hits zero. R resets. "
+      "Reach 8 to win. Game state lives in ExampleScript.cs; host only "
+      "records input and pulls pose/HUD.");
   ImGui::Text("Assembly: %s", m_invoker.is_ready() ? "ready" : "not loaded");
   ImGui::Text("Last invoke: %s", m_last_invoke_msg.c_str());
-  ImGui::Text("Score: %d / 5%s", m_score, m_won ? "  YOU WIN" : "");
+  const char *status = m_won ? "  YOU WIN" : (m_lost ? "  TIME UP" : "");
+  ImGui::Text("Score: %d / 8  Combo: x%d%s", m_score, m_combo, status);
+  ImGui::Text("Time: %.1fs   Dash CD: %.2fs%s", m_time_left, m_dash_cooldown,
+              m_dashing ? "  DASHING" : "");
   ImGui::Text("Player: (%.2f, %.2f)  Target: (%.2f, %.2f)", m_player.x,
               m_player.y, m_target.x, m_target.y);
   if (ImGui::Button("Reset game")) {

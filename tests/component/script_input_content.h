@@ -19,8 +19,8 @@ public:
 
   void on_mouse_button(int button, int action);
 
-  /// Sample WASD/arrows (+ R edge) and convert cursor pixels to clip NDC.
-  /// When imgui_wants_keyboard is true, axes and R are cleared / ignored.
+  /// Sample WASD/arrows (+ R / Space edges) and convert cursor pixels to clip NDC.
+  /// When imgui_wants_keyboard is true, axes and key edges are cleared / ignored.
   void sample(GLFWwindow *window, int viewport_w, int viewport_h,
               bool imgui_wants_keyboard);
 
@@ -29,23 +29,27 @@ public:
   float mouse_ndc_x() const { return m_mouse_ndc_x; }
   float mouse_ndc_y() const { return m_mouse_ndc_y; }
 
-  /// bit0 = left held, bit1 = right held
+  /// bit0 = left held, bit1 = right held, bit2 = Space held
   int mouse_buttons() const {
     int bits = 0;
     if (m_left_down)
       bits |= 1;
     if (m_right_down)
       bits |= 2;
+    if (m_space_down)
+      bits |= 4;
     return bits;
   }
 
-  /// bit0 = left pressed this frame, bit1 = right pressed this frame
+  /// bit0 = left pressed this frame, bit1 = right pressed, bit2 = Space pressed
   int mouse_clicked() const {
     int bits = 0;
     if (m_left_clicked)
       bits |= 1;
     if (m_right_clicked)
       bits |= 2;
+    if (m_space_clicked)
+      bits |= 4;
     return bits;
   }
 
@@ -56,6 +60,7 @@ public:
   void clear_frame_edges() {
     m_left_clicked = false;
     m_right_clicked = false;
+    m_space_clicked = false;
     m_reset_pressed = false;
   }
 
@@ -77,4 +82,8 @@ private:
 
   bool m_r_was_down = false;
   bool m_reset_pressed = false;
+
+  bool m_space_down = false;
+  bool m_space_was_down = false;
+  bool m_space_clicked = false;
 };
