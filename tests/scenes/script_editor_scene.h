@@ -12,7 +12,7 @@
 #include <string>
 
 // Script editor scene — host sets Input/Time each frame, then calls C# Start/Update;
-// C# owns game state; host pulls pose for rendering only.
+// C# owns game state + scriptable fields; host pulls pose/fields for render + ImGui.
 class script_editor_scene : public test_scene_base {
 public:
   script_editor_scene();
@@ -31,6 +31,8 @@ private:
   void note_invoke(bool ok, const char *what);
   void forward_input_to_script();
   void pull_render_state_from_script();
+  void pull_scriptable_fields();
+  void push_scriptable_fields();
   void request_reset_game();
   void resolve_viewport_size(int &w, int &h) const;
   bool viewport_has_focus() const;
@@ -49,6 +51,14 @@ private:
   glm::vec2 m_target = glm::vec2(0.45f, 0.35f);
   int m_score = 0;
   bool m_won = false;
+
+  // Host mirror of ExampleScript scriptable fields (ImGui edits → push to C#).
+  float m_move_speed = 1.1f;
+  float m_player_half = 0.12f;
+  float m_target_half = 0.08f;
+  int m_goal_score = 5;
+  float m_player_color[3] = {0.95f, 0.35f, 0.3f};
+  float m_target_color[3] = {0.2f, 0.85f, 0.9f};
 
   bool m_last_invoke_ok = true;
   std::string m_last_invoke_msg = "idle";
