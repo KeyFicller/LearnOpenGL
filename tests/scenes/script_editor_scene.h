@@ -10,9 +10,24 @@
 #include "tests/component/script_input_content.h"
 
 #include <string>
+#include <vector>
+
+// Host-side mirror of one [ScriptField] discovered via ScriptFieldMirror.
+struct script_field_entry {
+  std::string name;
+  int kind = 0; // 0 float, 1 int, 2 bool, 3 color
+  float min_v = 0.0f;
+  float max_v = 0.0f;
+  bool has_range = false;
+  float f = 0.0f;
+  int i = 0;
+  bool b = false;
+  float color[3] = {1.0f, 1.0f, 1.0f};
+};
 
 // Script editor scene — host sets Input/Time each frame, then calls C# Start/Update;
-// C# owns game state + scriptable fields; host pulls pose/fields for render + ImGui.
+// C# owns game state + [ScriptField] surface; host discovers fields via reflection
+// and builds the ImGui Script Inspector dynamically (no per-field C++ glue).
 class script_editor_scene : public test_scene_base {
 public:
   script_editor_scene();
@@ -31,11 +46,14 @@ private:
   void note_invoke(bool ok, const char *what);
   void forward_input_to_script();
   void pull_render_state_from_script();
+  void refresh_script_fields();
   void pull_scriptable_fields();
   void push_scriptable_fields();
+  void apply_render_from_fields();
   void request_reset_game();
   void resolve_viewport_size(int &w, int &h) const;
   bool viewport_has_focus() const;
+  int find_field(const char *name) const;
 
 private:
   std::unique_ptr<script_editor> m_script_editor = nullptr;
@@ -52,8 +70,10 @@ private:
   int m_score = 0;
   bool m_won = false;
 
-  // Host mirror of ExampleScript scriptable fields (ImGui edits → push to C#).
-  float m_move_speed = 1.1f;
+  // Dynamic mirror of [ScriptField] entries (built by ScriptFieldMirror).
+  std::vector<script_field_entry> m_fields;
+
+  // Render caches filled from discovered fields by name.
   float m_player_half = 0.12f;
   float m_target_half = 0.08f;
   int m_goal_score = 5;

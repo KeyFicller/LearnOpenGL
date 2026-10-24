@@ -9,18 +9,33 @@ namespace Scripts
     /// Unity-like lifecycle: host calls Start once (load/reset), then each frame
     /// Input.SetFrame + Time.SetFrame + Update. Scripts only *read* Input / Time.
     ///
-    /// Scriptable fields below are the "serialized" surface: host ImGui inspector
-    /// reads/writes them live, OR edit defaults here and Save to hot-reload.
+    /// Scriptable fields use [ScriptField] (SerializeField-style). Host discovers
+    /// them via ScriptFieldMirror reflection — no per-field Get/Set glue in C++.
+    /// Edit defaults here + Save, or tweak live in the Script Inspector.
     /// </summary>
     public static class ExampleScript
     {
-        // --- Scriptable / inspector fields (defaults; host can tweak at runtime) ---
+        // --- Scriptable / inspector fields (discovered by ScriptFieldMirror) ---
+        [ScriptField(0.05f, 8.0f)]
         public static float MoveSpeed = 1.1f;
+
+        [ScriptField(0.04f, 0.4f)]
         public static float PlayerHalf = 0.12f;
+
+        [ScriptField(0.03f, 0.3f)]
         public static float TargetHalf = 0.08f;
+
+        [ScriptField(1f, 50f)]
         public static int GoalScore = 5;
-        public static float PlayerR = 0.95f, PlayerG = 0.35f, PlayerB = 0.3f;
-        public static float TargetR = 0.2f, TargetG = 0.85f, TargetB = 0.9f;
+
+        [ScriptField]
+        public static bool InvertY = false;
+
+        [ScriptField]
+        public static Color PlayerColor = new Color(0.95f, 0.35f, 0.3f);
+
+        [ScriptField]
+        public static Color TargetColor = new Color(0.2f, 0.85f, 0.9f);
 
         const float Arena = 0.85f;
 
@@ -52,9 +67,10 @@ namespace Scripts
             float speed = MoveSpeed;
             float pHalf = PlayerHalf;
             float tHalf = TargetHalf;
+            float moveY = InvertY ? -Input.MoveY : Input.MoveY;
 
             s_playerX += Input.MoveX * speed * dt;
-            s_playerY += Input.MoveY * speed * dt;
+            s_playerY += moveY * speed * dt;
             s_playerX = Clamp(s_playerX, -Arena, Arena);
             s_playerY = Clamp(s_playerY, -Arena, Arena);
 
@@ -82,44 +98,6 @@ namespace Scripts
         public static float TargetY() { return s_targetY; }
         public static int Score() { return s_score; }
         public static int IsWon() { return s_won ? 1 : 0; }
-
-        // --- Scriptable field get/set (host ImGui inspector) ---
-        public static float GetMoveSpeed() { return MoveSpeed; }
-        public static void SetMoveSpeed(float v) { MoveSpeed = Clamp(v, 0.05f, 8.0f); }
-
-        public static float GetPlayerHalf() { return PlayerHalf; }
-        public static void SetPlayerHalf(float v) { PlayerHalf = Clamp(v, 0.04f, 0.4f); }
-
-        public static float GetTargetHalf() { return TargetHalf; }
-        public static void SetTargetHalf(float v) { TargetHalf = Clamp(v, 0.03f, 0.3f); }
-
-        public static int GetGoalScore() { return GoalScore; }
-        public static void SetGoalScore(int v)
-        {
-            if (v < 1) v = 1;
-            if (v > 50) v = 50;
-            GoalScore = v;
-        }
-
-        public static float GetPlayerR() { return PlayerR; }
-        public static float GetPlayerG() { return PlayerG; }
-        public static float GetPlayerB() { return PlayerB; }
-        public static void SetPlayerColor(float r, float g, float b)
-        {
-            PlayerR = Clamp01(r);
-            PlayerG = Clamp01(g);
-            PlayerB = Clamp01(b);
-        }
-
-        public static float GetTargetR() { return TargetR; }
-        public static float GetTargetG() { return TargetG; }
-        public static float GetTargetB() { return TargetB; }
-        public static void SetTargetColor(float r, float g, float b)
-        {
-            TargetR = Clamp01(r);
-            TargetG = Clamp01(g);
-            TargetB = Clamp01(b);
-        }
 
         static void RespawnTarget()
         {
@@ -160,11 +138,6 @@ namespace Scripts
             if (v < lo) return lo;
             if (v > hi) return hi;
             return v;
-        }
-
-        static float Clamp01(float v)
-        {
-            return Clamp(v, 0.0f, 1.0f);
         }
     }
 }

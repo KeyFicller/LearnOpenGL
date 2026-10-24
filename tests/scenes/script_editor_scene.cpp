@@ -37,8 +37,9 @@ script_editor_scene::script_editor_scene() : test_scene_base("Script Editor") {
   m_script_editor->set_help_info(
       "Game loop: host Input.SetFrame + Time.SetFrame, then "
       "ExampleScript.Update (Start on load/reset). "
-      "Tweak fields in Script Inspector OR edit .cs + Save (macOS hot-reload). "
-      "WASD move, click or walk into target.");
+      "[ScriptField] fields are discovered via ScriptFieldMirror; Inspector "
+      "builds widgets from reflection. Edit .cs + Save (macOS hot-reload) or "
+      "tweak live. WASD move, click or walk into target.");
 }
 
 script_editor_scene::~script_editor_scene() { delete m_shader; }
@@ -48,6 +49,16 @@ void script_editor_scene::note_invoke(bool ok, const char *what) {
   if (!ok) {
     m_last_invoke_msg = std::string(what) + ": failed";
   }
+}
+
+int script_editor_scene::find_field(const char *name) const {
+  if (!name)
+    return -1;
+  for (size_t i = 0; i < m_fields.size(); ++i) {
+    if (m_fields[i].name == name)
+      return static_cast<int>(i);
+  }
+  return -1;
 }
 
 void script_editor_scene::init(GLFWwindow *_window) {
@@ -69,7 +80,7 @@ void script_editor_scene::init(GLFWwindow *_window) {
   m_invoker.load(script_dll_path());
   if (m_invoker.is_ready()) {
     request_reset_game();
-    pull_scriptable_fields();
+    refresh_script_fields();
     m_last_invoke_msg = "assembly ready";
     m_last_invoke_ok = true;
   } else {
@@ -161,62 +172,132 @@ void script_editor_scene::pull_render_state_from_script() {
   note_invoke(ok, "pull render state");
 }
 
+void script_editor_scene::refresh_script_fields() {
+  if (!m_invoker.is_ready())
+    return;
+
+  // RefreshExample binds Scripts.ExampleScript (avoids MonoString arg plumbing).
+  bool ok = m_invoker.invoke(mono_invoker::script_ncm(
+      "Scripts"_ns, "ScriptFieldMirror"_cls, "RefreshExample"_md));
+  note_invoke(ok, "ScriptFieldMirror.RefreshExample");
+  if (!ok)
+    return;
+
+  int count = 0;
+  ok = m_invoker.invoke_r(mono_invoker::script_ncm(
+                              "Scripts"_ns, "ScriptFieldMirror"_cls, "Count"_md),
+                          count) &&
+       ok;
+  if (!ok) {
+    note_invoke(false, "ScriptFieldMirror.Count");
+    return;
+  }
+
+  m_fields.clear();
+  m_fields.reserve(static_cast<size_t>(count > 0 ? count : 0));
+
+  for (int i = 0; i < count; ++i) {
+    script_field_entry e;
+    std::string name;
+    int kind = -1;
+    float min_v = 0.0f, max_v = 0.0f;
+    int has_range = 0;
+
+    bool row_ok = true;
+    row_ok = m_invoker.invoke_r(
+                 mono_invoker::script_ncm("Scripts"_ns, "ScriptFieldMirror"_cls,
+                                          "GetName"_md),
+                 name, i) &&
+             row_ok;
+    row_ok = m_invoker.invoke_r(
+                 mono_invoker::script_ncm("Scripts"_ns, "ScriptFieldMirror"_cls,
+                                          "GetKind"_md),
+                 kind, i) &&
+             row_ok;
+    row_ok = m_invoker.invoke_r(
+                 mono_invoker::script_ncm("Scripts"_ns, "ScriptFieldMirror"_cls,
+                                          "GetMin"_md),
+                 min_v, i) &&
+             row_ok;
+    row_ok = m_invoker.invoke_r(
+                 mono_invoker::script_ncm("Scripts"_ns, "ScriptFieldMirror"_cls,
+                                          "GetMax"_md),
+                 max_v, i) &&
+             row_ok;
+    row_ok = m_invoker.invoke_r(
+                 mono_invoker::script_ncm("Scripts"_ns, "ScriptFieldMirror"_cls,
+                                          "HasRange"_md),
+                 has_range, i) &&
+             row_ok;
+
+    if (!row_ok || kind < 0) {
+      note_invoke(false, "ScriptFieldMirror metadata");
+      continue;
+    }
+
+    e.name = name;
+    e.kind = kind;
+    e.min_v = min_v;
+    e.max_v = max_v;
+    e.has_range = has_range != 0;
+    m_fields.push_back(e);
+  }
+
+  pull_scriptable_fields();
+  apply_render_from_fields();
+  note_invoke(true, "fields discovered");
+  m_last_invoke_msg =
+      "discovered " + std::to_string(m_fields.size()) + " [ScriptField]s";
+}
+
 void script_editor_scene::pull_scriptable_fields() {
   if (!m_invoker.is_ready())
     return;
 
   bool ok = true;
-  ok = m_invoker.invoke_r(
-           mono_invoker::script_ncm("Scripts"_ns, "ExampleScript"_cls,
-                                    "GetMoveSpeed"_md),
-           m_move_speed) &&
-       ok;
-  ok = m_invoker.invoke_r(
-           mono_invoker::script_ncm("Scripts"_ns, "ExampleScript"_cls,
-                                    "GetPlayerHalf"_md),
-           m_player_half) &&
-       ok;
-  ok = m_invoker.invoke_r(
-           mono_invoker::script_ncm("Scripts"_ns, "ExampleScript"_cls,
-                                    "GetTargetHalf"_md),
-           m_target_half) &&
-       ok;
-  ok = m_invoker.invoke_r(
-           mono_invoker::script_ncm("Scripts"_ns, "ExampleScript"_cls,
-                                    "GetGoalScore"_md),
-           m_goal_score) &&
-       ok;
-  ok = m_invoker.invoke_r(
-           mono_invoker::script_ncm("Scripts"_ns, "ExampleScript"_cls,
-                                    "GetPlayerR"_md),
-           m_player_color[0]) &&
-       ok;
-  ok = m_invoker.invoke_r(
-           mono_invoker::script_ncm("Scripts"_ns, "ExampleScript"_cls,
-                                    "GetPlayerG"_md),
-           m_player_color[1]) &&
-       ok;
-  ok = m_invoker.invoke_r(
-           mono_invoker::script_ncm("Scripts"_ns, "ExampleScript"_cls,
-                                    "GetPlayerB"_md),
-           m_player_color[2]) &&
-       ok;
-  ok = m_invoker.invoke_r(
-           mono_invoker::script_ncm("Scripts"_ns, "ExampleScript"_cls,
-                                    "GetTargetR"_md),
-           m_target_color[0]) &&
-       ok;
-  ok = m_invoker.invoke_r(
-           mono_invoker::script_ncm("Scripts"_ns, "ExampleScript"_cls,
-                                    "GetTargetG"_md),
-           m_target_color[1]) &&
-       ok;
-  ok = m_invoker.invoke_r(
-           mono_invoker::script_ncm("Scripts"_ns, "ExampleScript"_cls,
-                                    "GetTargetB"_md),
-           m_target_color[2]) &&
-       ok;
+  for (size_t i = 0; i < m_fields.size(); ++i) {
+    script_field_entry &e = m_fields[i];
+    int idx = static_cast<int>(i);
+    if (e.kind == 0) {
+      ok = m_invoker.invoke_r(
+               mono_invoker::script_ncm("Scripts"_ns, "ScriptFieldMirror"_cls,
+                                        "GetFloat"_md),
+               e.f, idx) &&
+           ok;
+    } else if (e.kind == 1) {
+      ok = m_invoker.invoke_r(
+               mono_invoker::script_ncm("Scripts"_ns, "ScriptFieldMirror"_cls,
+                                        "GetInt"_md),
+               e.i, idx) &&
+           ok;
+    } else if (e.kind == 2) {
+      int bv = 0;
+      ok = m_invoker.invoke_r(
+               mono_invoker::script_ncm("Scripts"_ns, "ScriptFieldMirror"_cls,
+                                        "GetBool"_md),
+               bv, idx) &&
+           ok;
+      e.b = bv != 0;
+    } else if (e.kind == 3) {
+      ok = m_invoker.invoke_r(
+               mono_invoker::script_ncm("Scripts"_ns, "ScriptFieldMirror"_cls,
+                                        "GetColorR"_md),
+               e.color[0], idx) &&
+           ok;
+      ok = m_invoker.invoke_r(
+               mono_invoker::script_ncm("Scripts"_ns, "ScriptFieldMirror"_cls,
+                                        "GetColorG"_md),
+               e.color[1], idx) &&
+           ok;
+      ok = m_invoker.invoke_r(
+               mono_invoker::script_ncm("Scripts"_ns, "ScriptFieldMirror"_cls,
+                                        "GetColorB"_md),
+               e.color[2], idx) &&
+           ok;
+    }
+  }
   note_invoke(ok, "pull scriptable fields");
+  apply_render_from_fields();
 }
 
 void script_editor_scene::push_scriptable_fields() {
@@ -224,33 +305,57 @@ void script_editor_scene::push_scriptable_fields() {
     return;
 
   bool ok = true;
-  ok = m_invoker.invoke(mono_invoker::script_ncm(
-                            "Scripts"_ns, "ExampleScript"_cls, "SetMoveSpeed"_md),
-                        m_move_speed) &&
-       ok;
-  ok = m_invoker.invoke(mono_invoker::script_ncm(
-                            "Scripts"_ns, "ExampleScript"_cls, "SetPlayerHalf"_md),
-                        m_player_half) &&
-       ok;
-  ok = m_invoker.invoke(mono_invoker::script_ncm(
-                            "Scripts"_ns, "ExampleScript"_cls, "SetTargetHalf"_md),
-                        m_target_half) &&
-       ok;
-  ok = m_invoker.invoke(mono_invoker::script_ncm(
-                            "Scripts"_ns, "ExampleScript"_cls, "SetGoalScore"_md),
-                        m_goal_score) &&
-       ok;
-  ok = m_invoker.invoke(
-           mono_invoker::script_ncm("Scripts"_ns, "ExampleScript"_cls,
-                                    "SetPlayerColor"_md),
-           m_player_color[0], m_player_color[1], m_player_color[2]) &&
-       ok;
-  ok = m_invoker.invoke(
-           mono_invoker::script_ncm("Scripts"_ns, "ExampleScript"_cls,
-                                    "SetTargetColor"_md),
-           m_target_color[0], m_target_color[1], m_target_color[2]) &&
-       ok;
+  for (size_t i = 0; i < m_fields.size(); ++i) {
+    script_field_entry &e = m_fields[i];
+    int idx = static_cast<int>(i);
+    if (e.kind == 0) {
+      ok = m_invoker.invoke(mono_invoker::script_ncm(
+                                "Scripts"_ns, "ScriptFieldMirror"_cls,
+                                "SetFloat"_md),
+                            idx, e.f) &&
+           ok;
+    } else if (e.kind == 1) {
+      ok = m_invoker.invoke(mono_invoker::script_ncm(
+                                "Scripts"_ns, "ScriptFieldMirror"_cls,
+                                "SetInt"_md),
+                            idx, e.i) &&
+           ok;
+    } else if (e.kind == 2) {
+      int bv = e.b ? 1 : 0;
+      ok = m_invoker.invoke(mono_invoker::script_ncm(
+                                "Scripts"_ns, "ScriptFieldMirror"_cls,
+                                "SetBool"_md),
+                            idx, bv) &&
+           ok;
+    } else if (e.kind == 3) {
+      ok = m_invoker.invoke(mono_invoker::script_ncm(
+                                "Scripts"_ns, "ScriptFieldMirror"_cls,
+                                "SetColor"_md),
+                            idx, e.color[0], e.color[1], e.color[2]) &&
+           ok;
+    }
+  }
   note_invoke(ok, "push scriptable fields");
+}
+
+void script_editor_scene::apply_render_from_fields() {
+  int i;
+  if ((i = find_field("PlayerHalf")) >= 0 && m_fields[i].kind == 0)
+    m_player_half = m_fields[i].f;
+  if ((i = find_field("TargetHalf")) >= 0 && m_fields[i].kind == 0)
+    m_target_half = m_fields[i].f;
+  if ((i = find_field("GoalScore")) >= 0 && m_fields[i].kind == 1)
+    m_goal_score = m_fields[i].i;
+  if ((i = find_field("PlayerColor")) >= 0 && m_fields[i].kind == 3) {
+    m_player_color[0] = m_fields[i].color[0];
+    m_player_color[1] = m_fields[i].color[1];
+    m_player_color[2] = m_fields[i].color[2];
+  }
+  if ((i = find_field("TargetColor")) >= 0 && m_fields[i].kind == 3) {
+    m_target_color[0] = m_fields[i].color[0];
+    m_target_color[1] = m_fields[i].color[1];
+    m_target_color[2] = m_fields[i].color[2];
+  }
 }
 
 void script_editor_scene::request_reset_game() {
@@ -292,7 +397,7 @@ void script_editor_scene::render() {
 
   m_shader->use();
 
-  // Target then player — pose + scale + color come from C# scriptable fields.
+  // Target then player — pose + scale + color come from discovered fields.
   m_shader->set_uniform("uOffset", m_target);
   m_shader->set_uniform("uScale", m_target_half * 2.0f);
   m_shader->set_uniform(
@@ -314,9 +419,9 @@ void script_editor_scene::render_ui() {
   ImGui::Spacing();
   ImGui::TextWrapped(
       "WASD / arrows move. Left-click the target (or walk into it) to score. "
-      "R resets. Edit ExampleScript.cs (Start/Update + scriptable fields) then "
-      "Save to hot-reload on macOS — or tweak live in Script Inspector below. "
-      "Host sets Input/Time and pulls pose/HUD/fields; game logic lives in C#.");
+      "R resets. [ScriptField] on ExampleScript is discovered by "
+      "ScriptFieldMirror — Inspector widgets below are built from reflection, "
+      "not hand-wired Get/Set. Edit .cs + Save (macOS) or tweak live.");
   ImGui::Text("Assembly: %s", m_invoker.is_ready() ? "ready" : "not loaded");
   ImGui::Text("Last invoke: %s", m_last_invoke_msg.c_str());
   ImGui::Text("Score: %d / %d%s", m_score, m_goal_score,
@@ -328,19 +433,42 @@ void script_editor_scene::render_ui() {
   }
 
   ImGui::Separator();
-  ImGui::Text("Script Inspector");
+  ImGui::Text("Script Inspector (reflection)");
   ImGui::TextWrapped(
-      "Live mirror of ExampleScript scriptable fields. Drag here to push into "
-      "the loaded assembly, or change defaults in .cs and Save (macOS) to "
-      "reload — both paths are the teaching point.");
+      "Widgets come from ScriptFieldMirror over [ScriptField] public static "
+      "fields (float / int / bool / Color). Unsupported types are skipped. "
+      "Refresh re-discovers after Save/hot-reload.");
 
   bool dirty = false;
-  dirty |= ImGui::SliderFloat("Move speed", &m_move_speed, 0.05f, 8.0f, "%.2f");
-  dirty |= ImGui::SliderFloat("Player half", &m_player_half, 0.04f, 0.4f, "%.2f");
-  dirty |= ImGui::SliderFloat("Target half", &m_target_half, 0.03f, 0.3f, "%.2f");
-  dirty |= ImGui::SliderInt("Goal score", &m_goal_score, 1, 50);
-  dirty |= ImGui::ColorEdit3("Player color", m_player_color);
-  dirty |= ImGui::ColorEdit3("Target color", m_target_color);
+  if (m_fields.empty()) {
+    ImGui::TextDisabled("(no [ScriptField] discovered — Refresh after load)");
+  }
+  for (size_t i = 0; i < m_fields.size(); ++i) {
+    script_field_entry &e = m_fields[i];
+    ImGui::PushID(static_cast<int>(i));
+    if (e.kind == 0) {
+      float lo = e.has_range ? e.min_v : 0.0f;
+      float hi = e.has_range ? e.max_v : 10.0f;
+      if (e.has_range)
+        dirty |= ImGui::SliderFloat(e.name.c_str(), &e.f, lo, hi, "%.2f");
+      else
+        dirty |= ImGui::DragFloat(e.name.c_str(), &e.f, 0.01f);
+    } else if (e.kind == 1) {
+      int lo = e.has_range ? static_cast<int>(e.min_v) : 0;
+      int hi = e.has_range ? static_cast<int>(e.max_v) : 100;
+      if (e.has_range)
+        dirty |= ImGui::SliderInt(e.name.c_str(), &e.i, lo, hi);
+      else
+        dirty |= ImGui::DragInt(e.name.c_str(), &e.i, 1.0f);
+    } else if (e.kind == 2) {
+      dirty |= ImGui::Checkbox(e.name.c_str(), &e.b);
+    } else if (e.kind == 3) {
+      dirty |= ImGui::ColorEdit3(e.name.c_str(), e.color);
+    } else {
+      ImGui::TextDisabled("%s (unsupported kind %d)", e.name.c_str(), e.kind);
+    }
+    ImGui::PopID();
+  }
 
   if (dirty) {
     push_scriptable_fields();
@@ -350,8 +478,7 @@ void script_editor_scene::render_ui() {
   }
 
   if (ImGui::Button("Refresh fields from script")) {
-    pull_scriptable_fields();
-    m_last_invoke_msg = "fields refreshed from C#";
+    refresh_script_fields();
   }
 
   ImGui::Separator();
@@ -410,9 +537,9 @@ bool script_editor_scene::on_save_script() {
     m_last_invoke_msg = "reload failed";
   } else {
     request_reset_game();
-    pull_scriptable_fields();
+    refresh_script_fields();
     m_last_invoke_ok = true;
-    m_last_invoke_msg = "reloaded";
+    m_last_invoke_msg = "reloaded + re-discovered fields";
   }
 
   return true;
