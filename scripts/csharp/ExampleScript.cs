@@ -12,6 +12,8 @@ namespace Scripts
     /// Scriptable fields use [ScriptField] (SerializeField-style). Host discovers
     /// them via ScriptFieldMirror reflection — no per-field Get/Set glue in C++.
     /// Edit defaults here + Save, or tweak live in the Script Inspector.
+    /// Live inspector overrides survive Save/hot-reload (matched by name+kind);
+    /// host "Refresh fields from script" re-pulls these CS defaults.
     /// </summary>
     public static class ExampleScript
     {

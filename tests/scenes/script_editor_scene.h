@@ -47,6 +47,8 @@ private:
   void forward_input_to_script();
   void pull_render_state_from_script();
   void refresh_script_fields();
+  void stash_script_fields();
+  void restore_script_fields_from_stash();
   void pull_scriptable_fields();
   void push_scriptable_fields();
   void apply_render_from_fields();
@@ -72,6 +74,9 @@ private:
 
   // Dynamic mirror of [ScriptField] entries (built by ScriptFieldMirror).
   std::vector<script_field_entry> m_fields;
+  // Live inspector values stashed across Save/hot-reload (keyed by name+kind).
+  // Explicit "Refresh fields from script" discards this and re-pulls CS defaults.
+  std::vector<script_field_entry> m_field_stash;
 
   // Render caches filled from discovered fields by name.
   float m_player_half = 0.12f;
